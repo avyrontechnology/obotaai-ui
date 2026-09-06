@@ -227,7 +227,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
               className="grid grid-cols-2 md:grid-cols-12 gap-2 md:gap-4 md:items-center p-4 md:px-6 bg-card border border-border rounded-3xl text-left transition-colors hover:bg-muted/60 group"
             >
               <div className="col-span-1 md:col-span-4 font-mono text-sm text-foreground">
-                {execution.to_number}
+                {execution.to_number ?? "—"}
               </div>
               <div className="col-span-1 md:col-span-3">
                 <StatusBadge status={execution.status} />

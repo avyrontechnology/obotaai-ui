@@ -13,6 +13,7 @@ export function LLMConfigForm() {
           options={[
             { label: "OpenAI", value: "openai" },
             { label: "Anthropic", value: "anthropic" },
+            { label: "Google (Gemini)", value: "google" },
             { label: "Groq", value: "groq" },
             { label: "Together AI", value: "together" },
             { label: "Anyscale", value: "anyscale" },

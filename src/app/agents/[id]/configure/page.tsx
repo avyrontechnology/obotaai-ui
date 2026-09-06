@@ -28,6 +28,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { agentConfigSchema, AgentConfigData } from "@/lib/schemas/agent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { visibleGroupsFor, type SectionId } from "@/components/settings/sections";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import * as z from "zod";
 
 // The settings sub-forms register fields under the `agent_config.*` prefix
@@ -54,6 +55,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   const updateMutation = useUpdateAgent();
 
   const [activeSection, setActiveSection] = useState<SectionId>("persona");
+  const canWrite = useCan("agents.write");
 
   // Merge the prompts file into persona so every field loads populated.
   // The record carries the greeting; the file carries the system prompt.
@@ -209,7 +211,8 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
               (errors) =>
                 notify.error("Cannot save yet", new Error(firstErrorMessage(errors as Record<string, unknown>)))
             )}
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isPending || !canWrite}
+            title={canWrite ? undefined : `Requires ${minRoleFor("agents.write")} role`}
             className="flex items-center gap-2 px-6 h-11 rounded-2xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-all"
           >
             {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

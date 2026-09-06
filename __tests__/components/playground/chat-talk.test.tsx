@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ChatTalk } from "@/components/playground/chat-talk";
 
+jest.mock("@/services/platform/tools", () => ({
+  useAgentTools: () => ({ data: [], isLoading: false }),
+}));
+
 type Handler = (event: unknown) => void;
 
 class MockSocket {
@@ -40,15 +44,23 @@ describe("ChatTalk socket protocol", () => {
   beforeEach(() => {
     MockSocket.instances = [];
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = MockSocket;
+    // No backend in jsdom: ticket fetch fails fast, socket falls back to cookies.
+    (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockRejectedValue(new Error("no backend"));
   });
 
   afterEach(() => {
     delete (globalThis as unknown as { WebSocket?: unknown }).WebSocket;
+    delete (globalThis as unknown as { fetch?: unknown }).fetch;
   });
 
-  it("connects to the agent voice socket and sends init", () => {
+  async function renderChat() {
     render(<ChatTalk agentId="agent-1" agentName="Test Agent" />);
-    const socket = MockSocket.instances[0];
+    await act(async () => {});
+    return MockSocket.instances[0];
+  }
+
+  it("connects to the agent voice socket and sends init", async () => {
+    const socket = await renderChat();
     expect(socket.url).toBe("ws://localhost:5001/chat/v1/agent-1");
     act(() => socket.open());
     expect(socket.sent).toEqual([
@@ -61,9 +73,19 @@ describe("ChatTalk socket protocol", () => {
     expect(screen.getAllByText(/Chatting with Test Agent/)).toHaveLength(1);
   });
 
-  it("sends typed turns and renders both transcript roles", () => {
-    render(<ChatTalk agentId="agent-1" agentName="Test Agent" />);
-    const socket = MockSocket.instances[0];
+  it("attaches the ws ticket when the backend mints one", async () => {
+    (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ticket: "t-123", expires_in: 60 }),
+    });
+    render(<ChatTalk agentId="agent-9" agentName="Test Agent" />);
+    await act(async () => {});
+    expect(MockSocket.instances[0].url).toBe("ws://localhost:5001/chat/v1/agent-9?token=t-123");
+  });
+
+  it("sends typed turns and renders both transcript roles", async () => {
+    const socket = await renderChat();
     act(() => socket.open());
 
     fireEvent.change(screen.getByLabelText("Chat message"), { target: { value: "Hello there" } });
@@ -80,9 +102,8 @@ describe("ChatTalk socket protocol", () => {
     expect(screen.getByText("Hi! How can I help?")).toBeInTheDocument();
   });
 
-  it("echoes marks and ignores audio frames quietly", () => {
-    render(<ChatTalk agentId="agent-1" agentName="Test Agent" />);
-    const socket = MockSocket.instances[0];
+  it("echoes marks and ignores audio frames quietly", async () => {
+    const socket = await renderChat();
     act(() => socket.open());
     act(() => {
       socket.receive({ type: "mark", name: "m-1" });
@@ -91,9 +112,8 @@ describe("ChatTalk socket protocol", () => {
     expect(socket.sent).toContainEqual(JSON.stringify({ type: "mark", name: "m-1" }));
   });
 
-  it("shows a backend error when the socket dies before connect", () => {
-    render(<ChatTalk agentId="agent-1" agentName="Test Agent" />);
-    const socket = MockSocket.instances[0];
+  it("shows a backend error when the socket dies before connect", async () => {
+    const socket = await renderChat();
     act(() => {
       socket.onerror?.({});
     });

@@ -1,12 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AppSidebar } from "./app-sidebar";
 import { CommandPalette } from "./command-palette";
 import { TopBar } from "./top-bar";
 import { CommandDock } from "./command-dock";
 
+const PUBLIC_PREFIXES = ["/login", "/accept-invite"];
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  // Auth pages render chromeless (no sidebar/topbar/command palette).
+  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+  }
+  return <AuthedShell>{children}</AuthedShell>;
+}
+
+function AuthedShell({ children }: { children: React.ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);

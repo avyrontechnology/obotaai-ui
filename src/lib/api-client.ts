@@ -23,9 +23,21 @@ export async function apiClient<T>(
     ...options.headers,
   };
 
-  const response = await fetch(url, { ...options, headers });
+  // Sessions ride an httpOnly cookie; include it on every API call.
+  const response = await fetch(url, { ...options, headers, credentials: "include" });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      const path = window.location.pathname;
+      const isPublic = ["/login", "/accept-invite"].some((route) =>
+        path.startsWith(route)
+      );
+      if (!isPublic) {
+        // replace (not href): a 401 page must not stay in history, and this
+        // runs outside React components where useRouter is unavailable.
+        window.location.replace(`/login?next=${encodeURIComponent(path + window.location.search)}`);
+      }
+    }
     const errorData = await response.json().catch(() => ({}));
     const detail = Array.isArray(errorData.detail)
       ? errorData.detail.map((entry: { msg?: string }) => entry.msg ?? "Invalid request").join("; ")

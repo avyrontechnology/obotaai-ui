@@ -5,6 +5,7 @@ const HEADERS = [
   "agent_id",
   "batch_id",
   "direction",
+  "from_number",
   "to_number",
   "status",
   "started_at",
@@ -16,7 +17,7 @@ const HEADERS = [
 ] as const;
 
 function escapeCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 function transcriptToText(execution: Execution): string {
@@ -31,7 +32,8 @@ export function executionsToCsv(executions: Execution[]): string {
       execution.agent_id,
       execution.batch_id ?? "",
       execution.direction,
-      execution.to_number,
+      execution.from_number ?? "",
+      execution.to_number ?? "",
       execution.status,
       execution.started_at,
       String(execution.duration_s),
@@ -43,7 +45,7 @@ export function executionsToCsv(executions: Execution[]): string {
       .map(escapeCell)
       .join(",")
   );
-  return [HEADERS.join(","), ...rows].join("\n");
+  return [HEADERS.join(","), ...rows].join("\r\n");
 }
 
 /** Trigger a browser download of CSV text. */

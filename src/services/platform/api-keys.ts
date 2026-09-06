@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import {
   apiKeyListSchema,
+  createApiKeyInputSchema,
   createApiKeyResponseSchema,
+  type CreateApiKeyInput,
   type CreateApiKeyResponse,
 } from "@/lib/schemas/platform";
 
@@ -23,10 +25,10 @@ export function useApiKeys() {
 export function useCreateApiKey() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (input: CreateApiKeyInput) => {
       const raw = await apiClient<unknown>("/api-keys", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(createApiKeyInputSchema.parse(input)),
       });
       return createApiKeyResponseSchema.parse(raw) as CreateApiKeyResponse;
     },

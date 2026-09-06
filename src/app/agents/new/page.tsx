@@ -4,7 +4,7 @@ import { AgentWizard } from "@/components/dashboard/agent-wizard";
 
 export default function NewAgentPage() {
   return (
-    <div className="flex flex-col flex-1 min-h-full max-w-7xl mx-auto w-full pt-12 pb-24 px-4 md:px-8">
+    <div className="flex flex-col flex-1 min-h-full max-w-5xl mx-auto w-full pt-12 pb-24 px-4 md:px-8">
       <Link
         href="/agents"
         className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-6 w-fit"

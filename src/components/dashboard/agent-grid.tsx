@@ -2,20 +2,39 @@
 
 import { useMemo } from "react";
 import { useAgents } from "@/services/api";
-import { AgentCard } from "./agent-card";
+import { AgentCard, type FleetStats } from "./agent-card";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ServerCrash, Plus, Mic, Sparkles } from "lucide-react";
+import { Loader2, ServerCrash, Plus, Mic } from "lucide-react";
 import Link from "next/link";
 import { useExecutions } from "@/services/platform/executions";
 
 export function AgentGrid() {
   const { data: agents, isLoading, error, refetch } = useAgents();
-  // Single aggregate fetch for card session counts — no per-card queries.
-  const { data: executions } = useExecutions();
-  const sessionsByAgent = useMemo(() => {
-    const map = new Map<string, number>();
+  // Single aggregate fetch for per-agent fleet telemetry — no per-card queries.
+  const { data: executions } = useExecutions({ limit: 500 });
+  const statsByAgent = useMemo(() => {
+    const acc = new Map<string, { sessions: number; latencies: number[]; completed: number; last: string | null }>();
     (executions ?? []).forEach((execution) => {
-      map.set(execution.agent_id, (map.get(execution.agent_id) ?? 0) + 1);
+      const entry = acc.get(execution.agent_id) ?? { sessions: 0, latencies: [], completed: 0, last: null };
+      entry.sessions += 1;
+      if (execution.latency && Number.isFinite(execution.latency.e2e_ms)) {
+        entry.latencies.push(execution.latency.e2e_ms);
+      }
+      if (execution.status === "completed") entry.completed += 1;
+      if (!entry.last || execution.started_at > entry.last) entry.last = execution.started_at;
+      acc.set(execution.agent_id, entry);
+    });
+    const map = new Map<string, FleetStats>();
+    acc.forEach((entry, agentId) => {
+      map.set(agentId, {
+        sessions: entry.sessions,
+        avgLatencyMs:
+          entry.latencies.length > 0
+            ? Math.round(entry.latencies.reduce((a, b) => a + b, 0) / entry.latencies.length)
+            : null,
+        successRate: entry.sessions > 0 ? entry.completed / entry.sessions : null,
+        lastCallAt: entry.last,
+      });
     });
     return map;
   }, [executions]);
@@ -86,39 +105,22 @@ export function AgentGrid() {
 
   return (
     <div className="w-full">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-12 mt-8 relative z-10 gap-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 relative z-10 gap-4">
         <div>
-          <motion.h2 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-4xl md:text-5xl font-medium text-foreground tracking-tight mb-3 flex items-center gap-3"
-          >
-            Active <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-ember-700 via-primary to-ember-600 dark:from-primary dark:via-ember-300 dark:to-ember-300">Agents</span>
-            <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-          </motion.h2>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-sm font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-2"
-          >
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            Active Neural Fleet
+          </h2>
+          <p className="text-sm text-muted-foreground font-mono mt-0.5 uppercase tracking-widest flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             Monitoring {agents?.length || 0} deployed instances
-          </motion.p>
+          </p>
         </div>
-        <Link href="/agents/new">
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            className="group flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-xl hover:shadow-2xl transition-all"
-          >
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors">
-              <Plus className="w-5 h-5" />
-            </div>
-            <span>New Agent</span>
-          </motion.button>
+        <Link
+          href="/agents/new"
+          className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg hover:shadow-xl transition-all shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Deploy Agent</span>
         </Link>
       </div>
 
@@ -155,12 +157,21 @@ export function AgentGrid() {
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative z-10"
+          className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 snap-x custom-scrollbar relative z-10"
         >
           <AnimatePresence mode="popLayout">
             {agents.map((agent) => (
-              <motion.div key={agent.agent_id} variants={itemVariants} layout="position">
-                <AgentCard agent={agent} sessions={sessionsByAgent.get(agent.agent_id) ?? 0} />
+              <motion.div
+                key={agent.agent_id}
+                variants={itemVariants}
+                layout="position"
+                className="snap-start shrink-0 w-[340px]"
+              >
+                <AgentCard
+                  agent={agent}
+                  sessions={statsByAgent.get(agent.agent_id)?.sessions ?? 0}
+                  stats={statsByAgent.get(agent.agent_id) ?? null}
+                />
               </motion.div>
             ))}
           </AnimatePresence>

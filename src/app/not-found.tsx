@@ -41,7 +41,7 @@ const QUICK_LINKS = [
   { label: "Agents", href: "/agents" },
   { label: "Call History", href: "/calls" },
   { label: "Library", href: "/library" },
-  { label: "Studio", href: "/playground" },
+  { label: "Playground", href: "/playground" },
 ];
 
 export default function NotFound() {

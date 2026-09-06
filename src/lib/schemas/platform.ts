@@ -45,7 +45,7 @@ export const executionSchema = z.object({
   agent_id: z.string(),
   batch_id: z.string().nullable(),
   direction: z.enum(["outbound", "inbound"]),
-  to_number: z.string(),
+  to_number: z.string().nullable(),
   from_number: z.string().nullable(),
   status: executionStatusSchema,
   variables: z.record(z.string(), z.unknown()),
@@ -383,8 +383,17 @@ export const apiKeySchema = z.object({
   key_id: z.string(),
   name: z.string(),
   prefix: z.string(),
+  scopes: z.array(z.string()).default([]),
+  expires_at: z.string().nullable().optional(),
+  created_by: z.string().nullable().optional(),
   created_at: z.string(),
   last_used_at: z.string().nullable().optional(),
+});
+
+export const createApiKeyInputSchema = z.object({
+  name: z.string().min(1),
+  scopes: z.array(z.string()).default([]),
+  expires_in_days: z.number().int().positive().optional(),
 });
 
 export const apiKeyListSchema = z.object({ api_keys: z.array(apiKeySchema) });
@@ -440,4 +449,21 @@ export type Organization = z.infer<typeof organizationSchema>;
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
 export type NotificationPrefs = z.infer<typeof notificationPrefsSchema>;
 export type ApiKey = z.infer<typeof apiKeySchema>;
+export type CreateApiKeyInput = z.infer<typeof createApiKeyInputSchema>;
 export type CreateApiKeyResponse = z.infer<typeof createApiKeyResponseSchema>;
+
+export const API_SCOPES = [
+  "agents:read",
+  "agents:write",
+  "calls:read",
+  "calls:write",
+  "batches:read",
+  "batches:write",
+  "platform:read",
+  "platform:write",
+  "users:read",
+  "users:write",
+  "keys:read",
+  "keys:write",
+  "admin",
+] as const;

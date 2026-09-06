@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { useOrganization, useResetWorkspace, useUpdateOrganization } from "@/services/platform/organization";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { fieldStyles } from "@/lib/field-styles";
 
 
@@ -10,6 +11,8 @@ export function OrgGeneral() {
   const { data: org, isLoading } = useOrganization();
   const updateOrg = useUpdateOrganization();
   const resetWorkspace = useResetWorkspace();
+  const canReset = useCan("workspace.reset");
+  const canWriteSettings = useCan("settings.write");
 
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -105,7 +108,8 @@ export function OrgGeneral() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => void handleSave().catch(() => undefined)}
-            disabled={!dirty || updateOrg.isPending}
+            disabled={!dirty || updateOrg.isPending || !canWriteSettings}
+            title={canWriteSettings ? undefined : `Requires ${minRoleFor("settings.write")} role`}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {updateOrg.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -143,7 +147,8 @@ export function OrgGeneral() {
           </div>
           <button
             onClick={() => void handleReset().catch(() => undefined)}
-            disabled={resetWorkspace.isPending}
+            disabled={resetWorkspace.isPending || !canReset}
+            title={canReset ? undefined : `Requires ${minRoleFor("workspace.reset")} role`}
             className="px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium rounded-xl text-sm transition-colors shadow-lg shadow-red-600/20 whitespace-nowrap shrink-0 flex items-center gap-2"
           >
             {resetWorkspace.isPending && <Loader2 className="w-4 h-4 animate-spin" />}

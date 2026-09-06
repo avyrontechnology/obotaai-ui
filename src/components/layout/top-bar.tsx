@@ -6,7 +6,40 @@ import { Bell, ChevronRight, CircleUserRound, Command, LogOut, Search, User, Wal
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useWallet } from "@/services/platform/wallet";
+import { useLogout, useSession } from "@/services/auth";
+import { API_BASE_URL } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+
+const API_HOST = (() => {
+  try {
+    return new URL(API_BASE_URL).host;
+  } catch {
+    return API_BASE_URL;
+  }
+})();
+
+/** Backend reachability derived from the session query — no extra requests. */
+function ApiStatus() {
+  const { data, isPending, isError } = useSession();
+  const live = !isPending && !isError && !!data;
+  return (
+    <span className="hidden xl:inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-border bg-card text-xs font-mono text-muted-foreground">
+      <span className="relative flex h-2 w-2">
+        {live && (
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+        )}
+        <span
+          className={cn(
+            "relative inline-flex rounded-full h-2 w-2",
+            live ? "bg-emerald-500" : isPending ? "bg-amber-400 animate-pulse" : "bg-stone-400"
+          )}
+        />
+      </span>
+      {live ? "API Connected" : isPending ? "Connecting…" : "API Unreachable"}
+      <span className="text-muted-foreground/70">· {API_HOST}</span>
+    </span>
+  );
+}
 
 const SEGMENT_LABELS: Record<string, string> = {
   agents: "Agents",
@@ -38,6 +71,8 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: wallet } = useWallet();
+  const { data: session } = useSession();
+  const logout = useLogout();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const crumbs = breadcrumbs(pathname);
@@ -83,6 +118,7 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2 shrink-0">
+        <ApiStatus />
         <button
           onClick={onOpenPalette}
           className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-sm transition-colors min-w-44 justify-between"
@@ -131,8 +167,16 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
             <div
               role="menu"
               aria-label="Account"
-              className="absolute right-0 top-11 w-52 rounded-2xl border border-border bg-popover text-popover-foreground shadow-xl p-1.5 z-50"
+              className="absolute right-0 top-11 w-60 rounded-2xl border border-border bg-popover text-popover-foreground shadow-xl p-1.5 z-50"
             >
+              {session && (
+                <div className="px-3 py-2.5 mb-1 rounded-xl bg-muted/60">
+                  <p className="text-sm font-medium text-foreground truncate">{session.user.name || session.user.email}</p>
+                  <p className="text-xs font-mono text-muted-foreground truncate">
+                    {session.user.email} · {session.user.role}
+                  </p>
+                </div>
+              )}
               {[
                 { label: "Profile settings", href: "/settings?tab=general", icon: User },
                 { label: "Billing", href: "/settings?tab=billing", icon: Wallet },
@@ -151,16 +195,18 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
               <div className="my-1.5 h-px bg-border" />
               <button
                 role="menuitem"
-                disabled
-                title="Available after the auth milestone"
+                onClick={() => {
+                  setMenuOpen(false);
+                  logout.mutate();
+                }}
+                disabled={logout.isPending}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm",
-                  "text-muted-foreground opacity-60 cursor-not-allowed"
+                  "text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                 )}
               >
                 <LogOut className="w-4 h-4" />
                 Sign out
-                <span className="ml-auto text-[10px] font-mono uppercase">soon</span>
               </button>
             </div>
           )}

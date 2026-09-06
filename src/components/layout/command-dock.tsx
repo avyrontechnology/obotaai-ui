@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Activity, GitFork, Layers, LayoutTemplate, PhoneCall, Settings, Workflow, LayoutDashboard } from "lucide-react";
+import { MessagesSquare, Activity, GitFork, Layers, LayoutTemplate, PhoneCall, Settings, Workflow, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,7 +13,7 @@ export function CommandDock() {
     { icon: Activity, label: "Agents", href: "/agents" },
     { icon: PhoneCall, label: "Call History", href: "/calls" },
     { icon: Layers, label: "Campaigns", href: "/batches" },
-    { icon: Mic, label: "Studio", href: "/playground" },
+    { icon: MessagesSquare, label: "Playground", href: "/playground" },
     { icon: LayoutTemplate, label: "Library", href: "/library" },
     { icon: GitFork, label: "Graphs", href: "/graphs" },
     { icon: Workflow, label: "Workflows", href: "/workflows" },

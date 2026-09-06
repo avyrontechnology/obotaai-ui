@@ -10,28 +10,39 @@ import {
 } from "@/lib/schemas/platform";
 import { latencyStatsSchema } from "@/lib/schemas/builders";
 
+export interface ExecutionFilters {
+  agent_id?: string;
+  batch_id?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export const executionKeys = {
   all: ["executions"] as const,
-  filtered: (filters: { agent_id?: string; batch_id?: string; status?: string }) =>
+  filtered: (filters: ExecutionFilters) =>
     ["executions", filters] as const,
   detail: (id: string) => ["executions", id] as const,
   stats: (agent_id?: string) => ["executions", "stats", { agent_id }] as const,
 };
 
-async function fetchExecutions(filters: { agent_id?: string; batch_id?: string; status?: string } = {}) {
+async function fetchExecutions(filters: ExecutionFilters = {}) {
   const params = new URLSearchParams();
   if (filters.agent_id) params.set("agent_id", filters.agent_id);
   if (filters.batch_id) params.set("batch_id", filters.batch_id);
   if (filters.status) params.set("status", filters.status);
+  if (filters.limit != null) params.set("limit", String(filters.limit));
+  if (filters.offset != null) params.set("offset", String(filters.offset));
   const query = params.toString();
   const raw = await apiClient<unknown>(`/executions${query ? `?${query}` : ""}`);
   return executionListSchema.parse(raw).executions;
 }
 
-export function useExecutions(filters: { agent_id?: string; batch_id?: string; status?: string } = {}) {
+export function useExecutions(filters: ExecutionFilters = {}) {
   return useQuery({
     queryKey: executionKeys.filtered(filters),
     queryFn: () => fetchExecutions(filters),
+    placeholderData: (previousData) => previousData,
   });
 }
 

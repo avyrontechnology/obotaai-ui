@@ -20,8 +20,15 @@ export function SearchInput({
   className,
 }: SearchInputProps) {
   const [focused, setFocused] = useState(false);
+  const expands = !className?.includes("!w-");
   return (
-    <div className={cn("relative flex items-center transition-all duration-500", focused ? "w-64" : "w-48", className)}>
+    <div
+      className={cn(
+        "relative flex items-center transition-all duration-500",
+        expands ? (focused ? "w-64" : "w-48") : "w-full",
+        className
+      )}
+    >
       <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
         <Search
           className={cn("w-4 h-4 transition-colors", focused ? "text-ember-600 dark:text-ember-400" : "text-muted-foreground")}

@@ -15,6 +15,7 @@ import { BatchStatusBadge } from "@/components/batches/batch-status-badge";
 import { timeAgo } from "@/lib/format";
 import { useAgents } from "@/services/api";
 import { useBatches } from "@/services/platform/batches";
+import { minRoleFor, useCan } from "@/lib/rbac";
 
 export default function BatchesPage() {
   return (
@@ -29,6 +30,8 @@ function BatchesContent() {
   // ?agent= from the agent overview filters the list and prefills the
   // create dialog. ?new= auto-opens the dialog (Launch Campaign flow).
   const deepLinkedAgent = searchParams.get("agent") ?? undefined;
+  const canWrite = useCan("batches.write");
+  // Auto-open is param-driven; the dialog itself gates submission by role.
   const [dialogOpen, setDialogOpen] = useState(() => searchParams.get("new") !== null);
   const { data: batches, isLoading, error, refetch } = useBatches(deepLinkedAgent);
   const { data: agents } = useAgents();
@@ -51,7 +54,9 @@ function BatchesContent() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.15 }}
             onClick={() => setDialogOpen(true)}
-            className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg transition-all hover:bg-primary/90 flex items-center gap-2 self-start md:self-auto"
+            disabled={!canWrite}
+            title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
+            className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg transition-all hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2 self-start md:self-auto"
           >
             <Plus className="w-4 h-4" />
             <span>New Campaign</span>
@@ -82,7 +87,9 @@ function BatchesContent() {
         >
           <button
             onClick={() => setDialogOpen(true)}
-            className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all hover:shadow-xl"
+            disabled={!canWrite}
+            title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
+            className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
           >
             Create Campaign
           </button>

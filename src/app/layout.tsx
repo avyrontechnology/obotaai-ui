@@ -16,6 +16,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "OtobaAI | Premium Voice Agent Playground",
   description: "Experience the next generation of conversational AI with OtobaAI. Create, deploy, and monitor neural voice agents in real-time.",
   keywords: ["Voice AI", "LLM Agents", "Conversational AI", "OtobaAI", "Real-time Voice"],

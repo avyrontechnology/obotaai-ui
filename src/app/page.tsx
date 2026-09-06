@@ -1,13 +1,43 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { AgentGrid } from "@/components/dashboard/agent-grid";
-import { FleetStats } from "@/components/dashboard/fleet-stats";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { RecentCalls } from "@/components/dashboard/recent-calls";
+import { StatCards } from "@/components/dashboard/stat-cards";
 import { SectionHeader } from "@/components/common/section-header";
+import { isTerminal } from "@/components/calls/status-badge";
+import { useExecutions } from "@/services/platform/executions";
+import { RANGE_LABEL, RANGE_MS, splitWindows, type RangeKey } from "@/lib/stats";
+import { cn } from "@/lib/utils";
+
+const RANGES: RangeKey[] = ["live", "1h", "24h", "7d"];
 
 export default function Home() {
+  const [range, setRange] = useState<RangeKey>("24h");
+  // Wide fetch so range windows have real history behind them.
+  const { data: executions, refetch } = useExecutions({ limit: 500 });
+
+  const hasActive = useMemo(
+    () => (executions ?? []).some((execution) => !isTerminal(execution.status)),
+    [executions]
+  );
+
+  // Live-tail while calls are running; settle otherwise.
+  useEffect(() => {
+    if (range !== "live" && !hasActive) return;
+    const timer = setInterval(() => refetch(), 4000);
+    return () => clearInterval(timer);
+  }, [range, hasActive, refetch]);
+
+  const { current, previous } = useMemo(
+    () => splitWindows(executions ?? [], RANGE_MS[range]),
+    [executions, range]
+  );
+
   return (
     <div className="flex flex-col flex-1 min-h-full max-w-7xl mx-auto w-full pt-12 pb-24 gap-12">
-      
+
       {/* Command Hero & System Status */}
       <section className="flex flex-col gap-6 mt-4">
         <div className="flex items-center gap-3">
@@ -19,20 +49,40 @@ export default function Home() {
             Matrix Online • All systems nominal
           </p>
         </div>
-        
-        <SectionHeader 
-          title={<span className="text-3xl md:text-4xl text-foreground">Command Center</span>}
-          description="Global overview of your neural fleet and conversational metrics."
-          className="!mb-2"
-        />
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <SectionHeader
+            title={<span className="text-3xl md:text-4xl text-foreground">Command Center</span>}
+            description="Global overview of your neural fleet and conversational metrics."
+            className="!mb-2"
+          />
+          <div className="flex items-center gap-1 p-1 rounded-2xl border border-border bg-card shrink-0" role="tablist" aria-label="Time range">
+            {RANGES.map((option) => (
+              <button
+                key={option}
+                onClick={() => setRange(option)}
+                role="tab"
+                aria-selected={range === option}
+                className={cn(
+                  "px-4 h-9 rounded-xl text-sm font-mono transition-colors",
+                  range === option
+                    ? "bg-primary text-primary-foreground font-semibold shadow"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {RANGE_LABEL[option]}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Key Metrics Row */}
-        <FleetStats />
+        <StatCards current={current} previous={previous} range={range} rangeMs={RANGE_MS[range]} />
       </section>
 
       <GettingStarted />
 
-      <RecentCalls />
+      <RecentCalls executions={current} />
 
       {/* Agent Fleet */}
       <section className="flex flex-col">

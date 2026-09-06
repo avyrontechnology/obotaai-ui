@@ -10,7 +10,6 @@ import {
   Cpu,
   Settings2,
   Bot,
-  PhoneCall,
   Trash2,
   Check,
   X,
@@ -26,6 +25,7 @@ import { ErrorState } from "@/components/common/error-state";
 import { useAgents, useDeleteAgent, type Agent } from "@/services/api";
 import { useExecutions } from "@/services/platform/executions";
 import { notify } from "@/lib/notify";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 
 const TYPE_META: Record<string, { label: string; icon: typeof Mic; color: string; bg: string }> = {
@@ -60,6 +60,7 @@ function AgentRow({
   const meta = metaFor(agent);
   const Icon = meta.icon;
   const deleteMutation = useDeleteAgent();
+  const canDelete = useCan("agents.delete");
   const [confirming, setConfirming] = useState(false);
   const model = agent.agent_config.llm?.model ?? agent.agent_config.s2s?.model ?? "—";
 
@@ -124,12 +125,12 @@ function AgentRow({
 
       <div className="col-span-1 flex items-center justify-end gap-1" onClick={(e) => e.preventDefault()}>
         <Link
-          href={`/playground?agent=${agent.agent_id}`}
-          aria-label={`Test ${agent.agent_name}`}
-          title="Test in Playground"
+          href={`/playground?agent=${agent.agent_id}&mode=talk`}
+          aria-label={`Talk to ${agent.agent_name}`}
+          title="Talk in Playground"
           className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
         >
-          <PhoneCall className="w-4 h-4" />
+          <Mic className="w-4 h-4" />
         </Link>
         <Link
           href={`/agents/${agent.agent_id}/configure`}
@@ -162,7 +163,7 @@ function AgentRow({
               <X className="w-4 h-4" />
             </button>
           </span>
-        ) : (
+        ) : canDelete ? (
           <button
             onClick={() => setConfirming(true)}
             aria-label={`Delete ${agent.agent_name}`}
@@ -171,6 +172,14 @@ function AgentRow({
           >
             <Trash2 className="w-4 h-4" />
           </button>
+        ) : (
+          <span
+            title={`Requires ${minRoleFor("agents.delete")} role`}
+            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center text-muted-foreground/40 cursor-not-allowed"
+            aria-label="Delete unavailable for your role"
+          >
+            <Trash2 className="w-4 h-4" />
+          </span>
         )}
       </div>
     </motion.div>

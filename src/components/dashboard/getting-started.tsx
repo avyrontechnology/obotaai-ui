@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Bot, Check, ChevronRight, Megaphone, PhoneCall } from "lucide-react";
 import { useAgents } from "@/services/api";
@@ -8,10 +9,20 @@ import { useBatches } from "@/services/platform/batches";
 import { useExecutions } from "@/services/platform/executions";
 import { cn } from "@/lib/utils";
 
+const DISMISS_KEY = "otobaai-getting-started-dismissed";
+
 export function GettingStarted() {
   const { data: agents } = useAgents();
   const { data: executions } = useExecutions();
   const { data: batches } = useBatches();
+  const [dismissed, setDismissed] = useState(
+    () => typeof window !== "undefined" && window.localStorage.getItem(DISMISS_KEY) === "1"
+  );
+
+  const dismiss = () => {
+    window.localStorage.setItem(DISMISS_KEY, "1");
+    setDismissed(true);
+  };
 
   const steps = [
     {
@@ -25,10 +36,10 @@ export function GettingStarted() {
     {
       done: (executions ?? []).length > 0,
       icon: PhoneCall,
-      title: "Place a test call",
-      description: "Try it in the Studio before going live.",
+      title: "Talk to your agent",
+      description: "Try it in the Playground before going live.",
       href: "/playground",
-      cta: "Open Studio",
+      cta: "Open Playground",
     },
     {
       done: (batches ?? []).length > 0,
@@ -40,7 +51,7 @@ export function GettingStarted() {
     },
   ];
 
-  if (steps.every((step) => step.done)) return null;
+  if (steps.every((step) => step.done) || dismissed) return null;
 
   return (
     <motion.section
@@ -52,10 +63,25 @@ export function GettingStarted() {
     >
       <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/10 blur-[80px] pointer-events-none" />
       <div className="relative z-10">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">Getting started</h2>
-        <p className="text-sm text-muted-foreground mt-1 mb-6">
-          Three steps from signup to live calls.
-        </p>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Getting started walkthrough{" "}
+              <span className="ml-1 align-middle text-[11px] font-mono uppercase tracking-widest text-ember-700 dark:text-ember-300 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
+                3-step setup
+              </span>
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Three steps from signup to live calls.
+            </p>
+          </div>
+          <button
+            onClick={dismiss}
+            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            Dismiss ×
+          </button>
+        </div>
         <ol className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {steps.map((step, index) => (
             <li

@@ -1,4 +1,4 @@
-import { formatDuration, formatLatency, timeAgo } from "@/lib/format";
+import { displayCallerNumber, formatDuration, formatLatency, timeAgo } from "@/lib/format";
 
 describe("format utils", () => {
   it("timeAgo renders relative times", () => {
@@ -20,5 +20,15 @@ describe("format utils", () => {
     expect(formatLatency(280)).toBe("280ms");
     expect(formatLatency(1500)).toBe("1.5s");
     expect(formatLatency(null)).toBe("—");
+  });
+
+  it("displayCallerNumber hides null/blank/unknown numbers", () => {
+    expect(displayCallerNumber("+911234")).toBe("+911234");
+    expect(displayCallerNumber("  +911234  ")).toBe("+911234");
+    expect(displayCallerNumber(null)).toBe("—");
+    expect(displayCallerNumber("")).toBe("—");
+    expect(displayCallerNumber("unknown")).toBe("—");
+    expect(displayCallerNumber("Unknown")).toBe("—");
+    expect(displayCallerNumber("unknown", "Unknown caller")).toBe("Unknown caller");
   });
 });

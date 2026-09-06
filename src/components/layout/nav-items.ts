@@ -6,7 +6,7 @@ import {
   Layers,
   LayoutDashboard,
   LayoutTemplate,
-  Mic,
+  MessagesSquare,
   Phone,
   PhoneCall,
   Settings,
@@ -42,7 +42,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Library", href: "/library", icon: LayoutTemplate, match: startsWith("/library") },
       { label: "Graphs", href: "/graphs", icon: GitFork, match: startsWith("/graphs") },
       { label: "Workflows", href: "/workflows", icon: Workflow, match: startsWith("/workflows") },
-      { label: "Studio", href: "/playground", icon: Mic, match: startsWith("/playground") },
+      { label: "Playground", href: "/playground", icon: MessagesSquare, match: startsWith("/playground") },
     ],
   },
   {

@@ -10,6 +10,11 @@ jest.mock("@/services/api", () => ({
   }),
 }));
 
+jest.mock("@/lib/rbac", () => ({
+  useCan: () => true,
+  minRoleFor: () => "member",
+}));
+
 const queryClient = new QueryClient();
 
 const mockAgent = {
@@ -29,12 +34,18 @@ describe("AgentCard", () => {
     );
   };
 
-  it("renders agent name and type correctly", () => {
+  it("renders agent name, type chip and actions", () => {
     renderWithProviders(<AgentCard agent={mockAgent} />);
 
     expect(screen.getByText("Test Voice Agent")).toBeInTheDocument();
     expect(screen.getByText("agent-12")).toBeInTheDocument(); // first 8 chars of id
-    expect(screen.getByText("Configure")).toBeInTheDocument();
+    expect(screen.getByText("Voice")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Test Voice Agent" })).toHaveAttribute(
+      "href",
+      "/agents/agent-123"
+    );
+    expect(screen.getByRole("link", { name: "Configure Test Voice Agent" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Talk to Test Voice Agent" })).toBeInTheDocument();
   });
 
   it("renders real session counts instead of placeholders", () => {
@@ -54,5 +65,19 @@ describe("AgentCard", () => {
     );
 
     expect(screen.getByText("gpt-4o")).toBeInTheDocument();
+  });
+
+  it("renders the telemetry strip from stats", () => {
+    renderWithProviders(
+      <AgentCard
+        agent={mockAgent}
+        stats={{ sessions: 8, avgLatencyMs: 1200, successRate: 0.75, lastCallAt: null }}
+      />
+    );
+
+    expect(screen.getByText("8")).toBeInTheDocument();
+    expect(screen.getByText("1.2s")).toBeInTheDocument();
+    expect(screen.getByText("75%")).toBeInTheDocument();
+    expect(screen.getByText("never")).toBeInTheDocument();
   });
 });

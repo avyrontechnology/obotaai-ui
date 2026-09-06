@@ -12,6 +12,7 @@ import {
   Cpu,
   Database,
   Loader2,
+  MessageSquareText,
   Mic,
   PhoneCall,
   Settings2,
@@ -33,6 +34,7 @@ import { useInbound } from "@/services/platform/inbound";
 import { formatDuration, formatLatency, timeAgo } from "@/lib/format";
 import { StatCard } from "@/components/common/stat-card";
 import { notify } from "@/lib/notify";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 
 const TYPE_META: Record<string, { label: string; icon: typeof Mic }> = {
@@ -57,6 +59,7 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
   const { data: kbs } = useKnowledgeBases();
   const { data: inbound } = useInbound(id);
   const deleteMutation = useDeleteAgent();
+  const canDelete = useCan("agents.delete");
 
   if (isLoading) {
     return (
@@ -179,16 +182,16 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href={`/playground?agent=${agent.agent_id}&mode=live`}
+            href={`/playground?agent=${agent.agent_id}&mode=talk`}
             className="h-11 px-5 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2"
           >
-            <Mic className="w-4 h-4" /> Talk live
+            <Mic className="w-4 h-4" /> Talk
           </Link>
           <Link
-            href={`/playground?agent=${agent.agent_id}`}
+            href={`/playground?agent=${agent.agent_id}&mode=chat`}
             className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm hover:bg-accent transition-all flex items-center gap-2"
           >
-            <PhoneCall className="w-4 h-4" /> Simulate
+            <MessageSquareText className="w-4 h-4" /> Chat
           </Link>
           <Link
             href={`/agents/${agent.agent_id}/configure`}
@@ -296,7 +299,7 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
                   className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-mono text-foreground truncate">{execution.to_number}</p>
+                    <p className="text-sm font-mono text-foreground truncate">{execution.to_number ?? "—"}</p>
                     <p className="text-xs text-muted-foreground">
                       {execution.status} · {formatDuration(execution.duration_s)} · {timeAgo(execution.started_at)}
                     </p>
@@ -316,8 +319,13 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
           <p className="text-sm text-muted-foreground mb-4">
             Deleting removes the core agent record (<span className="font-mono text-xs">DELETE /agent/:id</span>).
             Platform attachments (tools, voices, webhooks) are cleaned up by the backend.
+            {!canDelete && ` Requires ${minRoleFor("agents.delete")} role.`}
           </p>
-          {!confirmingDelete ? (
+          {!canDelete ? (
+            <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border p-4">
+              Read-only for your role.
+            </p>
+          ) : !confirmingDelete ? (
             <button
               onClick={() => setConfirmingDelete(true)}
               className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 text-sm font-semibold hover:bg-red-500/20 transition-colors"

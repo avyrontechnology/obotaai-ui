@@ -9,6 +9,7 @@ import { Toggle } from "@/components/common/toggle";
 import { fieldStyles } from "@/lib/field-styles";
 import { useAgents } from "@/services/api";
 import { useCreateBatch } from "@/services/platform/batches";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 
 const MAX_ENTRIES = 500;
@@ -70,6 +71,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
   }, [csv, phoneColumn, mappedColumns]);
 
   const overLimit = preview.entries.length > MAX_ENTRIES;
+  const canWrite = useCan("batches.write");
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -93,7 +95,12 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
   };
 
   const canSubmit =
-    name.trim().length > 0 && effectiveAgentId && preview.entries.length > 0 && !overLimit && !createBatch.isPending;
+    canWrite &&
+    name.trim().length > 0 &&
+    effectiveAgentId &&
+    preview.entries.length > 0 &&
+    !overLimit &&
+    !createBatch.isPending;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -299,6 +306,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit}
+                  title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
                   className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm transition-all hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
                 >
                   {createBatch.isPending ? (

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Wallet } from "lucide-react";
-import Image from "next/image";
 import { Suspense, useState } from "react";
+import { BrandLockup } from "@/components/common/brand-lockup";
 import { NAV_GROUPS, isNavActive } from "./nav-items";
 import { useWallet } from "@/services/platform/wallet";
 import { cn } from "@/lib/utils";
@@ -50,21 +50,11 @@ function SidebarBody() {
       )}
       aria-label="Primary"
     >
-      <div className="flex items-center gap-3.5 h-16 px-4 border-b border-sidebar-border shrink-0">
-        <span className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden bg-card shrink-0 border border-border p-0.5">
-          <Image
-            src="/brand/otobaAI-Flow-—-Favicon.png"
-            alt="Otobaai icon"
-            width={32}
-            height={32}
-            className="w-full h-full object-contain"
-            priority
-          />
-        </span>
-        {!collapsed && (
-          <span className="flex items-center min-w-0">
-            <span className="text-xl font-bold tracking-tight truncate text-[#2C3340] mb-0.5">OtobaAi</span>
-          </span>
+      <div className="flex items-center h-16 px-4 border-b border-sidebar-border shrink-0">
+        {collapsed ? (
+          <BrandLockup size="sm" markOnly link={false} className="gap-0" />
+        ) : (
+          <BrandLockup size="md" textClassName="text-xl" sublabel="console" />
         )}
       </div>
 

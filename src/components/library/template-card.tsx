@@ -4,6 +4,7 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 import { Download, Languages, Loader2 } from "lucide-react";
 import type { TemplateSummary } from "@/lib/schemas/platform";
+import { minRoleFor, useCan } from "@/lib/rbac";
 
 interface TemplateCardProps {
   template: TemplateSummary;
@@ -12,6 +13,7 @@ interface TemplateCardProps {
 }
 
 export const TemplateCard = memo(function TemplateCard({ template, importing, onImport }: TemplateCardProps) {
+  const canImport = useCan("library.import");
   return (
     <motion.div
       layout="position"
@@ -42,7 +44,8 @@ export const TemplateCard = memo(function TemplateCard({ template, importing, on
 
       <button
         onClick={() => onImport(template)}
-        disabled={importing}
+        disabled={importing || !canImport}
+        title={canImport ? undefined : `Requires ${minRoleFor("library.import")} role`}
         className="relative z-10 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
       >
         {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}

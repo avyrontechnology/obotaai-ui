@@ -1,41 +1,64 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, Loader2, MessageSquareText, PhoneOff, SendHorizonal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { AlertCircle, Loader2, PhoneOff, RadioReceiver, SendHorizonal } from "lucide-react";
 import { WS_BASE_URL } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { fetchWsTicket } from "@/services/auth";
+import { subscribePlaygroundBus } from "@/lib/playground-bus";
+import { StatusBadge } from "@/components/calls/status-badge";
+import {
+  JitterPanel,
+  SessionTabs,
+  TranscriptList,
+  ToolsPanel,
+  type SessionStats,
+  type SessionTab,
+  type SessionTurn,
+} from "./session-ui";
 
 type ChatPhase = "connecting" | "live" | "ended" | "error";
 
-interface ChatTurn {
-  id: number;
-  role: "agent" | "user" | "system";
-  text: string;
-  ts: string;
-}
+type ChatTurn = SessionTurn;
 
 /**
  * Text chat over the voice websocket: {"type":"text"} in, transcript frames
  * out. Currently served for realtime (s2s) agents only — pipeline agents
  * don't consume the text queue, so the playground gates this tab by type.
  */
-export function ChatTalk({ agentId, agentName }: { agentId: string; agentName: string }) {
+export function ChatTalk({
+  agentId,
+  agentName,
+  canChat = true,
+}: {
+  agentId: string;
+  agentName: string;
+  /** Role gate: viewers see the panel but cannot send. */
+  canChat?: boolean;
+}) {
   const [phase, setPhase] = useState<ChatPhase>("connecting");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<SessionTab>("tools");
+  const [lastRtt, setLastRtt] = useState<number | null>(null);
+  const [tick, setTick] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const turnIdRef = useRef(0);
   const endedRef = useRef(false);
   const liveRef = useRef(false);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const lastSendAtRef = useRef<number | null>(null);
 
   const pushTurn = useCallback((role: ChatTurn["role"], text: string) => {
     const id = ++turnIdRef.current;
     const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     setTurns((prev) => [...prev.slice(-99), { id, role, text, ts }]);
+    if (role === "agent") {
+      const sentAt = lastSendAtRef.current;
+      lastSendAtRef.current = null;
+      if (sentAt !== null) setLastRtt(Math.round(performance.now() - sentAt));
+    }
   }, []);
 
   const teardown = useCallback(() => {
@@ -50,86 +73,118 @@ export function ChatTalk({ agentId, agentName }: { agentId: string; agentName: s
   // Fresh mount per agent (parent passes key): initial useState values ARE
   // the reset — no setState-in-effect. Refs are safe to write here.
   useEffect(() => {
-    if (!agentId) return;
+    if (!agentId || !canChat) return;
     endedRef.current = false;
     liveRef.current = false;
 
-    const ws = new WebSocket(`${WS_BASE_URL}/chat/v1/${agentId}`);
-    wsRef.current = ws;
+    let cancelled = false;
 
-    ws.onopen = () => {
-      liveRef.current = true;
-      try {
-        ws.send(JSON.stringify({ type: "init", meta_data: { agent_id: agentId, source: "ui-chat" } }));
-      } catch {
-        /* init is best-effort */
-      }
-      pushTurn("system", `Chatting with ${agentName} as text.`);
-      setPhase("live");
-    };
+    const attach = (ws: WebSocket) => {
+      wsRef.current = ws;
 
-    ws.onmessage = (event: MessageEvent) => {
-      let message: { type?: string; data?: unknown; role?: string; name?: string };
-      try {
-        message = JSON.parse(event.data as string);
-      } catch {
-        return;
-      }
-      if (message.type === "ack") {
-        // No-op: the chatting line is pushed on open (no ack on this leg).
-      } else if (message.type === "text" && typeof message.data === "string") {
-        pushTurn(message.role === "user" ? "user" : "agent", message.data);
-      } else if (message.type === "mark" && typeof message.name === "string") {
+      ws.onopen = () => {
+        if (cancelled) return;
+        liveRef.current = true;
+        setLastRtt(null);
+        setTick(0);
         try {
-          ws.send(JSON.stringify({ type: "mark", name: message.name }));
+          ws.send(JSON.stringify({ type: "init", meta_data: { agent_id: agentId, source: "ui-chat" } }));
         } catch {
-          /* socket closing */
+          /* init is best-effort */
         }
-      } else if (message.type === "clear") {
-        pushTurn("system", "Agent interrupted itself.");
-      }
-    };
+        pushTurn("system", `Chatting with ${agentName} as text.`);
+        setPhase("live");
+      };
 
-    ws.onerror = () => {
-      if (!endedRef.current && !liveRef.current) {
+      ws.onmessage = (event: MessageEvent) => {
+        let message: { type?: string; data?: unknown; role?: string; name?: string };
+        try {
+          message = JSON.parse(event.data as string);
+        } catch {
+          return;
+        }
+        if (message.type === "ack") {
+          // No-op: the chatting line is pushed on open (no ack on this leg).
+        } else if (message.type === "text" && typeof message.data === "string") {
+          pushTurn(message.role === "user" ? "user" : "agent", message.data);
+        } else if (message.type === "mark" && typeof message.name === "string") {
+          try {
+            ws.send(JSON.stringify({ type: "mark", name: message.name }));
+          } catch {
+            /* socket closing */
+          }
+        } else if (message.type === "clear") {
+          pushTurn("system", "Agent interrupted itself.");
+        }
+      };
+
+      ws.onerror = () => {
+        if (!endedRef.current && !liveRef.current) {
+          endedRef.current = true;
+          setPhase("error");
+          setError("Couldn't reach the voice backend. Is it running at the configured API URL?");
+        }
+      };
+
+      ws.onclose = () => {
+        if (endedRef.current) return;
         endedRef.current = true;
-        setPhase("error");
-        setError("Couldn't reach the voice backend. Is it running at the configured API URL?");
-      }
+        liveRef.current = false;
+        setPhase("ended");
+        pushTurn("system", "Chat ended.");
+      };
     };
 
-    ws.onclose = () => {
-      if (endedRef.current) return;
-      endedRef.current = true;
-      liveRef.current = false;
-      setPhase("ended");
-      pushTurn("system", "Chat ended.");
-    };
+    // Prefer a single-use ticket (works cross-origin); fall back to cookies.
+    fetchWsTicket()
+      .then((ticket) => {
+        if (!cancelled) attach(new WebSocket(`${WS_BASE_URL}/chat/v1/${agentId}?token=${encodeURIComponent(ticket)}`));
+      })
+      .catch(() => {
+        if (!cancelled) attach(new WebSocket(`${WS_BASE_URL}/chat/v1/${agentId}`));
+      });
 
     return () => {
+      cancelled = true;
       endedRef.current = true;
       liveRef.current = false;
       teardown();
     };
-  }, [agentId, agentName, pushTurn, teardown]);
+  }, [agentId, agentName, canChat, pushTurn, teardown]);
 
-  useEffect(() => {
-    // scrollIntoView is absent in some environments (jsdom) — chat works fine without it.
-    bottomRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
-  }, [turns]);
+  const sendText = useCallback(
+    (raw: string) => {
+      const text = raw.trim();
+      const ws = wsRef.current;
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN || !canChat) return false;
+      try {
+        ws.send(JSON.stringify({ type: "text", data: text }));
+        lastSendAtRef.current = performance.now();
+        pushTurn("user", text);
+        return true;
+      } catch {
+        setError("Send failed — the socket is closing. Reopen the chat to continue.");
+        return false;
+      }
+    },
+    [canChat, pushTurn]
+  );
 
   const send = useCallback(() => {
-    const text = draft.trim();
-    const ws = wsRef.current;
-    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
-    try {
-      ws.send(JSON.stringify({ type: "text", data: text }));
-      pushTurn("user", text);
-      setDraft("");
-    } catch {
-      setError("Send failed — the socket is closing. Reopen the chat to continue.");
-    }
-  }, [draft, pushTurn]);
+    if (sendText(draft)) setDraft("");
+  }, [draft, sendText]);
+
+  // Shared bus: the tab bar's Clear wipes the thread; page-level injections
+  // arrive as send-text (queued by the sender until live).
+  useEffect(() => {
+    return subscribePlaygroundBus((event) => {
+      if (event.type === "clear-transcript") {
+        setTurns([]);
+      } else if (event.type === "send-text") {
+        sendText(event.text);
+      }
+    });
+  }, [sendText]);
 
   const hangup = useCallback(() => {
     endedRef.current = true;
@@ -139,111 +194,124 @@ export function ChatTalk({ agentId, agentName }: { agentId: string; agentName: s
     pushTurn("system", "You ended the chat.");
   }, [pushTurn, teardown]);
 
+  // Elapsed clock ticks only while live — no setState in render/effect loops.
+  useEffect(() => {
+    if (phase !== "live") return;
+    const timer = setInterval(() => setTick((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  const stats: SessionStats = useMemo(
+    () => ({
+      e2eMs: lastRtt,
+      jitterMs: null,
+      turns: turns.filter((turn) => turn.role !== "system").length,
+      elapsedSec: tick,
+    }),
+    [lastRtt, turns, tick]
+  );
+
   const live = phase === "live";
+  const badge = live ? "in_progress" : phase === "connecting" ? "ringing" : phase === "error" ? "failed" : "completed";
 
+  // Phase-2 seam: turns carry explicit ids and role labels with no session
+  // object — the SSE/message-core migration lifts this list verbatim.
   return (
-    <div className="flex flex-col bg-muted/40 backdrop-blur-2xl border border-border rounded-[2.5rem] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.5)] relative overflow-hidden min-h-[540px] max-h-[70vh]">
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-border relative z-10">
-        <h3 className="text-sm font-mono uppercase tracking-widest text-foreground flex items-center gap-2">
-          <MessageSquareText className="w-4 h-4 text-ember-600 dark:text-ember-400" />
-          Chat · {agentName}
-        </h3>
-        {live ? (
-          <button
-            onClick={hangup}
-            aria-label="End chat"
-            className="h-9 px-4 rounded-xl bg-red-600/10 text-red-700 dark:text-red-400 border border-red-500/20 text-xs font-semibold hover:bg-red-600/20 transition-colors flex items-center gap-2"
-          >
-            <PhoneOff className="w-3.5 h-3.5" /> End
-          </button>
-        ) : (
-          <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            {phase === "connecting" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {phase === "connecting" ? "Connecting" : phase === "error" ? "Failed" : "Ended"}
-          </span>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-5 pr-2 custom-scrollbar relative z-10 min-h-[280px]">
-        {turns.length === 0 && phase !== "error" && (
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {phase === "connecting"
-              ? "Opening a text session…"
-              : "Say hello below — the agent replies here as text, no microphone or phone call needed."}
+    <div className="grid lg:grid-cols-[1.15fr_1fr] gap-6 flex-1 min-h-0">
+      {/* Left: chat thread */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="flex flex-col bg-card border border-border rounded-[2rem] p-6 shadow-[0_20px_50px_-24px_rgba(17,24,39,0.25)] relative overflow-hidden min-h-[540px] lg:min-h-0 max-h-[70vh] lg:max-h-none min-w-0"
+      >
+        <div className="flex items-center justify-between gap-3 mb-4 pb-4 border-b border-border relative z-10 shrink-0">
+          <p className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground min-w-0">
+            <RadioReceiver className="w-4 h-4 text-ember-600 dark:text-ember-400 shrink-0" />
+            <span className="truncate">Chat session · {agentName}</span>
           </p>
-        )}
+          <span className="flex items-center gap-3 shrink-0">
+            <StatusBadge status={badge} />
+            {live ? (
+              <button
+                onClick={hangup}
+                aria-label="End chat"
+                className="h-9 px-4 rounded-xl bg-red-600/10 text-red-700 dark:text-red-400 border border-red-500/20 text-xs font-semibold hover:bg-red-600/20 transition-colors flex items-center gap-2"
+              >
+                <PhoneOff className="w-3.5 h-3.5" /> End
+              </button>
+            ) : (
+              <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                {phase === "connecting" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {phase === "connecting" ? "Connecting" : phase === "error" ? "Failed" : "Ended"}
+              </span>
+            )}
+          </span>
+        </div>
+
         {phase === "error" && error && (
-          <p className="text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 flex items-start gap-2">
+          <p role="alert" className="relative z-10 mb-4 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
           </p>
         )}
-        <AnimatePresence initial={false}>
-          {turns.map((turn) =>
-            turn.role === "system" ? (
-              <p key={turn.id} className="text-[11px] font-mono text-muted-foreground text-center">
-                {turn.text}
-              </p>
-            ) : (
-              <motion.div
-                key={turn.id}
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                className={cn("flex flex-col", turn.role === "agent" ? "items-start" : "items-end")}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span
-                    className={cn(
-                      "text-[10px] uppercase font-mono tracking-wider",
-                      turn.role === "agent"
-                        ? "text-ember-700 dark:text-ember-300"
-                        : "text-emerald-700 dark:text-emerald-400"
-                    )}
-                  >
-                    {turn.role === "agent" ? "Agent" : "You"}
-                  </span>
-                  <span className="text-[9px] font-mono text-muted-foreground">{turn.ts}</span>
-                </div>
-                <div
-                  className={cn(
-                    "px-5 py-3.5 max-w-[90%] text-sm leading-relaxed break-words shadow-sm",
-                    turn.role === "agent"
-                      ? "bg-card/80 border border-border text-foreground rounded-2xl rounded-tl-sm"
-                      : "bg-primary border border-border text-primary-foreground rounded-2xl rounded-tr-sm"
-                  )}
-                >
-                  {turn.text}
-                </div>
-              </motion.div>
-            )
-          )}
-        </AnimatePresence>
-        <div ref={bottomRef} />
-      </div>
-
-      <form
-        className="relative z-10 mt-4 flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          send();
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={live ? "Type a message…" : "Connecting…"}
-          disabled={!live}
-          aria-label="Chat message"
-          className="flex-1 h-12 px-4 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 disabled:opacity-50 transition-all"
+        <TranscriptList
+          turns={turns}
+          emptyHint={
+            phase === "connecting"
+              ? "Opening a text session…"
+              : "Say hello below — the agent replies here as text, no microphone or phone call needed."
+          }
+          minHeight="min-h-[280px] lg:min-h-0"
         />
-        <button
-          type="submit"
-          disabled={!live || !draft.trim()}
-          aria-label="Send message"
-          className="h-12 w-12 shrink-0 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
+
+        {!canChat && (
+          <p className="relative z-10 mt-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Text chat needs a member role or higher — you are signed in as read-only.
+          </p>
+        )}
+        <form
+          className="relative z-10 mt-4 flex gap-2 shrink-0"
+          onSubmit={(event) => {
+            event.preventDefault();
+            send();
+          }}
         >
-          <SendHorizonal className="w-4 h-4" />
-        </button>
-      </form>
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={live ? "Type a message…" : "Connecting…"}
+            disabled={!live || !canChat}
+            aria-label="Chat message"
+            className="flex-1 h-12 px-4 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 disabled:opacity-50 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={!live || !draft.trim() || !canChat}
+            aria-label="Send message"
+            className="h-12 w-12 shrink-0 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
+          >
+            <SendHorizonal className="w-4 h-4" />
+          </button>
+        </form>
+      </motion.div>
+
+      {/* Right: tools + debug panel (the thread itself is the transcript) */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 0.05 }}
+        className="flex flex-col bg-card border border-border rounded-[2rem] p-6 shadow-[0_20px_50px_-24px_rgba(17,24,39,0.25)] relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
+      >
+        <SessionTabs
+          tab={tab}
+          onChange={setTab}
+          onClear={() => setTurns([])}
+          tabs={["tools", "jitter"]}
+        />
+        <div className="pt-4 flex-1 flex flex-col min-h-0 min-w-0">
+          {tab === "jitter" ? <JitterPanel stats={stats} hasAudio={false} /> : <ToolsPanel agentId={agentId} />}
+        </div>
+      </motion.div>
     </div>
   );
 }

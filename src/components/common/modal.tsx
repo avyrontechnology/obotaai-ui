@@ -1,10 +1,25 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
+
+/**
+ * Overlays must escape the app-shell content wrapper (`relative z-10` in
+ * app-shell.tsx), which otherwise traps even `fixed z-50` panels below the
+ * TopBar (`relative z-30`) — the drawer header/close button end up hidden
+ * behind it. Portaling to body puts them in the root stacking context.
+ * Rendered only after mount so SSR/hydration trees match (both null).
+ */
+function OverlayPortal({ children }: { children: ReactNode }) {
+  const mounted = useMounted();
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
 
 function Backdrop({ onClose }: { onClose: () => void }) {
   return (
@@ -31,12 +46,21 @@ interface ModalProps {
 
 export function Modal({ open, onClose, label, title, header, children, className }: ModalProps) {
   useBodyScrollLock(open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <Backdrop onClose={onClose} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+    <OverlayPortal>
+      <AnimatePresence>
+        {open && (
+          <>
+            <Backdrop onClose={onClose} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -64,10 +88,11 @@ export function Modal({ open, onClose, label, title, header, children, className
               )}
               {children}
             </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+    </OverlayPortal>
   );
 }
 
@@ -82,12 +107,21 @@ interface DrawerProps {
 
 export function Drawer({ open, onClose, label, title, children, wide }: DrawerProps) {
   useBodyScrollLock(open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <Backdrop onClose={onClose} />
-          <motion.aside
+    <OverlayPortal>
+      <AnimatePresence>
+        {open && (
+          <>
+            <Backdrop onClose={onClose} />
+            <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -111,9 +145,10 @@ export function Drawer({ open, onClose, label, title, children, wide }: DrawerPr
               </button>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">{children}</div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </OverlayPortal>
   );
 }

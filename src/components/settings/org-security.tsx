@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, Loader2, X } from "lucide-react";
+import { AlertCircle, Check, KeyRound, Loader2, ScrollText, X } from "lucide-react";
 import { useOrganization, useUpdateOrganization } from "@/services/platform/organization";
+import { useAuthEvents, useChangePassword } from "@/services/auth";
+import { useCan } from "@/lib/rbac";
+import { timeAgo } from "@/lib/format";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +15,122 @@ const RESIDENCIES = [
   { value: "us", label: "United States" },
   { value: "eu", label: "European Union" },
 ] as const;
+
+function PasswordSection() {
+  const changePassword = useChangePassword();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setError(null);
+    setDone(false);
+    if (next.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+    if (next !== confirm) {
+      setError("New passwords do not match.");
+      return;
+    }
+    try {
+      await changePassword.mutateAsync({ current_password: current, new_password: next, confirm });
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Password change failed.");
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <KeyRound className="w-4 h-4 text-muted-foreground" />
+        <h4 className="font-medium text-foreground">Change password</h4>
+      </div>
+      <p className="text-xs text-muted-foreground">Other sessions are signed out, this one stays.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <input
+          value={current}
+          onChange={(event) => setCurrent(event.target.value)}
+          type="password"
+          autoComplete="current-password"
+          placeholder="Current password"
+          aria-label="Current password"
+          className={fieldStyles.fieldSm}
+        />
+        <input
+          value={next}
+          onChange={(event) => setNext(event.target.value)}
+          type="password"
+          autoComplete="new-password"
+          placeholder="New password (8+)"
+          aria-label="New password"
+          className={fieldStyles.fieldSm}
+        />
+        <input
+          value={confirm}
+          onChange={(event) => setConfirm(event.target.value)}
+          type="password"
+          autoComplete="new-password"
+          placeholder="Repeat new password"
+          aria-label="Confirm new password"
+          className={cn(fieldStyles.fieldSm)}
+        />
+      </div>
+      {error && <p className="text-xs text-red-700 dark:text-red-400">{error}</p>}
+      {done && (
+        <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+          <Check className="w-3.5 h-3.5" /> Password updated.
+        </p>
+      )}
+      <button
+        onClick={() => void handleSave()}
+        disabled={changePassword.isPending}
+        className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
+      >
+        {changePassword.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+        Update password
+      </button>
+    </div>
+  );
+}
+
+function AuditSection() {
+  const canView = useCan("team.manage");
+  const { data: events, isLoading } = useAuthEvents(canView);
+  if (!canView) return null;
+  return (
+    <div className="rounded-3xl border border-border bg-card p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <ScrollText className="w-4 h-4 text-muted-foreground" />
+        <h4 className="font-medium text-foreground">Audit trail</h4>
+      </div>
+      {isLoading ? (
+        <div className="h-20 rounded-2xl bg-muted/50 animate-pulse" />
+      ) : (events ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">No auth events yet.</p>
+      ) : (
+        <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+          {(events ?? []).map((event) => (
+            <li
+              key={event.event_id}
+              className="flex items-center gap-2 text-xs font-mono text-muted-foreground"
+            >
+              <span className="shrink-0">{timeAgo(event.created_at)}</span>
+              <span className="px-2 py-0.5 rounded-full bg-muted text-foreground shrink-0">{event.type}</span>
+              <span className="truncate">{event.email ?? event.detail ?? ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function OrgSecurity() {
   const { data: org, isLoading } = useOrganization();
@@ -72,9 +191,12 @@ export function OrgSecurity() {
       <div>
         <h3 className="text-lg font-medium text-foreground">Security</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Stored preferences. Enforcement for these controls ships with the auth milestone.
+          Sessions ride httpOnly cookies and expire server-side. Sign out anywhere to revoke instantly.
         </p>
       </div>
+
+      <PasswordSection />
+      <AuditSection />
 
       <div className="grid gap-6">
         <div className="space-y-2">
