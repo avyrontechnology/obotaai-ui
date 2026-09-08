@@ -22,7 +22,7 @@ export const batchStatusSchema = z.enum([
   "stopped",
 ]);
 
-export const phoneNumberProviderSchema = z.enum(["twilio", "plivo", "exotel", "vobiz", "simulated"]);
+export const phoneNumberProviderSchema = z.enum(["twilio", "plivo", "exotel", "vobiz", "talko", "simulated"]);
 
 export const toolKindSchema = z.enum(["transfer", "calendar", "custom", "datetime"]);
 
@@ -115,6 +115,8 @@ export const createBatchSchema = z.object({
     .object({ start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/) })
     .optional(),
   delay_scale: z.number().min(0).default(0.5),
+  provider: z.enum(["simulated", "talko"]).default("simulated"),
+  from_number: z.string().optional(),
 });
 
 export const phoneNumberSchema = z.object({
@@ -317,6 +319,7 @@ export const integrationKindSchema = z.enum([
   "plivo",
   "exotel",
   "vobiz",
+  "talko",
   "calcom",
   "n8n",
   "zapier",

@@ -43,6 +43,8 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
   const [phoneColumn, setPhoneColumn] = useState("");
   const [mappedColumns, setMappedColumns] = useState<Record<string, string>>({});
   const [scheduleAt, setScheduleAt] = useState("");
+  const [provider, setProvider] = useState<"simulated" | "talko">("simulated");
+  const [fromNumber, setFromNumber] = useState("");
   const [hoursEnabled, setHoursEnabled] = useState(false);
   const [hoursStart, setHoursStart] = useState("09:00");
   const [hoursEnd, setHoursEnd] = useState("18:00");
@@ -111,6 +113,8 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
         entries: preview.entries,
         schedule_at: scheduleAt ? new Date(scheduleAt).toISOString() : undefined,
         calling_hours: hoursEnabled ? { start: hoursStart, end: hoursEnd } : undefined,
+        provider,
+        from_number: fromNumber.trim() || undefined,
       });
       onClose();
       router.push(`/batches/${batch.batch_id}`);
@@ -172,6 +176,36 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                       ))}
                     </select>
                   </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                      Dialing
+                    </span>
+                    <select
+                      value={provider}
+                      onChange={(event) => setProvider(event.target.value as "simulated" | "talko")}
+                      aria-label="Batch dialing provider"
+                      className={fieldStyles.field}
+                    >
+                      <option value="simulated">Simulated (no real calls)</option>
+                      <option value="talko">Talko trunk — real Tata Tele calls</option>
+                    </select>
+                  </label>
+                  {provider === "talko" && (
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                        Caller DID (optional)
+                      </span>
+                      <input
+                        value={fromNumber}
+                        onChange={(event) => setFromNumber(event.target.value)}
+                        placeholder="Default from trunk"
+                        className={fieldStyles.field}
+                      />
+                    </label>
+                  )}
                 </div>
 
                 <div>

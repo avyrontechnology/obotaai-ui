@@ -15,7 +15,7 @@ import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
 
-const PROVIDERS = ["simulated", "twilio", "plivo", "exotel", "vobiz"] as const;
+const PROVIDERS = ["simulated", "twilio", "plivo", "exotel", "vobiz", "talko"] as const;
 
 export function OrgNumbers() {
   const { data: numbers, isLoading } = usePhoneNumbers();

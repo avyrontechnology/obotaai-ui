@@ -9,6 +9,7 @@ const TELEPHONY_PROVIDERS = [
   { label: "Plivo", value: "plivo" },
   { label: "Exotel", value: "exotel" },
   { label: "Vobiz", value: "vobiz" },
+  { label: "Talko (Tata Tele)", value: "talko" },
   { label: "SIP Trunk", value: "sip-trunk" },
 ];
 

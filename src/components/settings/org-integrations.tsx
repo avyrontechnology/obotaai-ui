@@ -50,6 +50,13 @@ const KIND_FIELDS: Record<IntegrationKind, { label: string; fields: FieldDef[] }
     label: "Vobiz",
     fields: [{ key: "api_key", label: "API Key", secret: true }],
   },
+  talko: {
+    label: "Talko (Tata Tele trunk)",
+    fields: [
+      { key: "trunk_url", label: "Trunk URL", placeholder: "http://talko-app:8004" },
+      { key: "caller_did", label: "Default caller DID", placeholder: "9179…" },
+    ],
+  },
   calcom: {
     label: "Cal.com",
     fields: [
