@@ -117,6 +117,7 @@ export const createBatchSchema = z.object({
   delay_scale: z.number().min(0).default(0.5),
   provider: z.enum(["simulated", "talko"]).default("simulated"),
   from_number: z.string().optional(),
+  talko_api_key: z.string().optional(),
 });
 
 export const phoneNumberSchema = z.object({

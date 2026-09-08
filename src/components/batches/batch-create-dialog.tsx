@@ -45,6 +45,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
   const [scheduleAt, setScheduleAt] = useState("");
   const [provider, setProvider] = useState<"simulated" | "talko">("simulated");
   const [fromNumber, setFromNumber] = useState("");
+  const [talkoApiKey, setTalkoApiKey] = useState("");
   const [hoursEnabled, setHoursEnabled] = useState(false);
   const [hoursStart, setHoursStart] = useState("09:00");
   const [hoursEnd, setHoursEnd] = useState("18:00");
@@ -115,6 +116,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
         calling_hours: hoursEnabled ? { start: hoursStart, end: hoursEnd } : undefined,
         provider,
         from_number: fromNumber.trim() || undefined,
+        talko_api_key: talkoApiKey.trim() || undefined,
       });
       onClose();
       router.push(`/batches/${batch.batch_id}`);
@@ -202,6 +204,21 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                         value={fromNumber}
                         onChange={(event) => setFromNumber(event.target.value)}
                         placeholder="Default from trunk"
+                        className={fieldStyles.field}
+                      />
+                    </label>
+                  )}
+                  {provider === "talko" && (
+                    <label className="flex flex-col gap-1.5 sm:col-span-2">
+                      <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                        Talko API key (optional — defaults to trunk key)
+                      </span>
+                      <input
+                        type="password"
+                        value={talkoApiKey}
+                        onChange={(event) => setTalkoApiKey(event.target.value)}
+                        placeholder="tkp_live_…"
+                        autoComplete="off"
                         className={fieldStyles.field}
                       />
                     </label>
