@@ -405,7 +405,17 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
                       <span className="font-mono text-xs text-foreground">{report.node_id}</span>
                       <span className="text-xs text-muted-foreground">{report.type}</span>
                       <span className="text-[11px] font-mono text-muted-foreground ml-auto">
-                        {reportSummary(report.detail)}
+                        {typeof report.detail.execution_id === "string" ? (
+                          <Link
+                            href={`/calls?execution_id=${report.detail.execution_id}`}
+                            aria-label={`Open call ${String(report.detail.execution_id)} in Call History`}
+                            className="text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+                          >
+                            {reportSummary(report.detail)} ⧉
+                          </Link>
+                        ) : (
+                          reportSummary(report.detail)
+                        )}
                       </span>
                     </div>
                   </div>

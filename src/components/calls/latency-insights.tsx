@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Activity } from "lucide-react";
 import { formatLatency } from "@/lib/format";
 import { useLatencyStats } from "@/services/platform/executions";
+import type { LatencyStats } from "@/lib/schemas/builders";
 
 const STAGE_LABELS: Record<string, string> = {
   transcriber_ms: "STT",
@@ -11,13 +12,23 @@ const STAGE_LABELS: Record<string, string> = {
   synthesizer_ms: "TTS",
 };
 
-export const LatencyInsights = memo(function LatencyInsights({ agent_id }: { agent_id?: string }) {
-  const { data: stats, isLoading } = useLatencyStats(agent_id);
+export const LatencyInsights = memo(function LatencyInsights({
+  agent_id,
+  stats: statsProp,
+  isLoading: isLoadingProp,
+}: {
+  agent_id?: string;
+  stats?: LatencyStats | null;
+  isLoading?: boolean;
+}) {
+  const { data: statsFallback, isLoading: isLoadingFallback, isError } = useLatencyStats(agent_id);
+  const stats = statsProp !== undefined ? statsProp : statsFallback;
+  const isLoading = isLoadingProp ?? isLoadingFallback;
 
   if (isLoading) {
-    return <div className="h-28 rounded-[2rem] bg-card border border-border animate-pulse mb-6" />;
+    return <div className="h-28 rounded-[2rem] bg-card border border-border animate-pulse motion-reduce:animate-none mb-6" aria-hidden="true" />;
   }
-  if (!stats || stats.count === 0) return null;
+  if (isError || !stats || stats.count === 0) return null;
 
   const maxBucket = Math.max(...stats.buckets.map((bucket) => bucket.avg_e2e_ms ?? 0), 1);
   const slowestStage = Object.entries(stats.by_stage).sort((a, b) => b[1] - a[1])[0];
@@ -52,12 +63,12 @@ export const LatencyInsights = memo(function LatencyInsights({ agent_id }: { age
       </div>
 
       {stats.buckets.length > 1 && (
-        <div className="flex items-end gap-1.5 h-16" role="img" aria-label="Daily average latency chart">
+        <div className="flex items-end gap-1.5 h-16" role="img" aria-label={`Daily average latency chart across ${stats.count} calls`}>
           {stats.buckets.map((bucket) => (
             <div
-              key={bucket.date}
+              key={`${bucket.date}-${bucket.count}`}
               title={`${bucket.date}: ${formatLatency(bucket.avg_e2e_ms)} across ${bucket.count} calls`}
-              className="flex-1 rounded-t-md bg-gradient-to-t from-ember-700/60 to-primary dark:from-ember-400/50 dark:to-ember-300/80 min-h-[4px] transition-all"
+              className="flex-1 rounded-t-md bg-gradient-to-t from-ember-700/60 to-primary dark:from-ember-400/50 dark:to-ember-300/80 min-h-[4px] transition-all motion-reduce:transition-none"
               style={{ height: `${Math.max(6, ((bucket.avg_e2e_ms ?? 0) / maxBucket) * 100)}%` }}
             />
           ))}

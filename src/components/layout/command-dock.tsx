@@ -28,7 +28,7 @@ export function CommandDock() {
       >
         <div className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2">
           {dockItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

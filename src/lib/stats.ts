@@ -70,10 +70,12 @@ export function binCounts(
   return counts;
 }
 
-/** Mean STT / TTS stage latency across executions that report breakdowns. */
-export function avgStageMs(executions: Execution[]): { stt: number | null; tts: number | null } {
+/** Mean STT / LLM / TTS stage latency across executions that report breakdowns. */
+export function avgStageMs(executions: Execution[]): { stt: number | null; llm: number | null; tts: number | null } {
   let sttSum = 0;
   let sttN = 0;
+  let llmSum = 0;
+  let llmN = 0;
   let ttsSum = 0;
   let ttsN = 0;
   for (const execution of executions) {
@@ -83,6 +85,10 @@ export function avgStageMs(executions: Execution[]): { stt: number | null; tts: 
       sttSum += latency.transcriber_ms;
       sttN++;
     }
+    if (Number.isFinite(latency.llm_ms)) {
+      llmSum += latency.llm_ms;
+      llmN++;
+    }
     if (Number.isFinite(latency.synthesizer_ms)) {
       ttsSum += latency.synthesizer_ms;
       ttsN++;
@@ -90,6 +96,7 @@ export function avgStageMs(executions: Execution[]): { stt: number | null; tts: 
   }
   return {
     stt: sttN > 0 ? sttSum / sttN : null,
+    llm: llmN > 0 ? llmSum / llmN : null,
     tts: ttsN > 0 ? ttsSum / ttsN : null,
   };
 }

@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -269,6 +270,11 @@ function LoginContent() {
 
             <p className="mt-4 text-center text-[14px] text-[#6B7280]">
               New to a workspace? Ask your owner for an invite link.
+              <br />
+              Setting up a fresh workspace?{" "}
+              <Link href="/signup" className="font-medium text-[#C2410C] hover:underline underline-offset-4">
+                Create the owner account
+              </Link>
             </p>
           </div>
         </div>

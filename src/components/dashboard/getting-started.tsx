@@ -7,6 +7,7 @@ import { Bot, Check, ChevronRight, Megaphone, PhoneCall } from "lucide-react";
 import { useAgents } from "@/services/api";
 import { useBatches } from "@/services/platform/batches";
 import { useExecutions } from "@/services/platform/executions";
+import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 
 const DISMISS_KEY = "otobaai-getting-started-dismissed";
@@ -15,6 +16,7 @@ export function GettingStarted() {
   const { data: agents } = useAgents();
   const { data: executions } = useExecutions();
   const { data: batches } = useBatches();
+  const mounted = useMounted();
   const [dismissed, setDismissed] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem(DISMISS_KEY) === "1"
   );
@@ -51,7 +53,9 @@ export function GettingStarted() {
     },
   ];
 
-  if (steps.every((step) => step.done) || dismissed) return null;
+  // localStorage + query data differ between SSR and the client — render null
+  // until mounted so hydration always matches, then reveal.
+  if (!mounted || steps.every((step) => step.done) || dismissed) return null;
 
   return (
     <motion.section

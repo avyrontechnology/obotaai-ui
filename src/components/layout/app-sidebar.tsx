@@ -7,6 +7,7 @@ import { Suspense, useState } from "react";
 import { BrandLockup } from "@/components/common/brand-lockup";
 import { NAV_GROUPS, isNavActive } from "./nav-items";
 import { useWallet } from "@/services/platform/wallet";
+import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 
 const COLLAPSE_KEY = "otobaai-sidebar-collapsed";
@@ -29,14 +30,18 @@ function SidebarBody() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
-  const [collapsed, setCollapsed] = useState(() => {
+  const [storedCollapsed, setStoredCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(COLLAPSE_KEY) === "1";
   });
+  // localStorage is client-only: force the expanded layout through hydration
+  // so server and client HTML match, then apply the stored preference.
+  const mounted = useMounted();
+  const collapsed = mounted && storedCollapsed;
   const { data: wallet } = useWallet();
 
   const toggle = () => {
-    setCollapsed((value) => {
+    setStoredCollapsed((value) => {
       window.localStorage.setItem(COLLAPSE_KEY, value ? "0" : "1");
       return !value;
     });

@@ -115,10 +115,17 @@ describe("ToolsPanel", () => {
 
 describe("JitterPanel", () => {
   it("shows measured stats and a dash for audio-only jitter on text turns", () => {
-    render(<JitterPanel stats={{ e2eMs: 1234, jitterMs: null, turns: 3, elapsedSec: 65 }} hasAudio={false} />);
+    render(
+      <JitterPanel
+        stats={{ e2eMs: 1234, jitterMs: null, turns: 3, elapsedSec: 65, deviceRate: 48000, playedChunks: 12 }}
+        hasAudio={false}
+      />
+    );
     expect(screen.getByText("1.2s")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("01:05")).toBeInTheDocument();
+    expect(screen.getByText("48kHz")).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText(/text-only turns/)).toBeInTheDocument();
   });
 });

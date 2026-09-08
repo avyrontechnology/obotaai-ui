@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Activity, CheckCircle2, Clock3, PhoneCall } from "lucide-react";
 import { formatLatency } from "@/lib/format";
@@ -8,6 +8,8 @@ import { avgStageMs, completionStats, p95E2E } from "@/lib/stats";
 import { useLatencyStats, useExecutionStats } from "@/services/platform/executions";
 import { cn } from "@/lib/utils";
 import type { Execution } from "@/lib/schemas/platform";
+import type { LatencyStats } from "@/lib/schemas/builders";
+import type { ExecutionStats } from "@/lib/schemas/platform";
 
 function Card({
   title,
@@ -42,23 +44,41 @@ function BigValue({ value }: { value: string }) {
   );
 }
 
-export function CallsKpiStrip({
+export const CallsKpiStrip = memo(function CallsKpiStrip({
   executions,
   agentId,
+  stats: statsProp,
+  latency: latencyProp,
+  statsLoading: statsLoadingProp,
+  latencyLoading: latencyLoadingProp,
+  scopeNote,
 }: {
   executions: Execution[];
   agentId?: string;
+  stats?: ExecutionStats | null;
+  latency?: LatencyStats | null;
+  statsLoading?: boolean;
+  latencyLoading?: boolean;
+  /** Extra scope qualifier, e.g. batch-filtered views whose totals are global. */
+  scopeNote?: string;
 }) {
-  const { data: stats, isLoading: statsLoading } = useExecutionStats(agentId);
-  const { data: latency, isLoading: latencyLoading } = useLatencyStats(agentId);
+  const { data: statsFallback, isLoading: statsLoadingFallback } = useExecutionStats(agentId);
+  const { data: latencyFallback, isLoading: latencyLoadingFallback } = useLatencyStats(agentId);
+  const stats = statsProp !== undefined ? statsProp : statsFallback;
+  const latency = latencyProp !== undefined ? latencyProp : latencyFallback;
+  const statsLoading = statsLoadingProp ?? statsLoadingFallback;
+  const latencyLoading = latencyLoadingProp ?? latencyLoadingFallback;
 
   const completion = useMemo(() => completionStats(executions), [executions]);
   const stages = useMemo(() => avgStageMs(executions), [executions]);
-  const p95 = useMemo(() => p95E2E(executions), [executions]);
+  const pageP95 = useMemo(() => p95E2E(executions), [executions]);
+  // Server windowed p95 is statistically meaningful; the 25-row page slice
+  // is only a fallback when the latency summary is unavailable.
+  const p95 = latency?.p95_e2e_ms ?? pageP95;
 
   const totalLabel = stats ? stats.total.toLocaleString() : executions.length.toLocaleString();
   const totalCaption = stats
-    ? `${stats.by_status["completed"] ?? 0} completed · ${stats.by_status["failed"] ?? 0} failed`
+    ? `${stats.by_status["completed"] ?? 0} completed · ${stats.by_status["failed"] ?? 0} failed${scopeNote ? ` · ${scopeNote}` : ""}`
     : completion.failedRate === null
       ? "No calls in page"
       : `${(completion.failedRate * 100).toFixed(1)}% failed in page`;
@@ -116,14 +136,15 @@ export function CallsKpiStrip({
         {showLatencySkeletons ? (
           <div className="h-7 w-16 rounded bg-muted animate-pulse" />
         ) : (
-          <BigValue value={formatLatency(p95 ?? latency?.p95_e2e_ms ?? null)} />
+          <BigValue value={formatLatency(p95)} />
         )}
         <p className="text-xs text-muted-foreground tabular-nums">
           {showLatencySkeletons ? (
             <span className="inline-block h-3 w-24 rounded bg-muted animate-pulse" />
           ) : (
             <>
-              STT {formatLatency(stages.stt !== null ? Math.round(stages.stt) : (latency?.by_stage["transcriber_ms"] ?? null))} · TTS{" "}
+              STT {formatLatency(stages.stt !== null ? Math.round(stages.stt) : (latency?.by_stage["transcriber_ms"] ?? null))} · LLM{" "}
+              {formatLatency(stages.llm !== null ? Math.round(stages.llm) : (latency?.by_stage["llm_ms"] ?? null))} · TTS{" "}
               {formatLatency(stages.tts !== null ? Math.round(stages.tts) : (latency?.by_stage["synthesizer_ms"] ?? null))}
             </>
           )}
@@ -152,4 +173,4 @@ export function CallsKpiStrip({
       </Card>
     </div>
   );
-}
+});

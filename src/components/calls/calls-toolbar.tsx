@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { SearchInput } from "@/components/common/search-input";
+import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
 const STATUS_GROUPS = [
@@ -25,8 +26,7 @@ const STATUS_GROUPS = [
   },
 ] as const;
 
-const selectClass =
-  "h-11 px-4 bg-card border border-border rounded-2xl text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 transition-all";
+const selectClass = fieldStyles.field;
 
 interface CallsToolbarProps {
   search: string;
@@ -39,7 +39,7 @@ interface CallsToolbarProps {
   isFetching?: boolean;
 }
 
-export function CallsToolbar({
+export const CallsToolbar = memo(function CallsToolbar({
   search,
   onSearch,
   agentFilter,
@@ -51,6 +51,18 @@ export function CallsToolbar({
 }: CallsToolbarProps) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [stuck, setStuck] = useState(false);
+  // Local input state — commits to the URL debounced so every keystroke
+  // doesn't trigger a navigation + full list re-render.
+  const [draft, setDraft] = useState(search);
+  useEffect(() => {
+    setDraft(search);
+  }, [search]);
+  useEffect(() => {
+    if (draft === search) return;
+    const timer = setTimeout(() => onSearch(draft), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
@@ -70,15 +82,16 @@ export function CallsToolbar({
       >
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <SearchInput
-          value={search}
-          onChange={onSearch}
-          placeholder="Search number, execution or agent..."
-          label="Search calls"
+          value={draft}
+          onChange={setDraft}
+          placeholder="Filter this page by number, execution or agent…"
+          title="Page filter — narrows the 25 loaded rows. Use agent/status filters for full history."
+          label="Filter current page"
           className="!w-full max-w-xs"
         />
         {isFetching && (
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground">
-            <span className="w-2 h-2 rounded-full bg-ember-500 animate-pulse" />
+          <span role="status" aria-live="polite" className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground">
+            <span className="w-2 h-2 rounded-full bg-ember-500 animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             Live
           </span>
         )}
@@ -119,4 +132,4 @@ export function CallsToolbar({
       </div>
     </>
   );
-}
+});

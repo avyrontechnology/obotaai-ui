@@ -207,6 +207,8 @@ export function ChatTalk({
       jitterMs: null,
       turns: turns.filter((turn) => turn.role !== "system").length,
       elapsedSec: tick,
+      deviceRate: null,
+      playedChunks: 0,
     }),
     [lastRtt, turns, tick]
   );

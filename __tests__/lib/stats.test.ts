@@ -85,8 +85,8 @@ describe("dashboard stats", () => {
       execution({ latency: { transcriber_ms: 300, llm_ms: 200, synthesizer_ms: 500, e2e_ms: 1000 } }),
       execution({ latency: null }),
     ];
-    expect(avgStageMs(rows)).toEqual({ stt: 200, tts: 400 });
-    expect(avgStageMs([])).toEqual({ stt: null, tts: null });
+    expect(avgStageMs(rows)).toEqual({ stt: 200, llm: 200, tts: 400 });
+    expect(avgStageMs([])).toEqual({ stt: null, llm: null, tts: null });
   });
 
   it("computes completion and failed rates", () => {

@@ -8,7 +8,7 @@ const SESSION_COOKIE = "otoba_session";
  * (401 → login redirect in api-client); middleware only keeps logged-out
  * visitors out of app routes without a round trip.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (
     pathname.startsWith("/_next") ||
@@ -28,6 +28,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
   if (isPublic && hasSession && pathname !== "/accept-invite") {
+    if (request.nextUrl.searchParams.get("clear_session")) {
+      const response = NextResponse.next();
+      response.cookies.delete(SESSION_COOKIE);
+      return response;
+    }
     return NextResponse.redirect(new URL("/", request.url));
   }
   return NextResponse.next();

@@ -16,7 +16,7 @@ import { ErrorState } from "@/components/common/error-state";
 import { SkeletonList } from "@/components/common/skeleton-list";
 import { downloadCsv, executionsToCsv } from "@/lib/calls-export";
 import { useAgents } from "@/services/api";
-import { useExecutionStats, useExecutions } from "@/services/platform/executions";
+import { useExecutionStats, useExecutions, useLatencyStats } from "@/services/platform/executions";
 import type { Execution } from "@/lib/schemas/platform";
 
 const PAGE_SIZE = 25;
@@ -46,7 +46,7 @@ function CallsContent() {
       else next.set("agent", value);
       next.delete("page");
       const qs = next.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [searchParams, router, pathname]
   );
@@ -62,7 +62,7 @@ function CallsContent() {
       else next.set("status", value);
       next.delete("page");
       const qs = next.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [searchParams, router, pathname]
   );
@@ -77,7 +77,7 @@ function CallsContent() {
       else next.set("q", value.trim());
       next.delete("page");
       const qs = next.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [searchParams, router, pathname]
   );
@@ -88,7 +88,7 @@ function CallsContent() {
       if (id) next.set("execution_id", id);
       else next.delete("execution_id");
       const qs = next.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [searchParams, router, pathname]
   );
@@ -108,7 +108,7 @@ function CallsContent() {
       if (nextPage === 0) next.delete("page");
       else next.set("page", String(nextPage));
       const qs = next.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [pageBasis, searchParams, router, pathname]
   );
@@ -118,7 +118,9 @@ function CallsContent() {
       agent_id: agentFilter === "all" ? undefined : agentFilter,
       status: statusFilter === "all" ? undefined : statusFilter,
       batch_id: batchId ?? undefined,
-      limit: PAGE_SIZE,
+      // +1 probe: distinguishes a full last page from "more available"
+      // without a server total. Display slice is PAGE_SIZE.
+      limit: PAGE_SIZE + 1,
       offset: page * PAGE_SIZE,
     }),
     [agentFilter, statusFilter, batchId, page]
@@ -126,14 +128,23 @@ function CallsContent() {
 
   const { data: executions, isLoading, isFetching, error, refetch } = useExecutions(serverFilters);
   const { data: agents } = useAgents();
-  const { data: stats } = useExecutionStats(agentFilter === "all" ? undefined : agentFilter);
-  const hasMore = (executions?.length ?? 0) >= PAGE_SIZE;
+  const agentScope = agentFilter === "all" ? undefined : agentFilter;
+  const { data: stats, refetch: refetchStats } = useExecutionStats(agentScope);
+  const { data: latency, isLoading: latencyLoading } = useLatencyStats(agentScope);
+  // Probe row (index PAGE_SIZE) proves another page; never rendered.
+  const hasMore = (executions?.length ?? 0) > PAGE_SIZE;
+  const pageRows = useMemo(() => (executions ?? []).slice(0, PAGE_SIZE), [executions]);
 
   const agentNames = useMemo(() => {
     const map = new Map<string, string>();
     (agents ?? []).forEach((agent) => map.set(agent.agent_id, agent.agent_name));
     return map;
   }, [agents]);
+
+  const agentOptions = useMemo(
+    () => (agents ?? []).map((a) => ({ agent_id: a.agent_id, agent_name: a.agent_name })),
+    [agents]
+  );
 
   const hasActive = useMemo(() => {
     if (stats && (stats.by_status["queued"] ?? 0) + (stats.by_status["ringing"] ?? 0) + (stats.by_status["in_progress"] ?? 0) > 0) return true;
@@ -143,36 +154,45 @@ function CallsContent() {
   useEffect(() => {
     if (!hasActive || typeof document === "undefined") return;
     if (document.visibilityState === "hidden") return;
-    const timer = setInterval(() => refetch(), 4000);
+    // Rows + stats share one clock so the KPI caption never freezes
+    // while the table live-tails.
+    const timer = setInterval(() => {
+      refetch();
+      refetchStats();
+    }, 4000);
     const onVis = () => {
-      if (document.visibilityState === "visible" && hasActive) refetch();
+      if (document.visibilityState === "visible" && hasActive) {
+        refetch();
+        refetchStats();
+      }
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [hasActive, refetch, serverFilters]);
+  }, [hasActive, refetch, refetchStats, serverFilters]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return executions ?? [];
-    return (executions ?? []).filter(
+    if (!query) return pageRows;
+    return pageRows.filter(
       (execution: Execution) =>
         (execution.to_number ?? "").toLowerCase().includes(query) ||
         (execution.execution_id ?? "").toLowerCase().includes(query) ||
         (agentNames.get(execution.agent_id) ?? "").toLowerCase().includes(query) ||
         execution.status.toLowerCase().includes(query)
     );
-  }, [executions, search, agentNames]);
+  }, [pageRows, search, agentNames]);
 
   const from = filtered.length === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = page * PAGE_SIZE + filtered.length;
-  const isFilteredSearch = search.trim().length > 0 && filtered.length !== (executions?.length ?? 0);
+  const isFilteredSearch = search.trim().length > 0 && filtered.length !== pageRows.length;
 
   const handleExport = () => {
     if (filtered.length === 0) return;
-    downloadCsv(`call-history-${new Date().toISOString().slice(0, 10)}.csv`, executionsToCsv(filtered));
+    const pageLabel = page + 1;
+    downloadCsv(`call-history-page${pageLabel}-${new Date().toISOString().slice(0, 10)}.csv`, executionsToCsv(filtered));
     if (hasMore || page > 0 || isFilteredSearch) {
       toast.info(`Exported ${filtered.length} calls from this page. Clear filters to include more.`);
     } else {
@@ -185,7 +205,15 @@ function CallsContent() {
     setStatusOverride("all");
     setSearchRaw("");
     setPageState({ basis: "", page: 0 });
-    router.replace(pathname);
+    // Preserve arrival context (batch) and open inspection (drawer) —
+    // clearing search filters must not strand or close them.
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("agent");
+    next.delete("status");
+    next.delete("q");
+    next.delete("page");
+    const qs = next.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   };
 
   const hasAnyFilter = agentFilter !== "all" || statusFilter !== "all" || search.trim().length > 0 || !!batchId;
@@ -213,17 +241,25 @@ function CallsContent() {
         <button
           onClick={handleExport}
           disabled={filtered.length === 0}
+          title={filtered.length === 0 ? "No rows to export" : hasMore || page > 0 ? "Exports the 25 rows on this page" : "Exports the rows on this page"}
           className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm transition-all hover:bg-accent disabled:opacity-40 flex items-center gap-2 self-start md:self-auto shrink-0"
         >
-          <Download className="w-4 h-4" />
-          <span>Export CSV</span>
+          <Download className="w-4 h-4" aria-hidden="true" />
+          <span>{hasMore || page > 0 ? "Export page (25)" : "Export CSV"}</span>
         </button>
       </div>
 
-      <CallsKpiStrip executions={executions ?? []} agentId={agentFilter === "all" ? undefined : agentFilter} />
+      <CallsKpiStrip
+        executions={pageRows}
+        agentId={agentFilter === "all" ? undefined : agentFilter}
+        stats={stats}
+        latency={latency}
+        latencyLoading={latencyLoading}
+        scopeNote={batchId ? "global total — table shows batch slice" : undefined}
+      />
 
       <div className="mb-5">
-        <LatencyInsights agent_id={agentFilter === "all" ? undefined : agentFilter} />
+        <LatencyInsights agent_id={agentFilter === "all" ? undefined : agentFilter} stats={latency} isLoading={latencyLoading} />
       </div>
 
       {/* Active filter pills */}
@@ -233,42 +269,48 @@ function CallsContent() {
             <button
               onClick={() => setAgentFilter("all")}
               title="Clear agent filter"
+              aria-label="Remove agent filter"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
             >
-              agent: {(agents ?? []).find((a) => a.agent_id === agentFilter)?.agent_name ?? `${agentFilter.slice(0, 14)}…`} <X className="w-3.5 h-3.5" />
+              agent: {(agents ?? []).find((a) => a.agent_id === agentFilter)?.agent_name ?? `${agentFilter.slice(0, 14)}…`} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
           {statusFilter !== "all" && (
             <button
               onClick={() => setStatusFilter("all")}
               title="Clear status filter"
+              aria-label="Remove status filter"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
             >
-              status: {statusFilter} <X className="w-3.5 h-3.5" />
+              status: {statusFilter} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
           {batchId && (
             <Link
               href={batchClearHref}
+              title={batchId}
+              aria-label={`Remove batch filter ${batchId}`}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
             >
-              batch: {batchId.slice(0, 14)}… <X className="w-3.5 h-3.5" />
+              batch: {batchId.slice(0, 14)}… <X className="w-3.5 h-3.5" aria-hidden="true" />
             </Link>
           )}
           {search.trim() && (
             <button
               onClick={() => setSearch("")}
               title="Clear search"
+              aria-label="Remove search filter"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors"
             >
-              search: {search.trim().slice(0, 20)} <X className="w-3.5 h-3.5" />
+              search: {search.trim().slice(0, 20)} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
           <button
             onClick={clearFilters}
+            aria-label={batchId ? "Clear all filters except batch context" : "Clear all filters"}
             className="text-xs font-mono text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
           >
-            Clear all
+            {batchId ? "Clear filters (keep batch)" : "Clear all"}
           </button>
         </div>
       )}
@@ -280,11 +322,11 @@ function CallsContent() {
         onAgentFilter={setAgentFilter}
         statusFilter={statusFilter}
         onStatusFilter={setStatusFilter}
-        agents={(agents ?? []).map((a) => ({ agent_id: a.agent_id, agent_name: a.agent_name }))}
+        agents={agentOptions}
         isFetching={isFetching && !isLoading}
       />
       {isFilteredSearch && (
-        <p className="text-xs font-mono text-muted-foreground mb-3">Filtered on this page only — server filters narrow the full history.</p>
+        <p className="text-xs font-mono text-muted-foreground mb-3">Showing page filter · {filtered.length} of {pageRows.length} on this page — use agent/status filters for full history.</p>
       )}
 
       {/* List */}
@@ -320,13 +362,17 @@ function CallsContent() {
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-0 min-h-0">
-          <div className="rounded-3xl border border-border bg-card md:overflow-hidden">
+          <div
+            className="rounded-3xl border border-border bg-card md:overflow-hidden transition-opacity motion-reduce:transition-none"
+            aria-busy={isFetching && !isLoading}
+            style={isFetching && !isLoading ? { opacity: 0.6 } : undefined}
+          >
             <CallsTable executions={filtered} agentNames={agentNames} onSelect={setSelectedId} />
           </div>
 
           <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs font-mono text-muted-foreground tabular-nums">
-              {from}–{to} {hasMore ? "· more available" : "· end"} {isFetching && !isLoading ? "· updating…" : ""}
+              {from}–{to}{!batchId && stats ? ` of ${stats.total.toLocaleString()}` : ""} {hasMore ? "· more available" : "· end"} {isFetching && !isLoading ? "· updating…" : ""}
             </p>
             {(page > 0 || hasMore) && (
               <div className="flex items-center gap-2">

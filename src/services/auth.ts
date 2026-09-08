@@ -13,6 +13,7 @@ import {
   type InviteInput,
   type LoginInput,
   type Role,
+  type SignupInput,
 } from "@/lib/schemas/auth";
 
 export const authKeys = {
@@ -46,6 +47,27 @@ export function useLogin() {
     },
     onSuccess: (me) => {
       queryClient.setQueryData(authKeys.session, me);
+      queryClient.invalidateQueries();
+    },
+  });
+}
+
+export function useSignup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: SignupInput) => {
+      // `confirm` is a client-side repeat check; the API takes password only.
+      const { confirm, ...payload } = input;
+      void confirm;
+      const raw = await apiClient<unknown>("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return userSchema.parse(raw);
+    },
+    onSuccess: () => {
+      // Session cookie is set server-side; refetch rather than fabricate.
+      queryClient.invalidateQueries({ queryKey: authKeys.session });
       queryClient.invalidateQueries();
     },
   });

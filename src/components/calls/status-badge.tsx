@@ -6,6 +6,14 @@ import type { Execution } from "@/lib/schemas/platform";
 
 type Status = Execution["status"];
 
+function titleCase(value: string): string {
+  return value
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 const STYLES: Record<Status, { pill: string; dot: string; pulse: boolean; label: string }> = {
   completed: {
     pill: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
@@ -59,22 +67,39 @@ const STYLES: Record<Status, { pill: string; dot: string; pulse: boolean; label:
 
 export const TERMINAL_STATUSES: Status[] = ["completed", "failed", "no-answer", "busy", "canceled"];
 
-export function isTerminal(status: Status): boolean {
-  return TERMINAL_STATUSES.includes(status);
+const FALLBACK_STYLE = {
+  pill: "bg-muted text-muted-foreground border-border",
+  dot: "bg-muted-foreground",
+  pulse: false,
+} as const;
+
+/**
+ * Fail-closed: unknown future statuses never read as active, so live-polling
+ * stops instead of spinning forever on a status the client doesn't know yet.
+ */
+export function isTerminal(status: string): boolean {
+  if ((TERMINAL_STATUSES as string[]).includes(status)) return true;
+  if (status === "queued" || status === "ringing" || status === "in_progress") return false;
+  return true;
 }
 
-export const StatusBadge = memo(function StatusBadge({ status }: { status: Status }) {
-  const style = STYLES[status];
+export const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
+  const known = (STYLES as Record<string, { pill: string; dot: string; pulse: boolean; label: string }>)[status];
+  const style = known ?? { ...FALLBACK_STYLE, label: titleCase(status) };
+  if (!known && typeof console !== "undefined") {
+    console.warn(`[calls] unknown status "${status}" — using fallback badge`);
+  }
   return (
     <span
+      title={status}
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
         style.pill
       )}
     >
-      <span className="relative flex h-1.5 w-1.5">
+      <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
         {style.pulse && (
-          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", style.dot)} />
+          <span className={cn("animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full opacity-75", style.dot)} />
         )}
         <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", style.dot)} />
       </span>

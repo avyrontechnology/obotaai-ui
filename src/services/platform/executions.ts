@@ -38,11 +38,16 @@ async function fetchExecutions(filters: ExecutionFilters = {}) {
   return executionListSchema.parse(raw).executions;
 }
 
-export function useExecutions(filters: ExecutionFilters = {}) {
+export function useExecutions(
+  filters: ExecutionFilters = {},
+  options?: { refetchInterval?: number | false; staleTime?: number }
+) {
   return useQuery({
     queryKey: executionKeys.filtered(filters),
     queryFn: () => fetchExecutions(filters),
     placeholderData: (previousData) => previousData,
+    staleTime: options?.staleTime,
+    refetchInterval: options?.refetchInterval,
   });
 }
 
@@ -57,7 +62,10 @@ export function useExecution(id: string, enabled = true) {
   });
 }
 
-export function useExecutionStats(agent_id?: string) {
+export function useExecutionStats(
+  agent_id?: string,
+  options?: { refetchInterval?: number | false; staleTime?: number }
+) {
   return useQuery({
     queryKey: executionKeys.stats(agent_id),
     queryFn: async () => {
@@ -65,10 +73,16 @@ export function useExecutionStats(agent_id?: string) {
       const raw = await apiClient<unknown>(`/executions/stats${query}`);
       return executionStatsSchema.parse(raw);
     },
+    staleTime: options?.staleTime,
+    refetchInterval: options?.refetchInterval,
   });
 }
 
-export function useLatencyStats(agent_id?: string, days = 30) {
+export function useLatencyStats(
+  agent_id?: string,
+  days = 30,
+  options?: { refetchInterval?: number | false; staleTime?: number }
+) {
   return useQuery({
     queryKey: ["executions", "latency", { agent_id, days }] as const,
     queryFn: async () => {
@@ -77,6 +91,8 @@ export function useLatencyStats(agent_id?: string, days = 30) {
       const raw = await apiClient<unknown>(`/executions/latency/summary?${params.toString()}`);
       return latencyStatsSchema.parse(raw);
     },
+    staleTime: options?.staleTime,
+    refetchInterval: options?.refetchInterval,
   });
 }
 

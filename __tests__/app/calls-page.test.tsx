@@ -64,7 +64,7 @@ describe("CallsPage", () => {
     renderWith([execution("exec-1", { to_number: null })]);
     await act(async () => {});
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
-    const search = screen.getByPlaceholderText("Search number, execution or agent...");
+    const search = screen.getByPlaceholderText("Filter this page by number, execution or agent…");
     await act(async () => {
       fireEvent.change(search, { target: { value: "exec-1" } });
     });
@@ -72,7 +72,8 @@ describe("CallsPage", () => {
   });
 
   it("pages with offset and disables prev on page one", async () => {
-    const full = Array.from({ length: 25 }, (_, i) => execution(`exec-${i}`));
+    // 26 rows = 25 displayed + 1 probe proving another page exists.
+    const full = Array.from({ length: 26 }, (_, i) => execution(`exec-${i}`));
     renderWith(full);
     await act(async () => {});
     expect(screen.getByText("Page 1")).toBeInTheDocument();
@@ -81,7 +82,7 @@ describe("CallsPage", () => {
       fireEvent.click(screen.getByLabelText("Next page"));
     });
     expect(useExecutions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ limit: 25, offset: 25 })
+      expect.objectContaining({ limit: 26, offset: 25 })
     );
     expect(screen.getByText("Page 2")).toBeInTheDocument();
   });
@@ -122,7 +123,7 @@ describe("CallsPage", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open call exec-1/ }));
     });
-    expect(replaceMock).toHaveBeenLastCalledWith("/calls?execution_id=exec-1");
+    expect(replaceMock).toHaveBeenLastCalledWith("/calls?execution_id=exec-1", { scroll: false });
 
     // Simulate the URL update landing, then close via the drawer button.
     mockParams = new URLSearchParams("execution_id=exec-1");
@@ -130,6 +131,6 @@ describe("CallsPage", () => {
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Close panel"));
     });
-    expect(replaceMock).toHaveBeenLastCalledWith("/calls");
+    expect(replaceMock).toHaveBeenLastCalledWith("/calls", { scroll: false });
   });
 });

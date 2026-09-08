@@ -230,5 +230,18 @@ describe("live-talk audio utils", () => {
       feed(node, new Float32Array(4410).fill(0.7), 128);
       for (const m of posted) for (const v of m) expect(v).toBeCloseTo(0.7, 4);
     });
+
+    it("handles a 24k single-rate context (1.5x down to 16k)", () => {
+      const { node, posted } = makeNode(24000);
+      const input = new Float32Array(2400);
+      for (let i = 0; i < input.length; i++) input[i] = i / (input.length - 1);
+      feed(node, input);
+      const total = posted.reduce((n, m) => n + m.length, 0);
+      expect(total).toBe(1600);
+      const flat = posted.reduce((acc, m) => [...acc, ...m], [] as number[]);
+      let maxErr = 0;
+      for (let i = 0; i < flat.length; i++) maxErr = Math.max(maxErr, Math.abs(flat[i] - i / (flat.length - 1)));
+      expect(maxErr).toBeLessThan(0.02);
+    });
   });
 });

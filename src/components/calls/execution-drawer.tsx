@@ -1,14 +1,16 @@
 "use client";
 
-import { Activity, Bot, Copy, ExternalLink, PhoneIncoming, PhoneOutgoing, User } from "lucide-react";
+import { Activity, Bot, Copy, ExternalLink, Link2, PhoneIncoming, PhoneOutgoing, User } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useExecution } from "@/services/platform/executions";
 import { Drawer } from "@/components/common/modal";
+import { ErrorState } from "@/components/common/error-state";
 import { ProgressBar } from "@/components/common/progress-bar";
 import { StatusBadge } from "./status-badge";
 import { displayCallerNumber, formatDuration, formatLatency, timeAgo } from "@/lib/format";
+import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
 interface ExecutionDrawerProps {
@@ -47,15 +49,9 @@ function KeyValueBlock({ title, data }: { title: string; data: Record<string, un
   );
 }
 
-export function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) {
+export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) {
   const open = executionId !== null;
-  const { data: execution, isLoading } = useExecution(executionId ?? "", open);
-  const [transcriptQuery, setTranscriptQuery] = useState("");
-  const [prevId, setPrevId] = useState<string | null>(null);
-  if (prevId !== executionId) {
-    setPrevId(executionId);
-    if (transcriptQuery !== "") setTranscriptQuery("");
-  }
+  const { data: execution, isLoading, isError, refetch } = useExecution(executionId ?? "", open);
 
   const copy = async (value: string, label: string) => {
     try {
@@ -81,6 +77,11 @@ export function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) 
   const latency = execution?.latency;
   const maxLatency = latency ? Math.max(latency.transcriber_ms, latency.llm_ms, latency.synthesizer_ms, 1) : 1;
 
+  const copyLink = () => {
+    if (typeof window === "undefined" || !execution) return;
+    void copy(`${window.location.origin}/calls?execution_id=${execution.execution_id}`, "Link");
+  };
+
   return (
     <Drawer
       open={open}
@@ -100,7 +101,17 @@ export function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) 
                 aria-label="Copy execution ID"
                 className="p-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
               >
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
+            {execution?.execution_id && (
+              <button
+                onClick={copyLink}
+                aria-label="Copy link to this call"
+                title="Copy shareable link to this call"
+                className="p-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              >
+                <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -112,11 +123,15 @@ export function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) 
     >
       <div className="p-6 space-y-6">
               {isLoading || !execution ? (
-                <div className="space-y-4 animate-pulse">
+                isError ? (
+                  <ErrorState message="Couldn't load this call." onRetry={() => refetch()} />
+                ) : (
+                <div className="space-y-4 animate-pulse motion-reduce:animate-none" aria-label="Loading call details">
                   <div className="h-6 w-32 rounded-full bg-muted" />
                   <div className="h-24 rounded-2xl bg-muted" />
                   <div className="h-40 rounded-2xl bg-muted" />
                 </div>
+                )
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -175,64 +190,7 @@ export function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) 
                     </div>
                   )}
 
-                  <div>
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-                        Transcript
-                      </h4>
-                      {execution.transcript.length > 0 && (
-                        <input
-                          value={transcriptQuery}
-                          onChange={(event) => setTranscriptQuery(event.target.value)}
-                          placeholder="Filter transcript…"
-                          aria-label="Filter transcript"
-                          className="h-8 px-3 bg-card border border-border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-ember-400/50 w-40"
-                        />
-                      )}
-                    </div>
-                    {execution.transcript.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No transcript captured for this call.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {execution.transcript
-                          .filter((turn) =>
-                            transcriptQuery.trim()
-                              ? turn.text.toLowerCase().includes(transcriptQuery.trim().toLowerCase())
-                              : true
-                          )
-                          .map((turn, index) => (
-                          <div
-                            key={index}
-                            className={cn("flex", turn.role === "agent" ? "justify-start" : "justify-end")}
-                          >
-                            <div
-                              className={cn(
-                                "max-w-[90%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words",
-                                turn.role === "agent"
-                                  ? "bg-muted/60 border border-border text-foreground rounded-tl-sm"
-                                  : "bg-primary text-primary-foreground rounded-tr-sm"
-                              )}
-                            >
-                              <div className="flex items-center gap-1.5 mb-1 opacity-70">
-                                {turn.role === "agent" ? (
-                                  <Bot className="w-3 h-3" />
-                                ) : (
-                                  <User className="w-3 h-3" />
-                                )}
-                                <span className="text-[10px] uppercase font-mono tracking-wider">
-                                  {turn.role === "agent" ? "Agent" : "Caller"}
-                                </span>
-                                {typeof turn.ts === "number" && (
-                                  <span className="text-[10px] font-mono">· {formatDuration(turn.ts)}</span>
-                                )}
-                              </div>
-                              {turn.text}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <TranscriptView key={execution.execution_id} transcript={execution.transcript} />
 
                   <KeyValueBlock title="Extracted data" data={execution.extracted_data} />
                   <KeyValueBlock
@@ -243,5 +201,90 @@ export function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) 
               )}
       </div>
     </Drawer>
+  );
+});
+
+/**
+ * Transcript list with local filter. Keyed by execution_id at the call site,
+ * so switching calls remounts and resets the filter with no setState-in-effect.
+ */
+function TranscriptView({ transcript }: { transcript: NonNullable<import("@/lib/schemas/platform").Execution["transcript"]> }) {
+  const [transcriptQuery, setTranscriptQuery] = useState("");
+  const trimmedQuery = transcriptQuery.trim().toLowerCase();
+  const visibleTurns = useMemo(
+    () =>
+      trimmedQuery
+        ? transcript.filter((turn) => turn.text.toLowerCase().includes(trimmedQuery))
+        : transcript,
+    [transcript, trimmedQuery]
+  );
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+          Transcript
+        </h4>
+        {transcript.length > 0 && (
+          <input
+            value={transcriptQuery}
+            onChange={(event) => setTranscriptQuery(event.target.value)}
+            placeholder="Filter transcript…"
+            aria-label="Filter transcript"
+            className={cn(fieldStyles.fieldSm, "w-40 !w-40")}
+          />
+        )}
+      </div>
+      {transcript.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No transcript captured for this call.</p>
+      ) : visibleTurns.length === 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border p-4">
+          <p className="text-sm text-muted-foreground">No turns match “{transcriptQuery.trim()}”.</p>
+          <button
+            onClick={() => setTranscriptQuery("")}
+            className="text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 shrink-0"
+          >
+            Clear
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {trimmedQuery && (
+            <p className="text-xs font-mono text-muted-foreground" role="status">
+              {visibleTurns.length} of {transcript.length} turns
+            </p>
+          )}
+          {visibleTurns.map((turn, index) => (
+            <div
+              key={`${typeof turn.ts === "number" ? turn.ts : "na"}-${turn.role}-${turn.text.slice(0, 24)}-${index}`}
+              className={cn("flex", turn.role === "agent" ? "justify-start" : "justify-end")}
+            >
+              <div
+                className={cn(
+                  "max-w-[90%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words",
+                  turn.role === "agent"
+                    ? "bg-muted/60 border border-border text-foreground rounded-tl-sm"
+                    : "bg-primary text-primary-foreground rounded-tr-sm"
+                )}
+              >
+                <div className="flex items-center gap-1.5 mb-1 opacity-70">
+                  {turn.role === "agent" ? (
+                    <Bot className="w-3 h-3" aria-hidden="true" />
+                  ) : (
+                    <User className="w-3 h-3" aria-hidden="true" />
+                  )}
+                  <span className="text-[10px] uppercase font-mono tracking-wider">
+                    {turn.role === "agent" ? "Agent" : "Caller"}
+                  </span>
+                  {typeof turn.ts === "number" && (
+                    <span className="text-[10px] font-mono">· {formatDuration(turn.ts)}</span>
+                  )}
+                </div>
+                {turn.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

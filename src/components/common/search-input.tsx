@@ -9,6 +9,7 @@ interface SearchInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   label?: string;
+  title?: string;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export function SearchInput({
   onChange,
   placeholder = "Search...",
   label = "Search",
+  title,
   className,
 }: SearchInputProps) {
   const [focused, setFocused] = useState(false);
@@ -40,6 +42,7 @@ export function SearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         aria-label={label}
+        title={title}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         className="w-full h-11 pl-10 pr-4 bg-card backdrop-blur-xl border border-border rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-sm placeholder:text-muted-foreground font-mono"

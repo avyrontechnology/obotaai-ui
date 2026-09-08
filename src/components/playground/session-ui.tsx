@@ -27,6 +27,10 @@ export interface SessionStats {
   jitterMs: number | null;
   turns: number;
   elapsedSec: number;
+  /** Device output rate the context runs at (24000 = native, no resample). */
+  deviceRate: number | null;
+  /** Audio sources scheduled for playback this call. */
+  playedChunks: number;
 }
 
 export type SessionTab = "transcript" | "tools" | "jitter";
@@ -258,6 +262,16 @@ export function JitterPanel({ stats, hasAudio }: { stats: SessionStats; hasAudio
       tone: "text-foreground",
     },
     { label: "Turns", value: String(stats.turns), tone: "text-foreground" },
+    {
+      label: "Device rate",
+      value: stats.deviceRate ? `${Math.round(stats.deviceRate / 100) / 10}kHz` : "—",
+      tone: "text-foreground",
+    },
+    {
+      label: "Played",
+      value: String(stats.playedChunks),
+      tone: "text-foreground",
+    },
     {
       label: "Session",
       value: `${String(Math.floor(stats.elapsedSec / 60)).padStart(2, "0")}:${String(stats.elapsedSec % 60).padStart(2, "0")}`,

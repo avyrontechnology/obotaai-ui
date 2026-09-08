@@ -32,7 +32,8 @@ export type LoginInput = z.input<typeof loginSchema>;
 export const signupSchema = z
   .object({
     email: z.string().email("Enter a valid email"),
-    name: z.string().min(1, "Name is required").optional(),
+    // Optional: empty stays absent (the API rejects "" via min_length).
+    name: z.string().optional(),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirm: z.string(),
   })

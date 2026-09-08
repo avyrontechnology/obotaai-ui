@@ -156,10 +156,10 @@ export function AnalyticsConfigForm({ agentId }: { agentId: string }) {
       >
         <div className="col-span-1 md:col-span-2">
           <Link
-            href="/calls"
+            href={`/calls?agent=${agentId}`}
             className="flex items-center justify-center gap-2 h-12 rounded-2xl bg-muted/50 border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
           >
-            Open Call History
+            Open Call History for this agent
           </Link>
         </div>
       </FormSection>

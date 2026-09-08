@@ -33,6 +33,7 @@ import { useKnowledgeBases } from "@/services/platform/knowledgebases";
 import { useInbound } from "@/services/platform/inbound";
 import { formatDuration, formatLatency, timeAgo } from "@/lib/format";
 import { StatCard } from "@/components/common/stat-card";
+import { StatusBadge } from "@/components/calls/status-badge";
 import { notify } from "@/lib/notify";
 import { minRoleFor, useCan } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
@@ -300,8 +301,8 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-mono text-foreground truncate">{execution.to_number ?? "—"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {execution.status} · {formatDuration(execution.duration_s)} · {timeAgo(execution.started_at)}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      <StatusBadge status={execution.status} /> · {formatDuration(execution.duration_s)} · {timeAgo(execution.started_at)}
                     </p>
                   </div>
                   <span className="text-xs font-mono text-muted-foreground shrink-0">

@@ -35,7 +35,7 @@ export async function apiClient<T>(
       if (!isPublic) {
         // replace (not href): a 401 page must not stay in history, and this
         // runs outside React components where useRouter is unavailable.
-        window.location.replace(`/login?next=${encodeURIComponent(path + window.location.search)}`);
+        window.location.replace(`/login?clear_session=1&next=${encodeURIComponent(path + window.location.search)}`);
       }
     }
     const errorData = await response.json().catch(() => ({}));

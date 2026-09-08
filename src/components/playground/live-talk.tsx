@@ -112,7 +112,7 @@ export function LiveTalk({
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<SessionTab>("transcript");
   const [draft, setDraft] = useState("");
-  const [stats, setStats] = useState<SessionStats>({ e2eMs: null, jitterMs: null, turns: 0, elapsedSec: 0 });
+  const [stats, setStats] = useState<SessionStats>({ e2eMs: null, jitterMs: null, turns: 0, elapsedSec: 0, deviceRate: null, playedChunks: 0 });
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -323,6 +323,11 @@ export function LiveTalk({
         }
       } else if (message.type === "clear") {
         // Barge-in: stop everything scheduled so the agent doesn't talk over you.
+        // Stray clears with nothing in flight (trailing VAD speech-starts racing
+        // a response onset, common around language switches) would otherwise
+        // drop the response head buffered in the coalescer and chop the first
+        // word — ignore those.
+        if (sourcesRef.current.length === 0 && smootherRef.current.buffered === 0) return;
         stopPlayback();
       }
     },
@@ -339,7 +344,7 @@ export function LiveTalk({
     setTurns([]);
     setElapsed(0);
     setLevels([]);
-    setStats({ e2eMs: null, jitterMs: null, turns: 0, elapsedSec: 0 });
+    setStats({ e2eMs: null, jitterMs: null, turns: 0, elapsedSec: 0, deviceRate: null, playedChunks: 0 });
     turnIdRef.current = 0;
     turnCountRef.current = 0;
     framesInRef.current = 0;
@@ -385,7 +390,16 @@ export function LiveTalk({
       setError("Web Audio is unavailable in this browser.");
       return;
     }
-    const ctx = new Ctx();
+    // Single-rate context: agent buffers are 24k, so running the context at 24k
+    // removes the browser's per-source 24k→device resample — one fewer DSP stage
+    // that can roughen playback. Falls back to the device rate where 24k is
+    // unsupported (some BT/HFP devices); the mic worklet adapts to any rate.
+    let ctx: AudioContext;
+    try {
+      ctx = new Ctx({ sampleRate: LIVE_TALK_OUTPUT_RATE });
+    } catch {
+      ctx = new Ctx();
+    }
     audioCtxRef.current = ctx;
     deviceRateRef.current = ctx.sampleRate;
     if (ctx.state === "suspended") {
@@ -503,11 +517,15 @@ export function LiveTalk({
             jitterMs: jitter,
             turns: turnCountRef.current,
             elapsedSec,
+            deviceRate: deviceRateRef.current || null,
+            playedChunks: playedRef.current,
           };
           return next.e2eMs === prev.e2eMs &&
             next.jitterMs === prev.jitterMs &&
             next.turns === prev.turns &&
-            next.elapsedSec === prev.elapsedSec
+            next.elapsedSec === prev.elapsedSec &&
+            next.deviceRate === prev.deviceRate &&
+            next.playedChunks === prev.playedChunks
             ? prev
             : next;
         });
