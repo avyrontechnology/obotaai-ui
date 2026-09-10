@@ -12,7 +12,7 @@ import {
   SendHorizonal,
 } from "lucide-react";
 import { StatusBadge } from "@/components/calls/status-badge";
-import { WS_BASE_URL } from "@/lib/api-client";
+import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
 import { fetchWsTicket } from "@/services/auth";
 import { emitPlaygroundBus, subscribePlaygroundBus } from "@/lib/playground-bus";
 import { VoiceWaveform, combineLevels } from "./voice-waveform";
@@ -476,10 +476,12 @@ export function LiveTalk({
     pushTurn("system", `Dialing ${agentName}…`);
     // Same-origin cookies ride the handshake automatically; otherwise (or
     // for fresh sessions) attach a single-use ticket minted for this call.
-    let url = `${WS_BASE_URL}/chat/v1/${agentId}`;
+    // leg=browser is always sent: telephony-configured agents must still bind
+    // default handlers on playground legs (see buildTalkSocketUrl).
+    let url = buildTalkSocketUrl(WS_BASE_URL, agentId);
     try {
       const ticket = await fetchWsTicket();
-      url += `?token=${encodeURIComponent(ticket)}`;
+      url = buildTalkSocketUrl(WS_BASE_URL, agentId, ticket);
     } catch {
       /* fall back to cookie auth */
     }

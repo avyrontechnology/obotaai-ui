@@ -3,6 +3,16 @@ import { env } from "./env";
 export const API_BASE_URL = env.NEXT_PUBLIC_API_BASE_URL;
 export const WS_BASE_URL = env.NEXT_PUBLIC_WS_BASE_URL;
 
+/** Browser-leg call socket: ?leg=browser keeps the backend on default IO handlers
+ *  even when the agent is configured with a telephony provider (the carrier
+ *  handlers speak Twilio-shaped events and would drop browser {type}-frames,
+ *  leaving the call with no stream_sid, no greeting and no ingest). */
+export function buildTalkSocketUrl(baseUrl: string, agentId: string, ticket?: string): string {
+  const params = new URLSearchParams({ leg: "browser" });
+  if (ticket) params.set("token", ticket);
+  return `${baseUrl}/chat/v1/${agentId}?${params.toString()}`;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {

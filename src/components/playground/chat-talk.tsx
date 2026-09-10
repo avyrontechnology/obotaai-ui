@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, Loader2, PhoneOff, RadioReceiver, SendHorizonal } from "lucide-react";
-import { WS_BASE_URL } from "@/lib/api-client";
+import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
 import { fetchWsTicket } from "@/services/auth";
 import { subscribePlaygroundBus } from "@/lib/playground-bus";
 import { StatusBadge } from "@/components/calls/status-badge";
@@ -136,12 +136,13 @@ export function ChatTalk({
     };
 
     // Prefer a single-use ticket (works cross-origin); fall back to cookies.
+    // leg=browser keeps telephony-configured agents on default handlers here too.
     fetchWsTicket()
       .then((ticket) => {
-        if (!cancelled) attach(new WebSocket(`${WS_BASE_URL}/chat/v1/${agentId}?token=${encodeURIComponent(ticket)}`));
+        if (!cancelled) attach(new WebSocket(buildTalkSocketUrl(WS_BASE_URL, agentId, ticket)));
       })
       .catch(() => {
-        if (!cancelled) attach(new WebSocket(`${WS_BASE_URL}/chat/v1/${agentId}`));
+        if (!cancelled) attach(new WebSocket(buildTalkSocketUrl(WS_BASE_URL, agentId)));
       });
 
     return () => {
