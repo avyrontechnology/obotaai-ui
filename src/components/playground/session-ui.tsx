@@ -54,7 +54,7 @@ export function SessionTabs({
   ];
   const visible = allTabs.filter((entry) => tabs.includes(entry.id));
   return (
-    <div className="flex items-center gap-1 border-b border-border relative z-10 shrink-0" role="tablist" aria-label="Session panel">
+    <div className="flex items-center gap-1 border-b border-border relative z-10 shrink-0 overflow-x-auto custom-scrollbar" role="tablist" aria-label="Session panel">
       {visible.map((option) => (
         <button
           key={option.id}
@@ -62,7 +62,7 @@ export function SessionTabs({
           role="tab"
           aria-selected={tab === option.id}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-3 text-[11px] font-mono uppercase tracking-widest transition-colors border-b-2 -mb-px",
+            "flex items-center gap-1.5 px-3 py-3 text-[11px] font-mono uppercase tracking-widest transition-colors border-b-2 -mb-px shrink-0 whitespace-nowrap",
             tab === option.id
               ? "text-ember-700 dark:text-ember-300 border-ember-600 dark:border-ember-400 font-semibold"
               : "text-muted-foreground border-transparent hover:text-foreground"
@@ -74,7 +74,7 @@ export function SessionTabs({
       ))}
       <button
         onClick={onClear}
-        className="ml-auto text-[11px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-2 py-3"
+        className="ml-auto text-[11px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-2 py-3 shrink-0"
       >
         Clear
       </button>
@@ -154,7 +154,7 @@ export function TranscriptList({
       onScroll={handleScroll}
       data-testid="transcript-list"
       className={cn(
-        "flex-1 max-h-[60vh] lg:max-h-none overflow-y-auto space-y-5 pr-2 custom-scrollbar relative z-10",
+        "flex-1 max-h-[50vh] lg:max-h-none overflow-y-auto space-y-5 pr-2 custom-scrollbar relative z-10",
         minHeight
       )}
     >
@@ -192,7 +192,7 @@ export function TranscriptList({
                     "px-5 py-3.5 max-w-[90%] text-sm leading-relaxed break-words shadow-sm",
                     turn.role === "agent"
                       ? "bg-card/80 border border-border text-foreground rounded-2xl rounded-tl-sm"
-                      : "bg-primary border border-border text-primary-foreground rounded-2xl rounded-tr-sm"
+                      : "bg-primary border border-primary text-primary-foreground rounded-2xl rounded-tr-sm"
                   )}
                 >
                   {turn.text}

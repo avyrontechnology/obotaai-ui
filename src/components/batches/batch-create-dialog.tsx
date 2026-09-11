@@ -143,7 +143,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
           <button
             onClick={onClose}
             aria-label="Close batch creator"
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -231,10 +231,10 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                   </span>
                   <button
                     onClick={() => fileRef.current?.click()}
-                    className="mt-2 w-full flex items-center justify-center gap-2 h-24 rounded-2xl border border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors text-sm text-muted-foreground"
+                    className="mt-2 w-full flex items-center justify-center gap-2 min-h-24 px-4 py-3 rounded-2xl border border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors text-sm text-muted-foreground text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                   >
-                    <FileUp className="w-5 h-5" />
-                    {fileName || "Upload CSV — phone,name,…"}
+                    <FileUp className="w-5 h-5 shrink-0" />
+                    <span className="truncate" title={fileName || undefined}>{fileName || "Upload CSV — phone,name,…"}</span>
                   </button>
                   <input
                     ref={fileRef}
@@ -248,8 +248,8 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                     }}
                   />
                   {parseError && (
-                    <p className="mt-2 flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
-                      <AlertCircle className="w-4 h-4" /> {parseError}
+                    <p role="alert" className="mt-2 flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+                      <AlertCircle className="w-4 h-4 shrink-0" /> {parseError}
                     </p>
                   )}
                 </div>
@@ -322,7 +322,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                     <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
                       Calling hours
                     </span>
-                    <div className="flex items-center gap-2 h-11">
+                    <div className="flex flex-wrap items-center gap-2 min-h-11">
                       <Toggle
                         checked={hoursEnabled}
                         onChange={setHoursEnabled}
@@ -334,7 +334,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                         onChange={(event) => setHoursStart(event.target.value)}
                         disabled={!hoursEnabled}
                         aria-label="Calling window start"
-                        className={cn(fieldStyles.field, "h-9 disabled:opacity-40")}
+                        className={cn(fieldStyles.field, "h-9 min-w-0 flex-1 disabled:opacity-40")}
                       />
                       <input
                         type="time"
@@ -342,15 +342,15 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                         onChange={(event) => setHoursEnd(event.target.value)}
                         disabled={!hoursEnabled}
                         aria-label="Calling window end"
-                        className={cn(fieldStyles.field, "h-9 disabled:opacity-40")}
+                        className={cn(fieldStyles.field, "h-9 min-w-0 flex-1 disabled:opacity-40")}
                       />
                     </div>
                   </div>
                 </div>
 
                 {createBatch.isError && (
-                  <p className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
-                    <AlertCircle className="w-4 h-4" /> Failed to create the batch. Check the backend and retry.
+                  <p role="alert" className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+                    <AlertCircle className="w-4 h-4 shrink-0" /> Failed to create the batch. Check the backend and retry.
                   </p>
                 )}
 
@@ -358,7 +358,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                   onClick={handleSubmit}
                   disabled={!canSubmit}
                   title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
-                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm transition-all hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm transition-all hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   {createBatch.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

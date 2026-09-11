@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 
 function actionClass(primary = false): string {
   return cn(
-    "h-11 px-5 rounded-2xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50",
+    "h-11 px-5 rounded-2xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
     primary
       ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20"
       : "bg-card border border-border text-foreground hover:bg-accent"
@@ -83,21 +83,21 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto w-full pt-12 pb-32 px-4 md:px-8 space-y-4">
-        <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse" />
-        <div className="h-40 rounded-[2rem] bg-card border border-border animate-pulse" />
-        <div className="h-64 rounded-[2rem] bg-card border border-border animate-pulse" />
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4" aria-hidden="true">
+        <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse motion-reduce:animate-none" />
+        <div className="h-40 rounded-[2rem] bg-card border border-border animate-pulse motion-reduce:animate-none" />
+        <div className="h-64 rounded-[2rem] bg-card border border-border animate-pulse motion-reduce:animate-none" />
       </div>
     );
   }
 
   if (error || !batch) {
     return (
-      <div className="max-w-7xl mx-auto w-full pt-12 pb-32 px-4 md:px-8">
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
         <ErrorState message="Campaign not found.">
           <Link
             href="/batches"
-            className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
+            className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
           >
             Back to Campaigns
           </Link>
@@ -109,19 +109,19 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   const busy = startBatch.isPending || stopBatch.isPending || retryFailed.isPending;
 
   return (
-    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-12 pb-32 px-4 md:px-8">
+    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
         href="/batches"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 w-fit"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
         <ArrowLeft className="w-4 h-4" /> Campaigns
       </Link>
 
       <PageHeader
         title={
-          <span className="flex items-center gap-3">
-            {batch.name}
-            <BatchStatusBadge status={batch.status} />
+          <span className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="truncate" title={batch.name}>{batch.name}</span>
+            <span className="shrink-0"><BatchStatusBadge status={batch.status} /></span>
           </span>
         }
         description={
@@ -180,17 +180,17 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Progress */}
-      <div className="bg-card border border-border rounded-[2rem] p-6 mb-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      <div className="bg-card border border-border rounded-3xl p-5 md:p-6 mb-6 min-w-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
           {[
             { label: "Total", value: batch.stats.total },
             { label: "Completed", value: batch.stats.completed },
             { label: "Failed", value: batch.stats.failed },
             { label: "Queued", value: batch.stats.queued },
           ].map((stat) => (
-            <div key={stat.label}>
-              <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">{stat.label}</p>
-              <p className="text-3xl font-semibold tracking-tight text-foreground mt-1">{stat.value}</p>
+            <div key={stat.label} className="min-w-0">
+              <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground truncate">{stat.label}</p>
+              <p title={String(stat.value)} className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground mt-1 tabular-nums truncate">{stat.value}</p>
             </div>
           ))}
         </div>
@@ -201,19 +201,19 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Per-call results */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-medium text-foreground">Call results</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h2 className="text-lg font-medium text-foreground truncate">Call results</h2>
         {(executions ?? []).length > 0 && (
           <Link
             href={`/calls?batch_id=${id}`}
-            className="text-sm text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+            className="text-sm text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             Open in Call History
           </Link>
         )}
       </div>
       {(executions ?? []).length === 0 ? (
-        <div className="bg-card border border-border rounded-[2rem] p-10 text-center text-sm text-muted-foreground">
+        <div className="bg-card border border-border rounded-3xl p-6 md:p-8 text-center text-sm text-muted-foreground">
           {batch.status === "draft" || batch.status === "scheduled"
             ? "Start the campaign to place calls. Results appear here."
             : "No executions recorded yet."}
@@ -224,20 +224,20 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             <button
               key={execution.execution_id}
               onClick={() => setSelectedExecution(execution.execution_id)}
-              className="grid grid-cols-2 md:grid-cols-12 gap-2 md:gap-4 md:items-center p-4 md:px-6 bg-card border border-border rounded-3xl text-left transition-colors hover:bg-muted/60 group"
+              className="grid grid-cols-2 lg:grid-cols-12 gap-2 lg:gap-4 lg:items-center p-4 lg:px-6 bg-card border border-border rounded-3xl text-left transition-colors hover:bg-muted/60 group min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
-              <div className="col-span-1 md:col-span-4 font-mono text-sm text-foreground">
+              <div className="col-span-1 lg:col-span-4 font-mono text-sm text-foreground min-w-0 truncate" title={execution.to_number ?? undefined}>
                 {execution.to_number ?? "—"}
               </div>
-              <div className="col-span-1 md:col-span-3">
+              <div className="col-span-1 lg:col-span-3 min-w-0">
                 <StatusBadge status={execution.status} />
               </div>
-              <div className="col-span-1 md:col-span-3 text-xs font-mono text-muted-foreground">
+              <div title={`${formatDuration(execution.duration_s)} · ${formatLatency(execution.latency?.e2e_ms)}`} className="col-span-1 lg:col-span-3 text-xs font-mono text-muted-foreground truncate min-w-0 tabular-nums">
                 {formatDuration(execution.duration_s)} · {formatLatency(execution.latency?.e2e_ms)}
               </div>
-              <div className="col-span-1 md:col-span-2 flex items-center justify-end gap-2 text-xs text-muted-foreground">
-                {timeAgo(execution.started_at)}
-                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              <div className="col-span-1 lg:col-span-2 flex items-center justify-end gap-2 text-xs text-muted-foreground min-w-0">
+                <span className="truncate tabular-nums" title={execution.started_at}>{timeAgo(execution.started_at)}</span>
+                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 shrink-0 motion-reduce:transition-none" />
               </div>
             </button>
           ))}

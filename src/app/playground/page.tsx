@@ -106,10 +106,10 @@ function PlaygroundContent() {
   const greeting = greetingFor(new Date().getHours());
 
   return (
-    <div className="flex flex-col flex-1 min-h-[100dvh] lg:h-full lg:min-h-0 lg:overflow-hidden max-w-7xl mx-auto w-full pt-12 lg:pt-8 pb-24 lg:pb-6 px-4 md:px-8">
+    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8 lg:mb-5 shrink-0">
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
             <span suppressHydrationWarning>{greeting}</span>
           </h1>
           <p className="mt-2 text-muted-foreground">
@@ -150,13 +150,13 @@ function PlaygroundContent() {
                   <span
                     className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0",
-                      isActive ? "bg-primary-foreground/20" : "bg-gradient-to-br from-[#E73F1E] to-[#F9B637] text-white"
+                      isActive ? "bg-primary-foreground/20" : "bg-gradient-to-br from-ember-600 to-ember-400 text-white"
                     )}
                     aria-hidden="true"
                   >
                     {agent.agent_name.charAt(0).toUpperCase()}
                   </span>
-                  {agent.agent_name}
+                  <span className="min-w-0 max-w-[160px] truncate">{agent.agent_name}</span>
                   <span className={cn("text-[11px] font-mono uppercase", isActive ? "opacity-80" : "text-muted-foreground")}>
                     {recent.mode}
                   </span>
@@ -178,14 +178,14 @@ function PlaygroundContent() {
       ) : (
         <>
           {/* Two-step session setup */}
-          <div className="grid md:grid-cols-2 gap-4 mb-8 lg:mb-5 shrink-0">
+          <div className="grid lg:grid-cols-2 gap-4 mb-8 lg:mb-5 shrink-0">
             <div className="rounded-[1.5rem] border border-border bg-card p-5 lg:p-4">
               <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
                 <span className="text-ember-600 dark:text-ember-400 font-semibold">1 ·</span> Pick an agent
               </p>
               <div className="relative flex items-center gap-3">
                 <span
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#E73F1E] to-[#F9B637] text-white flex items-center justify-center text-lg font-semibold shrink-0"
+                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-ember-600 to-ember-400 text-white flex items-center justify-center text-lg font-semibold shrink-0"
                   aria-hidden="true"
                 >
                   {(effectiveAgent?.agent_name ?? "?").charAt(0).toUpperCase()}
@@ -226,7 +226,7 @@ function PlaygroundContent() {
                     disabled={!option.enabled}
                     title={option.enabled ? option.hint : "Text agents have no audio pipeline"}
                     className={cn(
-                      "flex items-center gap-3 px-4 h-14 rounded-2xl text-sm font-medium border transition-all text-left",
+                      "flex items-center gap-3 px-4 min-h-14 h-auto py-2.5 rounded-2xl text-sm font-medium border transition-all text-left",
                       activeMode === option.id
                         ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
                         : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-accent",

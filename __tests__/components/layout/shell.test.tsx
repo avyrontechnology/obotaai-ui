@@ -34,7 +34,9 @@ describe("app shell", () => {
   });
 
   it("resolves settings tabs with fallback", () => {
-    expect(resolveSettingsTab("billing")).toBe("billing");
+    expect(resolveSettingsTab("general")).toBe("general");
+    expect(resolveSettingsTab("security")).toBe("security");
+    expect(resolveSettingsTab("billing")).toBe("general");
     expect(resolveSettingsTab("nope")).toBe("general");
     expect(resolveSettingsTab(null)).toBe("general");
   });

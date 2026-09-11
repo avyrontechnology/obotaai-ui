@@ -241,7 +241,7 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
 
   if (isLoading || !workflow || !draft) {
     return (
-      <div className="max-w-7xl mx-auto w-full pt-12 pb-32 px-4 md:px-8 space-y-4">
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4">
         <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse" />
         <div className="h-[500px] rounded-[2rem] bg-card border border-border animate-pulse" />
       </div>
@@ -249,15 +249,15 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-[1400px] mx-auto w-full pt-12 pb-32 px-4 md:px-8">
+    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-[1400px] mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
-        href="/workflows"
+        href="/flows?tab=workflows"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 w-fit"
       >
-        <ArrowLeft className="w-4 h-4" /> Workflows
+        <ArrowLeft className="w-4 h-4" /> Flows
       </Link>
 
-      <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6">
+      <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6 flex-wrap min-w-0">
         <input
           value={name ?? workflow.name}
           onChange={(event) => {
@@ -265,7 +265,7 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
             setSavedFlash(false);
           }}
           aria-label="Workflow name"
-          className="h-12 px-4 text-xl font-semibold tracking-tight bg-transparent border border-transparent hover:border-border focus:border-border rounded-2xl text-foreground focus:outline-none transition-colors max-w-md"
+          className="h-12 px-4 text-xl font-semibold tracking-tight bg-transparent border border-transparent hover:border-border focus:border-border rounded-2xl text-foreground focus:outline-none transition-colors flex-1 min-w-[200px] max-w-md"
         />
         <div className="flex flex-wrap items-center gap-2 xl:ml-auto">
           {savedFlash && !dirty && (
@@ -467,7 +467,7 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
           <button
             onClick={() => {
               if (confirm(`Delete workflow "${name || workflow.name}"? This cannot be undone.`)) {
-                void deleteWorkflow.mutateAsync(id).then(() => router.push("/workflows"));
+                void deleteWorkflow.mutateAsync(id).then(() => router.push("/flows?tab=workflows"));
               }
             }}
             className="w-full h-10 rounded-xl text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-2"

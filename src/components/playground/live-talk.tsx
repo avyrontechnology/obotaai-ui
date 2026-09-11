@@ -645,14 +645,14 @@ export function LiveTalk({
   };
 
   return (
-    <div className="grid lg:grid-cols-[1.15fr_1fr] gap-6 flex-1 min-h-0">
+    <div className="grid xl:grid-cols-[1.15fr_1fr] gap-6 flex-1 min-h-0">
       {/* Left: live session card */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
         data-testid="session-card"
-        className="bg-card border border-border rounded-[2rem] p-6 shadow-[0_20px_50px_-24px_rgba(17,24,39,0.25)] relative overflow-hidden flex flex-col min-h-0 min-w-0"
+        className="bg-card border border-border rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-0 min-w-0"
       >
         <div className="flex items-center justify-between gap-3 shrink-0">
           <p className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground min-w-0">
@@ -693,8 +693,8 @@ export function LiveTalk({
             className={cn(
               "relative w-28 h-28 rounded-full overflow-hidden transition-all duration-300",
               live
-                ? "bg-[radial-gradient(circle_at_35%_30%,var(--primary-foreground),var(--primary)_70%)] shadow-[0_0_60px_rgba(231,63,30,0.35)]"
-                : "bg-[radial-gradient(circle_at_35%_30%,#FFF7EA,#F9B637_140%)] dark:bg-[radial-gradient(circle_at_35%_30%,#3a2c14,#a82d11_140%)] border border-ember-500/30"
+                ? "bg-[radial-gradient(circle_at_35%_30%,var(--primary-foreground),var(--primary)_70%)] shadow-lg shadow-primary/30"
+                : "bg-[radial-gradient(circle_at_35%_30%,var(--color-ember-100),var(--color-ember-400)_140%)] dark:bg-[radial-gradient(circle_at_35%_30%,var(--color-ember-800),var(--color-ember-600)_140%)] border border-ember-500/30"
             )}
             style={{ transform: `scale(${orbScale.toFixed(3)})` }}
           >
@@ -721,7 +721,7 @@ export function LiveTalk({
               onClick={() => void start()}
               disabled={!agentId || !canTalk}
               title={canTalk ? undefined : "Requires member role or higher"}
-              className="h-11 px-8 rounded-2xl bg-gradient-to-r from-[#E73F1E] to-[#FB6C00] text-white font-semibold text-sm transition-all hover:brightness-105 disabled:opacity-50 flex items-center gap-2 shadow-[0_16px_32px_-12px_rgba(231,63,30,0.55)]"
+              className="h-11 px-8 rounded-2xl bg-gradient-to-r from-ember-600 to-ember-500 text-white font-semibold text-sm transition-all hover:brightness-105 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-primary/20"
             >
               <Mic className="w-5 h-5" aria-hidden="true" />
               <span>{phase === "ended" ? "Talk again" : "Start talking"}</span>
@@ -803,6 +803,7 @@ export function LiveTalk({
                 type="button"
                 onClick={() => sendTextMessage(intent)}
                 disabled={!live}
+                title={live ? `Send "${intent}"` : "Start a session first"}
                 className="shrink-0 px-3.5 h-8 rounded-full border border-border bg-card text-xs text-foreground hover:border-primary/40 hover:bg-primary/5 disabled:opacity-40 transition-all whitespace-nowrap"
               >
                 {intent}
@@ -841,7 +842,7 @@ export function LiveTalk({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.05 }}
-        className="flex flex-col bg-card border border-border rounded-[2rem] p-6 shadow-[0_20px_50px_-24px_rgba(17,24,39,0.25)] relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
+        className="flex flex-col bg-card border border-border rounded-3xl p-6 relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
       >
         <SessionTabs tab={tab} onChange={setTab} onClear={() => emitPlaygroundBus({ type: "clear-transcript" })} />
         <div className="pt-4 flex-1 flex flex-col min-h-0 min-w-0">

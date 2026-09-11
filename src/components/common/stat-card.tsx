@@ -47,7 +47,7 @@ export const StatCard = memo(function StatCard({ title, value, icon, trend, dela
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-semibold tracking-tight text-foreground">
+          <span className="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">
             {value}
           </span>
           {trend && (

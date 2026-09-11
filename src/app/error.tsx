@@ -15,7 +15,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-10">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-6 md:p-10">
       <div className="w-24 h-24 rounded-3xl bg-destructive/10 flex items-center justify-center border border-destructive/20">
         <AlertCircle className="w-10 h-10 text-destructive" strokeWidth={1.5} />
       </div>

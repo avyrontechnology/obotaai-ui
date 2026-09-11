@@ -23,9 +23,9 @@ const STEPS = [
   { id: "toolchain", title: "Toolchain", icon: Cpu },
 ];
 
-// Cream fields in light mode, theme surfaces in dark mode.
+// Theme surfaces in both modes — semantic tokens only, no hardcoded colors.
 const FIELD_CLASS =
-  "w-full bg-[#FFFBF0] dark:bg-muted/50 border border-[#EFE3C8] dark:border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-sm";
+  "w-full bg-card dark:bg-muted/50 border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-colors duration-200 shadow-sm";
 const FIELD_LABEL_CLASS =
   "block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest";
 
@@ -133,7 +133,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto mt-10">
+    <div className="w-full max-w-4xl mx-auto mt-6">
       {/* Stepper Header */}
       <div className="flex items-start justify-between mb-8 relative" role="list" aria-label="Setup progress">
         <div className="absolute top-6 left-12 right-12 h-px bg-border" aria-hidden="true" />
@@ -144,32 +144,23 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
 
           return (
             <div key={step.id} role="listitem" aria-current={isActive ? "step" : undefined} className="flex flex-col items-center gap-2 px-4 relative">
-              <motion.button
+              <button
                 type="button"
                 onClick={() => goToStep(idx)}
                 disabled={!isActive && !isCompleted}
                 aria-label={`${step.title}${isCompleted ? " (completed, go back)" : ""}`}
-                animate={{
-                  backgroundColor: isActive
-                    ? "var(--card)"
-                    : isCompleted
-                      ? "rgba(249, 182, 55, 0.12)"
-                      : "var(--card)",
-                  borderColor: isActive
-                    ? "rgba(231, 63, 30, 0.6)"
-                    : isCompleted
-                      ? "rgba(249, 182, 55, 0.35)"
-                      : "var(--border)",
-                  color: isActive ? "#e73f1e" : isCompleted ? "#8b5a2b" : "#64748b",
-                }}
                 className={cn(
-                  "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-colors",
-                  isActive && "shadow-[0_0_24px_rgba(231,63,30,0.25)]",
-                  (isActive || isCompleted) ? "cursor-pointer" : "cursor-default"
+                  "w-12 h-12 rounded-2xl border flex items-center justify-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50",
+                  isActive
+                    ? "bg-card border-primary/60 text-ember-700 dark:text-ember-300 shadow-lg shadow-primary/20"
+                    : isCompleted
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      : "bg-card border-border text-muted-foreground",
+                  (isActive || isCompleted) ? "cursor-pointer hover:border-primary/40" : "cursor-default"
                 )}
               >
-                <Icon className="w-5 h-5" />
-              </motion.button>
+                <Icon className="w-5 h-5" aria-hidden="true" />
+              </button>
               <span className={cn(
                 "text-xs font-mono tracking-widest",
                 isActive ? "text-ember-700 dark:text-ember-300 font-semibold" : isCompleted ? "text-ember-700/80 dark:text-ember-400" : "text-muted-foreground"
@@ -182,7 +173,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
       </div>
 
       {/* Form Container */}
-      <div className="bg-card backdrop-blur-xl border border-border rounded-[2rem] p-6 md:p-10 shadow-[0_32px_80px_-24px_rgba(17,24,39,0.25)]">
+      <div className="bg-card border border-border rounded-3xl p-5 md:p-6 shadow-xl">
         <form onSubmit={form.handleSubmit(
           onSubmit,
           (errors) =>
@@ -192,19 +183,19 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={{ duration: 0.18 }}
               className="flex-1"
             >
               {/* Step 1: Identity */}
               {currentStep === 0 && (
                 <div className="space-y-6">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-2xl font-semibold tracking-tight text-foreground mb-1">Agent Identity</h3>
-                      <p className="text-sm text-muted-foreground">Name your agent and pick its architecture.</p>
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-semibold tracking-tight text-foreground mb-1">OboFleet identity</h3>
+                      <p className="text-sm text-muted-foreground">Name your voice and pick its architecture.</p>
                     </div>
                     <span className="shrink-0 px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-widest bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20">
                       Step 1 of 3
@@ -240,7 +231,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                                 {...form.register("agent_type")}
                                 className="peer sr-only"
                               />
-                              <div className="flex-1 p-5 rounded-2xl border bg-[#FFFBF0] dark:bg-muted/50 border-[#EFE3C8] dark:border-border peer-checked:border-ember-600 dark:peer-checked:border-ember-400/60 peer-checked:bg-primary/5 peer-checked:shadow-[0_0_0_1px_rgba(231,63,30,0.4)] peer-focus-visible:ring-2 peer-focus-visible:ring-ember-400/50 transition-all">
+                              <div className="flex-1 p-5 rounded-2xl border bg-card dark:bg-muted/50 border-border peer-checked:border-primary/60 peer-checked:bg-primary/5 peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ember-400/50 transition-colors duration-200">
                                 <div className="flex items-center justify-between gap-2 mb-2">
                                   <span className="font-mono text-sm text-ember-600 dark:text-ember-400">{card.kicker}</span>
                                   <span
@@ -270,9 +261,9 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
               {currentStep === 1 && (
                 <div className="space-y-6">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-2xl font-semibold tracking-tight text-foreground mb-1">Agent Persona &amp; Identity</h3>
-                      <p className="text-sm text-muted-foreground">Configure core settings, agent type, and conversational behavior.</p>
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-semibold tracking-tight text-foreground mb-1">Persona &amp; voice</h3>
+                      <p className="text-sm text-muted-foreground">Define conversational behavior and greeting.</p>
                     </div>
                     <span className="shrink-0 px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-widest bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20">
                       Step 2 of 3
@@ -311,9 +302,9 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
               {currentStep === 2 && (
                 <div className="space-y-6">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-2xl font-semibold tracking-tight text-foreground mb-1">Neural Toolchain</h3>
-                      <p className="text-sm text-muted-foreground">Select the model providers for this agent.</p>
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-semibold tracking-tight text-foreground mb-1">Neural Toolchain</h3>
+                      <p className="text-sm text-muted-foreground">Select the model providers for this voice.</p>
                     </div>
                     <span className="shrink-0 px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-widest bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20">
                       Step 3 of 3
@@ -408,29 +399,29 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
               type="button"
               onClick={prevStep}
               disabled={currentStep === 0 || isPending}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-muted text-muted-foreground font-medium hover:bg-muted/80 disabled:opacity-30 disabled:hover:bg-muted transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-muted text-muted-foreground font-medium hover:bg-muted/80 hover:text-foreground disabled:opacity-30 disabled:hover:bg-muted disabled:hover:text-muted-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
             >
-              <ArrowLeft className="w-4 h-4" /> Back
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Back
             </button>
             
             {currentStep < STEPS.length - 1 ? (
               <button
                 type="button"
                 onClick={nextStep}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
-                {currentStep === 1 ? "Continue to Toolchain" : "Continue"} <ArrowRight className="w-4 h-4" />
+                {currentStep === 1 ? "Continue to Toolchain" : "Continue"} <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </button>
             ) : (
               <button
                 type="submit"
                 disabled={isPending}
-                className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-all"
+                className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
                 {isPending ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                 ) : (
-                  <Save className="w-5 h-5" />
+                  <Save className="w-5 h-5" aria-hidden="true" />
                 )}
                 {isEditing ? "Update Agent" : "Deploy Agent"}
               </button>

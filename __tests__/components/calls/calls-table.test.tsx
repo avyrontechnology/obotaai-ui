@@ -37,7 +37,8 @@ describe("CallsTable", () => {
     const onSelect = jest.fn();
     const row = { ...execution(), to_number: null, agent_id: "very-long-agent-id-123" } as unknown as import("@/lib/schemas/platform").Execution;
     render(<CallsTable executions={[row]} agentNames={new Map()} onSelect={onSelect} />);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    // Counterparty, model and summary all fall back honestly — several "—".
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("very-lon…")).toBeInTheDocument();
   });
 

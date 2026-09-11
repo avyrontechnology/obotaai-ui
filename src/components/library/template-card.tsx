@@ -23,14 +23,14 @@ export const TemplateCard = memo(function TemplateCard({ template, importing, on
     >
       <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
 
-      <div className="relative z-10 flex items-center gap-2 mb-3">
-        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20">
+      <div className="relative z-10 flex flex-wrap items-center gap-2 mb-3 min-w-0">
+        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 truncate max-w-full" title={template.industry}>
           {template.industry}
         </span>
         {template.languages.length > 0 && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-            <Languages className="w-3.5 h-3.5" />
-            {template.languages.join(" · ")}
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-muted-foreground truncate max-w-full min-w-0" title={template.languages.join(" · ")}>
+            <Languages className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{template.languages.join(" · ")}</span>
           </span>
         )}
       </div>

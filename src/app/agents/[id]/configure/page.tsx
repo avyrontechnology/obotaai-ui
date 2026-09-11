@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useAgent, useAgentPrompts, useUpdateAgent } from "@/services/api";
 import {
   Loader2,
-  AlertCircle,
   Save,
   ArrowLeft,
   PhoneCall,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { firstErrorMessage } from "@/components/settings/form-controls";
+import { ErrorState } from "@/components/common/error-state";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 
@@ -112,7 +112,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground gap-4 max-w-7xl mx-auto w-full pt-12">
-        <Loader2 className="w-8 h-8 animate-spin text-ember-400/50" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
         <p className="font-mono text-sm animate-pulse">Loading agent configuration…</p>
       </div>
     );
@@ -120,23 +120,15 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
 
   if (error || !agent) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 max-w-7xl mx-auto w-full pt-12 px-4">
-        <AlertCircle className="w-10 h-10 text-red-400/80" />
-        <p className="font-mono text-sm text-muted-foreground">Failed to retrieve agent configuration</p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => refetch()}
-            className="px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold hover:bg-accent transition-colors"
-          >
-            Retry
-          </button>
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 px-4">
+        <ErrorState message="Failed to retrieve agent configuration" onRetry={() => refetch()}>
           <Link
             href="/agents"
-            className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+            className="px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 inline-flex items-center justify-center"
           >
-            Back to Directory
+            Back to OboFleet
           </Link>
-        </div>
+        </ErrorState>
       </div>
     );
   }
@@ -176,34 +168,30 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-full max-w-7xl mx-auto w-full pt-12 pb-24 px-4 sm:px-6">
+    <div className="flex flex-col flex-1 min-h-full max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 sm:px-6">
       <Link
         href={`/agents/${id}`}
-        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-6 w-fit"
+        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
       >
-        <ArrowLeft className="w-4 h-4" /> {agent.agent_name} overview
+        <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {agent.agent_name} overview
       </Link>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-medium text-foreground tracking-tight">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 md:mb-8">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl md:text-3xl font-medium text-foreground tracking-tight text-balance" title={agent.agent_name}>
             Configure <span className="text-muted-foreground">{agent.agent_name}</span>{" "}
             <span className="align-middle ml-1 px-3 py-1 rounded-full bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 text-xs font-mono font-normal">
               {agent.agent_type === "s2s" ? "Realtime" : agent.agent_type}
             </span>
           </h1>
-          <p className="text-muted-foreground font-mono text-sm mt-1">
-            Core saves → <span className="text-ember-700 dark:text-ember-300">PUT /agent/:id</span> ·
-            platform panels save independently.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/playground?agent=${id}`}
-            className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-card border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-card border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
-            <PhoneCall className="w-4 h-4" /> Test
+            <PhoneCall className="w-4 h-4" aria-hidden="true" /> Test
           </Link>
           <button
             onClick={methods.handleSubmit(
@@ -213,9 +201,9 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
             )}
             disabled={updateMutation.isPending || !canWrite}
             title={canWrite ? undefined : `Requires ${minRoleFor("agents.write")} role`}
-            className="flex items-center gap-2 px-6 h-11 rounded-2xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-all"
+            className="flex items-center gap-2 px-6 h-11 rounded-2xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
-            {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}
             Save Configuration
           </button>
         </div>
@@ -240,16 +228,16 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
                       role="tab"
                       aria-selected={isActive}
                       aria-controls={`tab-panel-${section.id}`}
-                      className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors group shrink-0 whitespace-nowrap w-full"
+                      className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors duration-200 group shrink-0 whitespace-nowrap w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
                     >
                       {isActive && (
                         <motion.div
                           layoutId="active-nav-indicator"
                           className="absolute inset-0 bg-muted rounded-xl border border-border"
-                          transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
-                      <Icon className={cn("w-4 h-4 relative z-10", isActive ? "text-ember-700 dark:text-ember-300" : "text-muted-foreground group-hover:text-foreground")} />
+                      <Icon className={cn("w-4 h-4 relative z-10", isActive ? "text-ember-700 dark:text-ember-300" : "text-muted-foreground group-hover:text-foreground")} aria-hidden="true" />
                       <span className={cn("text-sm font-medium relative z-10", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>
                         {section.label}
                       </span>
@@ -263,19 +251,13 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
 
         {/* Content Area */}
         <main
-          className="relative flex-1 w-full min-h-[600px] bg-card/40 backdrop-blur-xl border border-border rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.5)] overflow-hidden"
+          className="relative flex-1 w-full min-h-[400px] lg:min-h-[500px] bg-card/40 backdrop-blur-xl border border-border rounded-3xl p-4 md:p-6 overflow-hidden"
           role="tabpanel"
           id={`tab-panel-${effectiveSection}`}
         >
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-20 mix-blend-multiply dark:mix-blend-screen rounded-[2.5rem]">
-            <motion.div
-              animate={{
-                rotate: [0, 360],
-                scale: [1, 1.1, 1],
-              }}
-              transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-              className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,rgba(251,108,0,0.15)_0%,transparent_50%)]"
-            />
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-3xl" aria-hidden="true">
+            <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-secondary/40 blur-3xl" />
           </div>
 
           <div className="relative z-10">
@@ -283,10 +265,10 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
               <AnimatePresence mode="wait">
                 <motion.div
                   key={effectiveSection}
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
                 >
                   {effectiveSection === "persona" && <PersonaConfigForm />}
                   {effectiveSection === "transcriber" && <TranscriberConfigForm />}

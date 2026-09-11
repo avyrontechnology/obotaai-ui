@@ -40,12 +40,12 @@ function AuthedShell({ children }: { children: React.ReactNode }) {
       <AppSidebar />
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopBar onOpenPalette={openPalette} />
-        <main className="flex-1 overflow-y-auto p-6 relative">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative">
           <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
             <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full mix-blend-multiply dark:mix-blend-screen" />
             <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-secondary/40 dark:bg-secondary/10 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen" />
           </div>
-          <div className="relative z-10 h-full w-full max-w-7xl mx-auto">{children}</div>
+          <div className="relative z-10 h-full w-full mx-auto">{children}</div>
         </main>
         <div className="md:hidden">
           <CommandDock />

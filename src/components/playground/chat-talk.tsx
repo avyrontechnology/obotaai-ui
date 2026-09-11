@@ -220,13 +220,13 @@ export function ChatTalk({
   // Phase-2 seam: turns carry explicit ids and role labels with no session
   // object — the SSE/message-core migration lifts this list verbatim.
   return (
-    <div className="grid lg:grid-cols-[1.15fr_1fr] gap-6 flex-1 min-h-0">
+    <div className="grid xl:grid-cols-[1.15fr_1fr] gap-6 flex-1 min-h-0">
       {/* Left: chat thread */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="flex flex-col bg-card border border-border rounded-[2rem] p-6 shadow-[0_20px_50px_-24px_rgba(17,24,39,0.25)] relative overflow-hidden min-h-[540px] lg:min-h-0 max-h-[70vh] lg:max-h-none min-w-0"
+        className="flex flex-col bg-card border border-border rounded-3xl p-6 relative overflow-hidden min-h-[420px] lg:min-h-0 max-h-[70vh] lg:max-h-none min-w-0"
       >
         <div className="flex items-center justify-between gap-3 mb-4 pb-4 border-b border-border relative z-10 shrink-0">
           <p className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground min-w-0">
@@ -303,7 +303,7 @@ export function ChatTalk({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.05 }}
-        className="flex flex-col bg-card border border-border rounded-[2rem] p-6 shadow-[0_20px_50px_-24px_rgba(17,24,39,0.25)] relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
+        className="flex flex-col bg-card border border-border rounded-3xl p-6 relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
       >
         <SessionTabs
           tab={tab}

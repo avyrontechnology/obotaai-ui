@@ -41,13 +41,13 @@ export function AgentGrid() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6" aria-busy="true" aria-label="Loading OboFleet">
         <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 dark:bg-primary/40 blur-[40px] rounded-full animate-pulse" />
-          <Loader2 className="w-12 h-12 animate-spin text-primary relative z-10" />
+          <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full animate-pulse motion-reduce:animate-none" aria-hidden="true" />
+          <Loader2 className="w-12 h-12 animate-spin text-primary relative z-10 motion-reduce:animate-none" aria-hidden="true" />
         </div>
-        <p className="font-mono text-sm tracking-[0.2em] uppercase animate-pulse text-muted-foreground">
-          Syncing Neural Link...
+        <p className="font-mono text-sm tracking-[0.2em] uppercase animate-pulse motion-reduce:animate-none text-muted-foreground">
+          Syncing OboFleet...
         </p>
       </div>
     );
@@ -56,29 +56,30 @@ export function AgentGrid() {
   if (error) {
     return (
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center min-h-[500px] gap-6 p-10 relative overflow-hidden rounded-[2.5rem] border border-red-500/20 bg-red-500/5 backdrop-blur-2xl"
+        transition={{ duration: 0.2 }}
+        className="flex flex-col items-center justify-center min-h-[320px] gap-6 p-6 md:p-8 relative overflow-hidden rounded-3xl border border-red-500/20 bg-red-500/5"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(239,68,68,0.15)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(239,68,68,0.15)_0%,transparent_70%)] pointer-events-none motion-reduce:hidden" aria-hidden="true" />
         <motion.div 
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="relative z-10 w-24 h-24 rounded-3xl bg-red-500/10 flex items-center justify-center border border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.2)] backdrop-blur-md"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="relative z-10 w-24 h-24 rounded-3xl bg-red-500/10 flex items-center justify-center border border-red-500/20"
         >
-          <ServerCrash className="w-10 h-10 text-red-500" strokeWidth={1.5} />
+          <ServerCrash className="w-10 h-10 text-red-500" strokeWidth={1.5} aria-hidden="true" />
         </motion.div>
         <div className="text-center relative z-10 space-y-3 max-w-lg">
-          <h2 className="text-3xl font-medium tracking-tight text-foreground">Connection Severed</h2>
+          <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-foreground">Connection Severed</h2>
           <p className="font-mono text-sm leading-relaxed text-red-600/80 dark:text-red-400/80">
-            Failed to retrieve the agent matrix. The neural backend is unresponsive. 
+            Failed to retrieve OboFleet. The neural backend is unresponsive. 
             Verify that the OtobaAI API server is active and the network channel is open.
           </p>
         </div>
         <button 
           onClick={() => refetch()}
-          className="relative z-10 px-8 py-3 mt-4 rounded-xl bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_30px_rgba(239,68,68,0.6)] hover:bg-red-700 transition-all font-semibold"
+          className="relative z-10 px-8 py-3 mt-4 rounded-xl bg-red-600 text-white shadow-lg hover:bg-red-700 transition-colors duration-200 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
         >
           Re-establish Link
         </button>
@@ -99,56 +100,58 @@ export function AgentGrid() {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30, scale: 0.95 },
-    show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 350, damping: 25 } }
+    hidden: { opacity: 0, y: 12 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.18 } }
   };
 
   return (
     <div className="w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 relative z-10 gap-4">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            Active Neural Fleet
+            OboFleet
           </h2>
           <p className="text-sm text-muted-foreground font-mono mt-0.5 uppercase tracking-widest flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Monitoring {agents?.length || 0} deployed instances
+            <span className="w-2 h-2 rounded-full bg-emerald-500 motion-reduce:animate-none" aria-hidden="true" />
+            Monitoring {agents?.length || 0} deployed voices
           </p>
         </div>
         <Link
           href="/agents/new"
-          className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg hover:shadow-xl transition-all shrink-0"
+          className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
           <span>Deploy Agent</span>
         </Link>
       </div>
 
       {!hasAgents ? (
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center min-h-[400px] bg-card backdrop-blur-2xl p-12 relative overflow-hidden rounded-[2.5rem] border border-border shadow-2xl"
+          transition={{ duration: 0.2 }}
+          className="flex flex-col items-center justify-center min-h-[320px] bg-card p-6 md:p-8 relative overflow-hidden rounded-3xl border border-border"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,108,0,0.05)_0%,transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,108,0,0.05)_0%,transparent_60%)] motion-reduce:hidden" aria-hidden="true" />
           <motion.div 
-            animate={{ y: [0, -10, 0] }}
+            animate={{ y: [0, -6, 0] }}
             transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            className="w-24 h-24 rounded-[2rem] bg-muted flex items-center justify-center mb-8 border border-border shadow-inner relative z-10 backdrop-blur-md"
+            className="w-24 h-24 rounded-3xl bg-muted flex items-center justify-center mb-6 border border-border shadow-inner relative z-10"
           >
-            <Mic className="w-10 h-10 text-muted-foreground" strokeWidth={1.5} />
+            <Mic className="w-10 h-10 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
           </motion.div>
-          <h3 className="text-2xl font-semibold text-foreground mb-3 relative z-10 tracking-tight">No active agents</h3>
-          <p className="text-muted-foreground text-base max-w-md text-center mb-10 relative z-10 leading-relaxed">
-            Initialize your first neural voice agent to begin processing conversational requests in real-time.
+          <h3 className="text-2xl font-semibold text-foreground mb-3 relative z-10 tracking-tight">No voices in the fleet</h3>
+          <p className="text-muted-foreground text-base max-w-md text-center mb-8 relative z-10 leading-relaxed">
+            Deploy your first OboFleet voice to begin processing conversational requests in real-time.
           </p>
-        <Link href="/agents/new" aria-label="Create new agent">
+        <Link href="/agents/new" aria-label="Deploy your first agent">
             <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-xl hover:shadow-2xl transition-all relative z-10"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
             >
-              Initialize Agent Matrix
+              Deploy your first agent
             </motion.button>
           </Link>
         </motion.div>
@@ -165,7 +168,7 @@ export function AgentGrid() {
                 key={agent.agent_id}
                 variants={itemVariants}
                 layout="position"
-                className="snap-start shrink-0 w-[340px]"
+                className="snap-start shrink-0 w-[min(340px,85vw)]"
               >
                 <AgentCard
                   agent={agent}

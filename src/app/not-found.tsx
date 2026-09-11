@@ -38,9 +38,10 @@ function Equalizer() {
 
 const QUICK_LINKS = [
   { label: "Dashboard", href: "/" },
-  { label: "Agents", href: "/agents" },
+  { label: "OboFleet", href: "/agents" },
   { label: "Call History", href: "/calls" },
-  { label: "Library", href: "/library" },
+  { label: "Knowledge Base", href: "/library" },
+  { label: "Flows", href: "/flows" },
   { label: "Playground", href: "/playground" },
 ];
 
@@ -54,9 +55,9 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80dvh] max-w-3xl mx-auto w-full px-4 text-center relative">
+    <div className="flex flex-col items-center justify-center min-h-[80dvh] max-w-3xl mx-auto w-full px-4 text-center relative overflow-x-clip">
       {/* Local ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-primary/10 blur-[130px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(420px,90vw)] h-[min(420px,90vw)] bg-primary/10 blur-[130px] rounded-full pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -76,7 +77,7 @@ export default function NotFound() {
 
         <h1
           aria-label="404"
-          className="text-[7rem] md:text-[11rem] font-semibold leading-none tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-foreground via-foreground/80 to-primary/60 select-none"
+          className="text-[5rem] sm:text-[7rem] md:text-[9rem] font-semibold leading-none tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-foreground via-foreground/80 to-primary/60 select-none"
         >
           404
         </h1>

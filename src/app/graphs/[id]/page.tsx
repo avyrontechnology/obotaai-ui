@@ -279,7 +279,7 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
 
   if (isLoading || !graph || !draft) {
     return (
-      <div className="max-w-7xl mx-auto w-full pt-12 pb-32 px-4 md:px-8 space-y-4">
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4">
         <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse" />
         <div className="h-[500px] rounded-[2rem] bg-card border border-border animate-pulse" />
       </div>
@@ -287,16 +287,16 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-[1400px] mx-auto w-full pt-12 pb-32 px-4 md:px-8">
+    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-[1400px] mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
-        href="/graphs"
+        href="/flows?tab=graphs"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 w-fit"
       >
-        <ArrowLeft className="w-4 h-4" /> Graphs
+        <ArrowLeft className="w-4 h-4" /> Flows
       </Link>
 
       {/* Top bar */}
-      <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6">
+      <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6 flex-wrap min-w-0">
         <input
           value={name ?? graph.name}
           onChange={(event) => {
@@ -304,7 +304,7 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
             setSavedFlash(false);
           }}
           aria-label="Graph name"
-          className="h-12 px-4 text-xl font-semibold tracking-tight bg-transparent border border-transparent hover:border-border focus:border-border rounded-2xl text-foreground focus:outline-none transition-colors max-w-md"
+          className="h-12 px-4 text-xl font-semibold tracking-tight bg-transparent border border-transparent hover:border-border focus:border-border rounded-2xl text-foreground focus:outline-none transition-colors flex-1 min-w-[200px] max-w-md"
         />
         <div className="flex flex-wrap items-center gap-2 xl:ml-auto">
           {savedFlash && !dirty && (
@@ -519,7 +519,7 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
           <button
             onClick={() => {
               if (confirm(`Delete graph "${name || graph.name}"? This cannot be undone.`)) {
-                void deleteGraph.mutateAsync(id).then(() => router.push("/graphs"));
+                void deleteGraph.mutateAsync(id).then(() => router.push("/flows?tab=graphs"));
               }
             }}
             className="w-full h-10 rounded-xl text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-2"

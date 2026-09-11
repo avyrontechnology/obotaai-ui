@@ -21,7 +21,7 @@ export function ValidationPanel({
   return (
     <div
       className={cn(
-        "rounded-[2rem] border p-5 space-y-2",
+        "rounded-2xl border p-4 md:p-5 space-y-2 min-w-0",
         valid ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
       )}
     >

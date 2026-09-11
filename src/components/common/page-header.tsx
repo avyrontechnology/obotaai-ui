@@ -14,12 +14,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, accent, description, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12", className)}>
+    <div className={cn("flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 md:mb-8", className)}>
       <div className="space-y-2">
         <motion.h1
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl md:text-5xl font-medium tracking-tighter text-foreground flex items-center gap-3"
+          className="text-2xl md:text-3xl font-medium tracking-tighter text-foreground flex items-center gap-3"
         >
           {title} {accent && <span className="text-muted-foreground">{accent}</span>}
         </motion.h1>

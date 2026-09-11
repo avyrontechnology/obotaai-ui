@@ -82,7 +82,8 @@ describe("CallsPage", () => {
       fireEvent.click(screen.getByLabelText("Next page"));
     });
     expect(useExecutions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ limit: 26, offset: 25 })
+      expect.objectContaining({ limit: 26, offset: 25 }),
+      expect.objectContaining({ refetchInterval: false })
     );
     expect(screen.getByText("Page 2")).toBeInTheDocument();
   });

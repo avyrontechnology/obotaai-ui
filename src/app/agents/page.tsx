@@ -14,11 +14,14 @@ import {
   Check,
   X,
   ArrowUpDown,
+  Workflow,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { SearchInput } from "@/components/common/search-input";
 import { EmptyState } from "@/components/common/empty-state";
 import { SkeletonList } from "@/components/common/skeleton-list";
+import { TemplatesPanel } from "@/components/library/templates-panel";
+import { BuildersPanel } from "@/components/library/builders-panel";
 import Link from "next/link";
 import { formatLatency } from "@/lib/format";
 import { ErrorState } from "@/components/common/error-state";
@@ -68,17 +71,18 @@ function AgentRow({
     <motion.div
       key={agent.agent_id}
       layout="position"
-      initial={{ opacity: 0, x: -10 }}
+      initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: Math.min(0.15 + index * 0.04, 0.5) }}
-      className="grid grid-cols-1 md:grid-cols-12 gap-4 md:items-center p-4 md:px-6 md:py-5 bg-card backdrop-blur-md border border-border rounded-3xl transition-colors hover:bg-muted/60 group relative overflow-hidden"
+      exit={{ opacity: 0, x: -8 }}
+      transition={{ duration: 0.18, delay: Math.min(index * 0.03, 0.24) }}
+      className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:items-center p-5 md:p-6 bg-card backdrop-blur-md border border-border rounded-3xl transition-colors duration-200 hover:bg-muted/60 hover:border-primary/25 focus-within:border-primary/40 group relative overflow-hidden min-w-0 motion-reduce:transition-none"
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none motion-reduce:hidden" aria-hidden="true" />
 
       {/* Identity → overview */}
-      <Link href={`/agents/${agent.agent_id}`} className="col-span-4 flex items-center gap-4 min-w-0">
+      <Link href={`/agents/${agent.agent_id}`} className="lg:col-span-4 flex items-center gap-4 min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50">
         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border border-border shadow-inner shrink-0", meta.bg)}>
-          <Icon className={cn("w-5 h-5", meta.color)} strokeWidth={1.5} />
+          <Icon className={cn("w-5 h-5", meta.color)} strokeWidth={1.5} aria-hidden="true" />
         </div>
         <div className="min-w-0">
           <h3 className="font-medium text-foreground tracking-tight truncate group-hover:text-ember-700 dark:group-hover:text-ember-300 transition-colors">
@@ -94,13 +98,13 @@ function AgentRow({
         </div>
       </Link>
 
-      <div className="col-span-3 hidden md:flex items-center">
+      <div className="lg:col-span-3 hidden lg:flex items-center min-w-0">
         <div className="px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-mono text-muted-foreground truncate max-w-full">
           {model}
         </div>
       </div>
 
-      <div className="col-span-2 hidden md:flex flex-col gap-1">
+      <div className="lg:col-span-2 hidden lg:flex flex-col gap-1 min-w-0">
         <div className="flex items-center justify-between max-w-[120px]">
           <span className="text-xs text-muted-foreground">Latency</span>
           <span className="text-xs font-mono text-foreground">
@@ -113,32 +117,32 @@ function AgentRow({
         </div>
       </div>
 
-      <div className="col-span-2 flex items-center justify-between md:justify-start">
+      <div className="lg:col-span-2 flex items-center justify-between lg:justify-start min-w-0">
         <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative flex h-2 w-2 motion-reduce:animate-none" aria-hidden="true">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <span className="text-xs font-medium text-foreground">Active</span>
         </div>
       </div>
 
-      <div className="col-span-1 flex items-center justify-end gap-1" onClick={(e) => e.preventDefault()}>
+      <div className="lg:col-span-1 flex items-center justify-end gap-1" onClick={(e) => e.preventDefault()}>
         <Link
           href={`/playground?agent=${agent.agent_id}&mode=talk`}
           aria-label={`Talk to ${agent.agent_name}`}
           title="Talk in Playground"
-          className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
         >
-          <Mic className="w-4 h-4" />
+          <Mic className="w-4 h-4" aria-hidden="true" />
         </Link>
         <Link
           href={`/agents/${agent.agent_id}/configure`}
           aria-label={`Configure ${agent.agent_name}`}
           title="Configure"
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
         >
-          <Settings2 className="w-4 h-4" />
+          <Settings2 className="w-4 h-4" aria-hidden="true" />
         </Link>
         {confirming ? (
           <span className="flex items-center gap-1">
@@ -151,16 +155,16 @@ function AgentRow({
               }}
               disabled={deleteMutation.isPending}
               aria-label="Confirm delete"
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-700 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setConfirming(false)}
               aria-label="Cancel delete"
-              className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </span>
         ) : canDelete ? (
@@ -168,9 +172,9 @@ function AgentRow({
             onClick={() => setConfirming(true)}
             aria-label={`Delete ${agent.agent_name}`}
             title="Delete"
-            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
           </button>
         ) : (
           <span
@@ -178,7 +182,7 @@ function AgentRow({
             className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center text-muted-foreground/40 cursor-not-allowed"
             aria-label="Delete unavailable for your role"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
           </span>
         )}
       </div>
@@ -187,6 +191,7 @@ function AgentRow({
 }
 
 export default function AgentsPage() {
+  const [tab, setTab] = useState<"agents" | "templates" | "builders">("agents");
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -240,38 +245,30 @@ export default function AgentsPage() {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-12 pb-32 px-4 md:px-8">
+    <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <PageHeader
-        title="Agent"
+        title="OboFleet"
         accent="Directory"
-        description="Every agent with live call telemetry. Open an overview, configure the pipeline, or deploy from scratch."
+        description="Every voice in the fleet with live call telemetry. Open an overview, configure the pipeline, or deploy from scratch."
         actions={
           <>
-            <SearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Search registry..."
-              label="Search agents"
-            />
-
-            <Link href="/library">
-              <motion.span
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.98 }}
-                className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm transition-all hover:bg-accent flex items-center gap-2"
-              >
-                <LayoutTemplate className="w-4 h-4" />
-                <span>Templates</span>
-              </motion.span>
-            </Link>
+            {tab === "agents" && (
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Search fleet..."
+                label="Search OboFleet"
+              />
+            )}
 
             <Link href="/agents/new">
               <motion.span
                 whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
-                className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-[0_8px_20px_-8px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.4)] transition-all flex items-center gap-2"
+                transition={{ duration: 0.15 }}
+                className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4" aria-hidden="true" />
                 <span>Deploy Agent</span>
               </motion.span>
             </Link>
@@ -279,8 +276,34 @@ export default function AgentsPage() {
         }
       />
 
+      <div className="flex flex-wrap items-center gap-2 mb-8" role="tablist" aria-label="OboFleet sections">
+        {(
+          [
+            { id: "agents", label: "My Agents", icon: Bot },
+            { id: "templates", label: "Templates", icon: LayoutTemplate },
+            { id: "builders", label: "Flows", icon: Workflow },
+          ] as const
+        ).map((option) => (
+          <button
+            key={option.id}
+            onClick={() => setTab(option.id)}
+            role="tab"
+            aria-selected={tab === option.id}
+            className={cn(
+              "flex items-center gap-2 px-5 h-11 rounded-2xl text-sm font-medium border transition-all",
+              tab === option.id
+                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent"
+            )}
+          >
+            <option.icon className="w-4 h-4" aria-hidden="true" />
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filter + sort bar */}
-      {!isLoading && !error && (agents ?? []).length > 0 && (
+      {tab === "agents" && !isLoading && !error && (agents ?? []).length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-6">
           {(["all", "voice", "text", "s2s"] as TypeFilter[]).map((option) => (
             <button
@@ -288,7 +311,7 @@ export default function AgentsPage() {
               onClick={() => setTypeFilter(option)}
               aria-pressed={typeFilter === option}
               className={cn(
-                "px-4 h-9 rounded-full text-xs font-mono border transition-colors capitalize",
+                "px-4 h-9 rounded-full text-xs font-mono border transition-colors duration-200 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50",
                 typeFilter === option
                   ? "border-primary/40 bg-primary/10 text-foreground"
                   : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -300,36 +323,40 @@ export default function AgentsPage() {
           <button
             onClick={cycleSort}
             title="Cycle sort: name → volume → latency"
-            className="ml-auto flex items-center gap-2 px-4 h-9 rounded-full text-xs font-mono border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="ml-auto flex items-center gap-2 px-4 h-9 rounded-full text-xs font-mono border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
-            <ArrowUpDown className="w-3.5 h-3.5" />
+            <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" />
             Sort: {sortKey}
           </button>
         </div>
       )}
 
-      {isLoading ? (
+      {tab === "templates" ? (
+        <TemplatesPanel />
+      ) : tab === "builders" ? (
+        <BuildersPanel />
+      ) : isLoading ? (
         <SkeletonList rows={5} />
       ) : error ? (
-        <ErrorState message="Failed to load agents. Is the backend running?" onRetry={() => refetch()} />
+        <ErrorState message="Failed to load OboFleet. Is the backend running?" onRetry={() => refetch()} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Bot}
-          title={query || typeFilter !== "all" ? "No matches" : "Registry is empty"}
+          title={query || typeFilter !== "all" ? "No matches" : "Fleet is empty"}
           description={
             query || typeFilter !== "all"
               ? "Try a different search or filter."
-              : "Import a production-ready template or deploy your first agent."
+              : "Import a production-ready template or deploy your first voice to the fleet."
           }
         >
           {!query && typeFilter === "all" && (
             <div className="flex gap-3">
-              <Link
-                href="/library"
+              <button
+                onClick={() => setTab("templates")}
                 className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold hover:bg-accent transition-colors"
               >
                 Browse Templates
-              </Link>
+              </button>
               <Link
                 href="/agents/new"
                 className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all hover:shadow-xl"
@@ -341,12 +368,13 @@ export default function AgentsPage() {
         </EmptyState>
       ) : (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6, type: "spring", bounce: 0.3 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2 }}
           className="flex flex-col gap-4"
         >
-          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+          <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
             <div className="col-span-4">Agent</div>
             <div className="col-span-3">Core Model</div>
             <div className="col-span-2">Telemetry</div>

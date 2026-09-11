@@ -59,16 +59,16 @@ export function GettingStarted() {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+      transition={{ duration: 0.25 }}
       aria-label="Getting started"
-      className="relative overflow-hidden rounded-[2rem] border border-border bg-card p-6 md:p-8"
+      className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 md:p-6"
     >
-      <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/10 blur-[80px] pointer-events-none" />
+      <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/10 blur-[80px] pointer-events-none motion-reduce:hidden" aria-hidden="true" />
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
+          <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold tracking-tight text-foreground">
               Getting started walkthrough{" "}
               <span className="ml-1 align-middle text-[11px] font-mono uppercase tracking-widest text-ember-700 dark:text-ember-300 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
@@ -81,12 +81,12 @@ export function GettingStarted() {
           </div>
           <button
             onClick={dismiss}
-            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 shrink-0 rounded-lg px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             Dismiss ×
           </button>
         </div>
-        <ol className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <ol className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {steps.map((step, index) => (
             <li
               key={step.title}
@@ -102,7 +102,7 @@ export function GettingStarted() {
                 )}
                 aria-label={step.done ? `Step ${index + 1} complete` : `Step ${index + 1}`}
               >
-                {step.done ? <Check className="w-4 h-4" /> : <step.icon className="w-4 h-4" />}
+                {step.done ? <Check className="w-4 h-4" aria-hidden="true" /> : <step.icon className="w-4 h-4" aria-hidden="true" />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium text-foreground">
@@ -112,9 +112,9 @@ export function GettingStarted() {
                 {!step.done && (
                   <Link
                     href={step.href}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
                   >
-                    {step.cta} <ChevronRight className="w-3.5 h-3.5" />
+                    {step.cta} <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                   </Link>
                 )}
               </span>

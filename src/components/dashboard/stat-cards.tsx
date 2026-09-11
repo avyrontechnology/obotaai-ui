@@ -40,10 +40,10 @@ function Card({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      className="rounded-3xl border border-border bg-card p-5 flex flex-col gap-2 min-w-0"
+      transition={{ duration: 0.2, delay }}
+      className="rounded-3xl border border-border bg-card p-5 md:p-6 flex flex-col gap-2 min-w-0"
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground truncate">{title}</p>
@@ -60,7 +60,7 @@ function BigValue({ value }: { value: string }) {
       key={value}
       initial={{ opacity: 0.35 }}
       animate={{ opacity: 1 }}
-      className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground tabular-nums"
+      className="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground tabular-nums"
     >
       {value}
     </motion.p>
@@ -95,10 +95,10 @@ export function StatCards({
   }, [current, agents]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="region" aria-label="Range statistics">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" role="region" aria-label="Range statistics">
       <Card title="Total calls" badge={<TrendPill value={volumeTrend} />} delay={0}>
         <BigValue value={current.length.toLocaleString()} />
-        <p className="text-xs text-muted-foreground">Volume in range</p>
+        <p className="text-xs text-muted-foreground truncate">Volume in range</p>
         <div className="mt-1 -mb-1">
           <Sparkline values={bins.map((b) => b.count)} label={`Call volume, ${range}`} />
         </div>
@@ -106,7 +106,7 @@ export function StatCards({
 
       <Card title="P95 E2E latency" delay={0.05}>
         <BigValue value={formatLatency(p95)} />
-        <p className="text-xs text-muted-foreground tabular-nums">
+        <p className="text-xs text-muted-foreground tabular-nums truncate">
           STT {formatLatency(stages.stt !== null ? Math.round(stages.stt) : null)}
           {" · "}
           TTS {formatLatency(stages.tts !== null ? Math.round(stages.tts) : null)}
@@ -117,7 +117,7 @@ export function StatCards({
         <BigValue
           value={completion.completedRate === null ? "—" : `${(completion.completedRate * 100).toFixed(1)}%`}
         />
-        <p className="text-xs text-muted-foreground tabular-nums">
+        <p className="text-xs text-muted-foreground tabular-nums truncate">
           {completion.failedRate === null
             ? "No calls in range"
             : `${(completion.failedRate * 100).toFixed(1)}% failed`}
@@ -128,7 +128,7 @@ export function StatCards({
         <BigValue
           value={`${activeAgents.active} / ${activeAgents.total}`}
         />
-        <p className="text-xs text-muted-foreground">Agents with calls in range</p>
+        <p className="text-xs text-muted-foreground truncate">Agents with calls in range</p>
       </Card>
     </div>
   );

@@ -75,11 +75,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       },
       { key: "action:agent", group: "Actions", label: "New agent", href: "/agents/new" },
       { key: "action:campaign", group: "Actions", label: "New campaign", href: "/batches" },
-      { key: "action:topup", group: "Actions", label: "Top up credits", href: "/settings?tab=billing" },
+      { key: "action:topup", group: "Actions", label: "Top up credits", href: "/billing" },
     ];
     const recent: PaletteEntry[] = (agents ?? []).slice(0, 5).map((agent) => ({
       key: `agent:${agent.agent_id}`,
-      group: "Recent agents",
+      group: "Recent fleet",
       label: agent.agent_name,
       hint: agent.agent_type,
       href: `/agents/${agent.agent_id}`,
@@ -133,7 +133,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 setCursor(0);
               }}
               onKeyDown={onKeyDown}
-              placeholder="Jump to pages, agents, actions…"
+              placeholder="Jump to pages, fleet, actions…"
               aria-label="Command palette search"
               role="combobox"
               aria-expanded="true"

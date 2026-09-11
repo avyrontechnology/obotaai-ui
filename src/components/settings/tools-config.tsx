@@ -53,7 +53,7 @@ function KindFields({ kind, draft, setDraft }: {
   return (
     <>
       <input {...set("description")} placeholder="What this function does" aria-label="Function description" className={fieldStyles.field} />
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <input {...set("endpoint")} placeholder="https://api/…" aria-label="Endpoint URL" className={cn(fieldStyles.field, "col-span-2 font-mono text-xs")} />
         <select {...set("method")} aria-label="HTTP method" className={cn(fieldStyles.field, "font-mono text-xs")}>
           <option value="POST">POST</option>
@@ -173,7 +173,7 @@ export function ToolsConfigForm({ agentId }: { agentId: string }) {
               animate={{ opacity: 1, y: 0 }}
               className="rounded-2xl border border-border bg-card p-4 space-y-3"
             >
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                 {(Object.keys(KIND_META) as Kind[]).map((option) => {
                   const meta = KIND_META[option];
                   const Icon = meta.icon;

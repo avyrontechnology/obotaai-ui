@@ -49,14 +49,15 @@ export const BatchStatusBadge = memo(function BatchStatusBadge({ status }: { sta
   const style = STYLES[status];
   return (
     <span
+      title={style.label}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border shrink-0",
         style.pill
       )}
     >
       <span className="relative flex h-1.5 w-1.5">
         {style.pulse && (
-          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", style.dot)} />
+          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 motion-reduce:animate-none", style.dot)} />
         )}
         <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", style.dot)} />
       </span>

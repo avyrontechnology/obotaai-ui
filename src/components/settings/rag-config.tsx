@@ -135,7 +135,7 @@ export function RAGConfigForm({ agentId }: { agentId?: string }) {
     <div className="space-y-10">
       <FormSection
         title="Attached Knowledge Bases"
-        description="Content packs this agent answers from. Managed in the Library."
+        description="Content packs this agent answers from. Managed in Knowledge Base."
       >
         <div className="col-span-1 md:col-span-2 space-y-3">
           {!agentId ? (

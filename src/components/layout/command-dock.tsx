@@ -1,6 +1,6 @@
 "use client";
 
-import { MessagesSquare, Activity, GitFork, Layers, LayoutTemplate, PhoneCall, Settings, Workflow, LayoutDashboard } from "lucide-react";
+import { MessagesSquare, Activity, Layers, Database, PhoneCall, Settings, Workflow, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,13 +10,12 @@ export function CommandDock() {
 
   const dockItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-    { icon: Activity, label: "Agents", href: "/agents" },
+    { icon: Activity, label: "OboFleet", href: "/agents" },
     { icon: PhoneCall, label: "Call History", href: "/calls" },
     { icon: Layers, label: "Campaigns", href: "/batches" },
     { icon: MessagesSquare, label: "Playground", href: "/playground" },
-    { icon: LayoutTemplate, label: "Library", href: "/library" },
-    { icon: GitFork, label: "Graphs", href: "/graphs" },
-    { icon: Workflow, label: "Workflows", href: "/workflows" },
+    { icon: Database, label: "Knowledge Base", href: "/library" },
+    { icon: Workflow, label: "Flows", href: "/flows" },
     { icon: Settings, label: "Settings", href: "/settings" },
   ];
 

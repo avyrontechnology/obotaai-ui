@@ -43,7 +43,7 @@ function KbRow({ kb, agentNames }: { kb: KnowledgeBase; agentNames: Map<string, 
   };
 
   return (
-    <div className="p-5 bg-card border border-border rounded-3xl">
+    <div className="p-5 bg-card border border-border rounded-3xl min-w-0">
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -101,12 +101,12 @@ function KbRow({ kb, agentNames }: { kb: KnowledgeBase; agentNames: Map<string, 
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 min-w-0">
         <select
           value={attachTarget}
           onChange={(event) => setAttachTarget(event.target.value)}
           aria-label={`Attach ${kb.name} to agent`}
-          className={cn(fieldStyles.fieldSm, "flex-1")}
+          className={cn(fieldStyles.fieldSm, "flex-1 min-w-0")}
         >
           <option value="">Attach to agent…</option>
           {(agents ?? [])
@@ -188,7 +188,7 @@ export function KbManager() {
           />
           <AnimatePresence initial={false}>
             {sources.map((source, index) => (
-              <motion.div key={index} layout="position" className="flex gap-2">
+              <motion.div key={index} layout="position" className="flex gap-2 min-w-0">
                 <select
                   value={source.type}
                   onChange={(event) => setSource(index, { type: event.target.value as SourceType })}
@@ -204,7 +204,7 @@ export function KbManager() {
                   onChange={(event) => setSource(index, { ref: event.target.value })}
                   placeholder={source.type === "url" ? "https://…" : source.type === "pdf" ? "file key or path" : "Inline text"}
                   aria-label={`Source ${index + 1} reference`}
-                  className={cn(fieldStyles.fieldSm, "font-mono text-xs")}
+                  className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0 flex-1")}
                 />
                 {sources.length > 1 && (
                   <button
@@ -252,7 +252,7 @@ export function KbManager() {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {[0, 1].map((i) => (
             <div key={i} className="h-48 rounded-3xl bg-card border border-border animate-pulse" />
           ))}
@@ -262,7 +262,7 @@ export function KbManager() {
           No knowledge bases yet. Upload PDFs and URLs so agents answer from your content.
         </p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {(kbs ?? []).map((kb) => (
             <KbRow key={kb.kb_id} kb={kb} agentNames={agentNames} />
           ))}

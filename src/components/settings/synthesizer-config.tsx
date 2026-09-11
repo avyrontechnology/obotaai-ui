@@ -283,7 +283,7 @@ export function SynthesizerConfigForm({
       {isS2S && (
       <FormSection
         title="Realtime (S2S)"
-        description="Speech-to-speech multimodal config. Only used when the agent type is S2S — discrete STT/LLM/TTS blocks are skipped then. Field set mirrors the backend provider configs."
+        description="Realtime speech-to-speech settings. Only used by Realtime agents — the separate voice and language steps are skipped."
       >
         <SelectInput
           name="agent_config.s2s.provider"

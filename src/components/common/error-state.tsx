@@ -15,7 +15,7 @@ export function ErrorState({
   children,
 }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 rounded-[2.5rem] border border-red-500/20 bg-red-500/5 p-10">
+    <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 rounded-3xl border border-red-500/20 bg-red-500/5 p-6 md:p-10">
       <ServerCrash className="w-10 h-10 text-red-500" strokeWidth={1.5} />
       <p className="font-mono text-sm text-red-600/80 dark:text-red-400/80 text-center">{message}</p>
       {children}

@@ -92,7 +92,7 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
         <div className="min-w-0">
           <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">Call details</p>
           <div className="flex items-center gap-2">
-            <h3 className="text-xl font-semibold tracking-tight text-foreground truncate">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground truncate" title={execution ? execution.to_number ?? undefined : undefined}>
               {execution ? displayCallerNumber(execution.to_number, "Unknown caller") : "Loading…"}
             </h3>
             {execution?.execution_id && (
@@ -116,89 +116,89 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
             )}
           </div>
           {execution?.execution_id && (
-            <p className="text-[11px] font-mono text-muted-foreground truncate mt-1">{execution.execution_id}</p>
+            <p className="text-[11px] font-mono text-muted-foreground break-all mt-1" title={execution?.execution_id}>{execution.execution_id}</p>
           )}
         </div>
       }
     >
       <div className="p-6 space-y-6">
-              {isLoading || !execution ? (
-                isError ? (
-                  <ErrorState message="Couldn't load this call." onRetry={() => refetch()} />
+        {isLoading || !execution ? (
+          isError ? (
+            <ErrorState message="Couldn't load this call." onRetry={() => refetch()} />
+          ) : (
+            <div className="space-y-4 animate-pulse motion-reduce:animate-none" aria-label="Loading call details">
+              <div className="h-6 w-32 rounded-full bg-muted" />
+              <div className="h-24 rounded-2xl bg-muted" />
+              <div className="h-40 rounded-2xl bg-muted" />
+            </div>
+          )
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={execution.status} />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-muted/50 text-muted-foreground">
+                {execution.direction === "outbound" ? (
+                  <PhoneOutgoing className="w-3.5 h-3.5" />
                 ) : (
-                <div className="space-y-4 animate-pulse motion-reduce:animate-none" aria-label="Loading call details">
-                  <div className="h-6 w-32 rounded-full bg-muted" />
-                  <div className="h-24 rounded-2xl bg-muted" />
-                  <div className="h-40 rounded-2xl bg-muted" />
-                </div>
-                )
-              ) : (
-                <>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge status={execution.status} />
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-muted/50 text-muted-foreground">
-                      {execution.direction === "outbound" ? (
-                        <PhoneOutgoing className="w-3.5 h-3.5" />
-                      ) : (
-                        <PhoneIncoming className="w-3.5 h-3.5" />
-                      )}
-                      {execution.direction}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {timeAgo(execution.started_at)} · {formatDuration(execution.duration_s)}
-                    </span>
-                    <Link
-                      href={`/agents/${execution.agent_id}`}
-                      onClick={onClose}
-                      className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
-                    >
-                      Agent <ExternalLink aria-hidden="true" className="w-3 h-3" />
-                    </Link>
-                    {execution.batch_id && (
-                      <Link
-                        href={`/batches/${execution.batch_id}`}
-                        onClick={onClose}
-                        className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
-                      >
-                        Batch <ExternalLink aria-hidden="true" className="w-3 h-3" />
-                      </Link>
-                    )}
-                  </div>
-
-                  {execution.summary && (
-                    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed text-foreground">
-                      {execution.summary}
-                    </div>
-                  )}
-
-                  {latency && (
-                    <div>
-                      <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                        <Activity className="w-3.5 h-3.5" /> Latency breakdown
-                      </h4>
-                      <div className="space-y-2.5">
-                        <LatencyBar label="Transcriber" ms={latency.transcriber_ms} maxMs={maxLatency} />
-                        <LatencyBar label="LLM" ms={latency.llm_ms} maxMs={maxLatency} />
-                        <LatencyBar label="Synthesizer" ms={latency.synthesizer_ms} maxMs={maxLatency} />
-                        <div className="flex items-center justify-between pt-1 text-sm">
-                          <span className="text-muted-foreground">End-to-end</span>
-                          <span className="font-mono font-semibold text-foreground">
-                            {formatLatency(latency.e2e_ms)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <TranscriptView key={execution.execution_id} transcript={execution.transcript} />
-
-                  <KeyValueBlock title="Extracted data" data={execution.extracted_data} />
-                  <KeyValueBlock
-                    title="Call variables"
-                    data={execution.variables as Record<string, unknown>}
-                  />
-                </>
+                  <PhoneIncoming className="w-3.5 h-3.5" />
+                )}
+                {execution.direction}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {timeAgo(execution.started_at)} · {formatDuration(execution.duration_s)}
+              </span>
+              <Link
+                href={`/agents/${execution.agent_id}`}
+                onClick={onClose}
+                className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+              >
+                Agent <ExternalLink aria-hidden="true" className="w-3 h-3" />
+              </Link>
+              {execution.batch_id && (
+                <Link
+                  href={`/batches/${execution.batch_id}`}
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+                >
+                  Batch <ExternalLink aria-hidden="true" className="w-3 h-3" />
+                </Link>
               )}
+            </div>
+
+            {execution.summary && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed text-foreground">
+                {execution.summary}
+              </div>
+            )}
+
+            {latency && (
+              <div>
+                <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5" /> Latency breakdown
+                </h4>
+                <div className="space-y-2.5">
+                  <LatencyBar label="Transcriber" ms={latency.transcriber_ms} maxMs={maxLatency} />
+                  <LatencyBar label="LLM" ms={latency.llm_ms} maxMs={maxLatency} />
+                  <LatencyBar label="Synthesizer" ms={latency.synthesizer_ms} maxMs={maxLatency} />
+                  <div className="flex items-center justify-between pt-1 text-sm">
+                    <span className="text-muted-foreground">End-to-end</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {formatLatency(latency.e2e_ms)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <TranscriptView key={execution.execution_id} transcript={execution.transcript} />
+
+            <KeyValueBlock title="Extracted data" data={execution.extracted_data} />
+            <KeyValueBlock
+              title="Call variables"
+              data={execution.variables as Record<string, unknown>}
+            />
+          </>
+        )}
       </div>
     </Drawer>
   );
@@ -230,7 +230,7 @@ function TranscriptView({ transcript }: { transcript: NonNullable<import("@/lib/
             onChange={(event) => setTranscriptQuery(event.target.value)}
             placeholder="Filter transcript…"
             aria-label="Filter transcript"
-            className={cn(fieldStyles.fieldSm, "w-40 !w-40")}
+            className={cn(fieldStyles.fieldSm, "w-full max-w-[160px] shrink-0")}
           />
         )}
       </div>

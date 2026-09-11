@@ -45,7 +45,7 @@ export function SearchInput({
         title={title}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="w-full h-11 pl-10 pr-4 bg-card backdrop-blur-xl border border-border rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-sm placeholder:text-muted-foreground font-mono"
+        className="w-full h-11 pl-10 pr-4 bg-card border border-border rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all placeholder:text-muted-foreground font-mono"
       />
     </div>
   );

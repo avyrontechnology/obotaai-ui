@@ -72,7 +72,7 @@ export function FormSection({ title, description, children }: { title: string, d
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0"
       >
         {children}
       </motion.div>

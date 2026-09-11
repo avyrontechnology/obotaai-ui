@@ -2,51 +2,25 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronRight, CircleUserRound, Command, LogOut, Search, User, Wallet } from "lucide-react";
+import { ChevronRight, CircleUserRound, Command, LogOut, Search, User, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useWallet } from "@/services/platform/wallet";
 import { useLogout, useSession } from "@/services/auth";
-import { API_BASE_URL } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
-const API_HOST = (() => {
-  try {
-    return new URL(API_BASE_URL).host;
-  } catch {
-    return API_BASE_URL;
-  }
-})();
-
-/** Backend reachability derived from the session query — no extra requests. */
-function ApiStatus() {
-  const { data, isPending, isError } = useSession();
-  const live = !isPending && !isError && !!data;
-  return (
-    <span className="hidden xl:inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-border bg-card text-xs font-mono text-muted-foreground">
-      <span className="relative flex h-2 w-2">
-        {live && (
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-        )}
-        <span
-          className={cn(
-            "relative inline-flex rounded-full h-2 w-2",
-            live ? "bg-emerald-500" : isPending ? "bg-amber-400 animate-pulse" : "bg-stone-400"
-          )}
-        />
-      </span>
-      {live ? "API Connected" : isPending ? "Connecting…" : "API Unreachable"}
-      <span className="text-muted-foreground/70">· {API_HOST}</span>
-    </span>
-  );
-}
-
 const SEGMENT_LABELS: Record<string, string> = {
-  agents: "Agents",
+  agents: "OboFleet",
   calls: "Call History",
   batches: "Campaigns",
   playground: "Studio",
-  library: "Library",
+  library: "Knowledge Base",
+  flows: "Flows",
+  numbers: "Numbers",
+  team: "Team",
+  billing: "Billing",
+  "api-keys": "API Keys",
+  integrations: "Integrations",
   graphs: "Graphs",
   workflows: "Workflows",
   settings: "Settings",
@@ -94,8 +68,8 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   }, [menuOpen]);
 
   return (
-    <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center gap-3 px-4 md:px-6 relative z-30">
-      <nav aria-label="Breadcrumb" className="min-w-0">
+    <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center gap-3 px-4 md:px-6 relative z-30 overflow-x-clip">
+      <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
         <ol className="flex items-center gap-1.5 text-sm min-w-0">
           {crumbs.map((crumb, index) => {
             const last = index === crumbs.length - 1;
@@ -118,10 +92,9 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2 shrink-0">
-        <ApiStatus />
         <button
           onClick={onOpenPalette}
-          className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-sm transition-colors min-w-44 justify-between"
+          className="hidden md:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-sm transition-colors w-44 shrink-0 justify-between"
           aria-label="Open command palette"
         >
           <span className="flex items-center gap-2">
@@ -134,21 +107,12 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         </button>
 
         <button
-          onClick={() => router.push("/settings?tab=billing")}
+          onClick={() => router.push("/billing")}
           title="Credits — open billing"
           className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-sm hover:bg-accent transition-colors"
         >
           <Wallet className="w-4 h-4 text-cyan-700 dark:text-cyan-400" />
           <span className="font-semibold tabular-nums">{(wallet?.balance_credits ?? 0).toLocaleString()}</span>
-        </button>
-
-        <button
-          onClick={() => router.push("/settings?tab=notifications")}
-          title="Notifications"
-          aria-label="Notifications"
-          className="hidden sm:flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <Bell className="w-[18px] h-[18px]" />
         </button>
 
         <ThemeToggle />
@@ -178,8 +142,8 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
                 </div>
               )}
               {[
-                { label: "Profile settings", href: "/settings?tab=general", icon: User },
-                { label: "Billing", href: "/settings?tab=billing", icon: Wallet },
+                { label: "Profile settings", href: "/settings", icon: User },
+                { label: "Billing", href: "/billing", icon: Wallet },
               ].map((item) => (
                 <Link
                   key={item.href}

@@ -1,14 +1,14 @@
 import {
   Activity,
   CreditCard,
-  GitFork,
+  Database,
   Key,
   Layers,
   LayoutDashboard,
-  LayoutTemplate,
   MessagesSquare,
   Phone,
   PhoneCall,
+  Plug,
   Settings,
   User,
   Workflow,
@@ -38,10 +38,18 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Build",
     items: [
-      { label: "Agents", href: "/agents", icon: Activity, match: startsWith("/agents") },
-      { label: "Library", href: "/library", icon: LayoutTemplate, match: startsWith("/library") },
-      { label: "Graphs", href: "/graphs", icon: GitFork, match: startsWith("/graphs") },
-      { label: "Workflows", href: "/workflows", icon: Workflow, match: startsWith("/workflows") },
+      { label: "OboFleet", href: "/agents", icon: Activity, match: startsWith("/agents") },
+      { label: "Knowledge Base", href: "/library", icon: Database, match: startsWith("/library") },
+      {
+        label: "Flows",
+        href: "/flows",
+        icon: Workflow,
+        match: (pathname: string) =>
+          pathname === "/flows" ||
+          pathname.startsWith("/flows/") ||
+          pathname.startsWith("/graphs") ||
+          pathname.startsWith("/workflows"),
+      },
       { label: "Playground", href: "/playground", icon: MessagesSquare, match: startsWith("/playground") },
     ],
   },
@@ -55,10 +63,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Manage",
     items: [
-      { label: "Numbers", href: "/settings?tab=numbers", icon: Phone },
-      { label: "Team", href: "/settings?tab=team", icon: User },
-      { label: "Billing", href: "/settings?tab=billing", icon: CreditCard },
-      { label: "API Keys", href: "/settings?tab=keys", icon: Key },
+      { label: "Numbers", href: "/numbers", icon: Phone },
+      { label: "Team", href: "/team", icon: User },
+      { label: "Billing", href: "/billing", icon: CreditCard },
+      { label: "API Keys", href: "/api-keys", icon: Key },
+      { label: "Integrations", href: "/integrations", icon: Plug },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },

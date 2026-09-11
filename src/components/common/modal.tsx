@@ -134,8 +134,8 @@ export function Drawer({ open, onClose, label, title, children, wide }: DrawerPr
             aria-modal="true"
             aria-label={label}
           >
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <div className="text-lg font-semibold text-foreground">{title}</div>
+            <div className="flex items-start justify-between gap-3 p-6 border-b border-border">
+              <div className="flex-1 min-w-0">{title}</div>
               <button
                 onClick={onClose}
                 aria-label="Close panel"
