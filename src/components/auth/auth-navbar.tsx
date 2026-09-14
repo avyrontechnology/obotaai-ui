@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "@/lib/api-client";
+import { API_BASE_URL, API_V1 } from "@/lib/api-client";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/components/common/brand-lockup";
@@ -18,7 +18,7 @@ export function SoonLink({ children, note }: { children: React.ReactNode; note: 
     <button
       type="button"
       onClick={() => notify.info("Coming soon", { description: note })}
-      className="hover:text-foreground cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
+      className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-2 hover:text-foreground cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
     >
       {children}
     </button>
@@ -35,7 +35,7 @@ export function EngineStatus({ withLatency = false }: { withLatency?: boolean })
     let cancelled = false;
     const controller = new AbortController();
     const started = performance.now();
-    fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", signal: controller.signal })
+    fetch(`${API_BASE_URL}${API_V1}/auth/me`, { credentials: "include", signal: controller.signal })
       .then(() => {
         if (!cancelled) {
           setLatency(Math.max(1, Math.round(performance.now() - started)));

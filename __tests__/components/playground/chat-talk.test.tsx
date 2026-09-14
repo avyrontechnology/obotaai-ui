@@ -77,7 +77,9 @@ describe("ChatTalk socket protocol", () => {
     (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ticket: "t-123", expires_in: 60 }),
+      // `/auth/ws-ticket` is enveloped under `/api/v1` (backend spec 0006);
+      // fetchWsTicket unwraps `data`, so the fixture must be enveloped.
+      json: async () => ({ ok: true, data: { ticket: "t-123", expires_in: 60 }, message: "ok", meta: {} }),
     });
     render(<ChatTalk agentId="agent-9" agentName="Test Agent" />);
     await act(async () => {});

@@ -23,6 +23,9 @@ import { templateKeys } from "@/services/platform/templates";
 
 jest.mock("@/lib/api-client", () => ({
   apiClient: jest.fn(),
+  // The real module exports this success-path helper (backend spec 0006);
+  // the mock must mirror it so hooks under test can unwrap `data`.
+  unwrapEnvelopeData: (raw: unknown) => (raw as { data?: unknown })?.data,
 }));
 
 const mockedApiClient = apiClient as jest.Mock;
@@ -86,16 +89,26 @@ describe("remote hooks use Query (no useEffect+fetch)", () => {
   });
 
   it("useSession parses via authMeSchema", async () => {
+    // The mocked apiClient stands in for the HTTP layer, so it resolves what
+    // the real client returns: the `{ok, data, …}` envelope (backend spec
+    // 0006). The hook unwraps `data` and parses it with authMeSchema, so the
+    // endpoint assertion stays pre-prefix (`/auth/me`) while the payload is
+    // enveloped — hook return types are unchanged.
     mockedApiClient.mockResolvedValue({
-      user: {
-        user_id: "u1",
-        email: "a@b.co",
-        role: "admin",
-        org_id: "o1",
-        disabled: false,
-        created_at: "2026-01-01",
+      ok: true,
+      data: {
+        user: {
+          user_id: "u1",
+          email: "a@b.co",
+          role: "admin",
+          org_id: "o1",
+          disabled: false,
+          created_at: "2026-01-01",
+        },
+        scopes: ["agents:read"],
       },
-      scopes: ["agents:read"],
+      message: "ok",
+      meta: {},
     });
     const { result } = renderHook(() => useSession(), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));

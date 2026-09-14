@@ -4,6 +4,10 @@ import { wsTicketSchema } from "./schemas/auth";
 export const API_BASE_URL = env.NEXT_PUBLIC_API_BASE_URL;
 export const WS_BASE_URL = env.NEXT_PUBLIC_WS_BASE_URL;
 
+/** REST APIs are dual-served under `/api/v1` (backend spec 0007); the client
+ *  always uses the new prefix so every call site moves at once. */
+export const API_V1 = "/api/v1";
+
 /** Browser-leg call socket: ?leg=browser keeps the backend on default IO handlers
  *  even when the agent is configured with a telephony provider (the carrier
  *  handlers speak Twilio-shaped events and would drop browser {type}-frames,
@@ -27,7 +31,7 @@ export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${API_BASE_URL}${API_V1}${endpoint}`;
 
   const headers = {
     "Content-Type": "application/json",
@@ -67,7 +71,17 @@ export async function apiClient<T>(
 }
 
 /**
- * Single-use voice-socket ticket (`POST /auth/ws-ticket`).
+ * Extract `data` from the standard `{ok, data, message, meta}` envelope.
+ * Auth endpoints serve enveloped payloads under `/api/v1` (backend spec
+ * 0006); error responses keep FastAPI `detail`, which the error path above
+ * already reads, so this is success-path only.
+ */
+export function unwrapEnvelopeData(raw: unknown): unknown {
+  return (raw as { data?: unknown })?.data;
+}
+
+/**
+ * Single-use voice-socket ticket (`POST /api/v1/auth/ws-ticket`).
  * Canonical location for the ticket helper — `src/services/auth.ts`
  * re-exports it so playground imports keep working.
  * Sessions ride the httpOnly cookie (`credentials: "include"` above), so
@@ -76,5 +90,5 @@ export async function apiClient<T>(
  */
 export async function fetchWsTicket(): Promise<string> {
   const raw = await apiClient<unknown>("/auth/ws-ticket", { method: "POST" });
-  return wsTicketSchema.parse(raw).ticket;
+  return wsTicketSchema.parse(unwrapEnvelopeData(raw)).ticket;
 }

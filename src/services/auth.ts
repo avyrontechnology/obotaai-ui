@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, unwrapEnvelopeData } from "@/lib/api-client";
 import {
   authEventListSchema,
   authMeSchema,
@@ -27,7 +27,7 @@ export function useSession() {
     queryKey: authKeys.session,
     queryFn: async () => {
       const raw = await apiClient<unknown>("/auth/me");
-      return authMeSchema.parse(raw) as AuthMe;
+      return authMeSchema.parse(unwrapEnvelopeData(raw)) as AuthMe;
     },
     retry: false,
     staleTime: 60 * 1000,
@@ -42,7 +42,7 @@ export function useLogin() {
         method: "POST",
         body: JSON.stringify(input),
       });
-      return authMeSchema.parse(raw) as AuthMe;
+      return authMeSchema.parse(unwrapEnvelopeData(raw)) as AuthMe;
     },
     onSuccess: (me) => {
       queryClient.setQueryData(authKeys.session, me);
@@ -65,7 +65,7 @@ export function useSignup() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      return userSchema.parse(raw);
+      return userSchema.parse(unwrapEnvelopeData(raw));
     },
     onSuccess: () => {
       // Session cookie is set server-side; refetch rather than fabricate.
@@ -94,7 +94,7 @@ export function useUsers(enabled = true) {
     queryKey: authKeys.users,
     queryFn: async () => {
       const raw = await apiClient<unknown>("/auth/users");
-      return userListSchema.parse(raw).users;
+      return userListSchema.parse(unwrapEnvelopeData(raw)).users;
     },
     enabled,
   });
@@ -111,7 +111,7 @@ export function useInviteUser() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      return raw as { invite_id: string; email: string; role: Role; token: string; expires_at: string };
+      return unwrapEnvelopeData(raw) as { invite_id: string; email: string; role: Role; token: string; expires_at: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.invites });
@@ -124,7 +124,7 @@ export function useInvites(enabled = true) {
     queryKey: authKeys.invites,
     queryFn: async () => {
       const raw = await apiClient<unknown>("/auth/invites");
-      return inviteListSchema.parse(raw).invites;
+      return inviteListSchema.parse(unwrapEnvelopeData(raw)).invites;
     },
     enabled,
   });
@@ -142,7 +142,7 @@ export function useAcceptInvite() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      return authMeSchema.parse(raw) as AuthMe;
+      return authMeSchema.parse(unwrapEnvelopeData(raw)) as AuthMe;
     },
     onSuccess: (me) => {
       queryClient.setQueryData(authKeys.session, me);
@@ -159,7 +159,7 @@ export function useSetUserRole() {
         method: "PUT",
         body: JSON.stringify({ role }),
       });
-      return userSchema.parse(raw);
+      return userSchema.parse(unwrapEnvelopeData(raw));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.users });
@@ -193,7 +193,7 @@ export function useChangePassword() {
 }
 
 // Canonical implementation lives in `@/lib/api-client` (credentials include,
-// 401 -> /login?next=, POST /auth/ws-ticket with cookie fallback). Re-export
+// 401 -> /login?next=, POST /api/v1/auth/ws-ticket with cookie fallback). Re-export
 // here so playground (`fetchWsTicket` from `@/services/auth`) keeps working.
 export { fetchWsTicket } from "@/lib/api-client";
 
@@ -202,7 +202,7 @@ export function useAuthEvents(enabled = true) {
     queryKey: authKeys.events,
     queryFn: async () => {
       const raw = await apiClient<unknown>("/auth/events");
-      return authEventListSchema.parse(raw).events;
+      return authEventListSchema.parse(unwrapEnvelopeData(raw)).events;
     },
     enabled,
   });

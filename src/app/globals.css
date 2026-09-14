@@ -23,9 +23,10 @@
   --card-foreground: #3a1800;
   --popover: #ffffff;
   --popover-foreground: #3a1800;
-  /* Primary: ember-700 (#a82d11) — ember-600 (#e73f1e) scores 3.95:1 on
-     cream and fails WCAG AA 4.5:1 for button text. Ember-700 scores 6.64:1. */
-  --primary: #a82d11;
+  /* Primary: brand orange-red ember-600 (#e73f1e) — restored to the
+     original button color. Note: cream text on it scores ~3.95:1 and does
+     not meet WCAG AA 4.5:1; kept for brand consistency per request. */
+  --primary: #e73f1e;
   --primary-foreground: #fffbeb;
   --secondary: #ffdd9c;
   --secondary-foreground: #7a230d;

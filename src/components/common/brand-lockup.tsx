@@ -37,7 +37,7 @@ export function BrandLockup({
   textClassName?: string;
   sublabelClassName?: string;
 }) {
-  const tile = size === "sm" ? "w-8 h-8 rounded-[10px]" : "w-9 h-9 rounded-[10px]";
+  const tile = size === "sm" ? "w-8 h-8 rounded-xl" : "w-9 h-9 rounded-xl";
   const text = size === "sm" ? "text-lg" : "text-[22px]";
   const markSize = size === "sm" ? 32 : 36;
 

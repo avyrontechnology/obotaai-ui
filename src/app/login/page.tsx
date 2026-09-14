@@ -46,7 +46,7 @@ function Equalizer() {
       {EQ_BARS.map((height, index) => (
         <span
           key={index}
-          className="eq-bar w-[3px] rounded-full bg-gradient-to-t from-primary to-accent"
+          className="w-[3px] rounded-full bg-muted-foreground/60"
           style={{ height: `${Math.round(height * 100)}%`, animationDelay: `${index * 0.13}s` }}
         />
       ))}
@@ -57,7 +57,7 @@ function Equalizer() {
 function WaveBand({ id, className, opacity }: { id: string; className?: string; opacity: number }) {
   return (
     <div className={cn("pointer-events-none overflow-hidden", className)} aria-hidden="true">
-      <div className="wave-drift-slow flex w-[200%] h-full">
+      <div className="flex w-[200%] h-full">
         {[0, 1].map((copy) => (
           <svg key={copy} viewBox="0 0 600 120" preserveAspectRatio="none" className="w-1/2 h-full shrink-0">
             <defs>
@@ -71,7 +71,7 @@ function WaveBand({ id, className, opacity }: { id: string; className?: string; 
               d="M0,60 C50,20 100,20 150,60 C200,100 250,100 300,60 C350,20 400,20 450,60 C500,100 550,100 600,60"
               fill="none"
               stroke={`url(#${id}-stroke)`}
-              strokeWidth="9"
+              strokeWidth="2"
               strokeLinecap="round"
               opacity={opacity}
             />
@@ -132,11 +132,11 @@ function LoginContent() {
 
       {/* Body */}
       <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-6 md:px-10 grid lg:grid-cols-2 gap-8 xl:gap-12 items-center py-6 relative">
-        <WaveBand id="hero-wave" className="absolute inset-x-0 top-6 h-28 opacity-40" opacity={0.35} />
+        <WaveBand id="hero-wave" className="absolute inset-x-0 top-6 h-16 opacity-30" opacity={0.15} />
 
         {/* Hero */}
         <div className="relative pt-6">
-          <p className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-card border border-border text-[13px] font-semibold tracking-wide text-primary shadow-sm mb-4">
+          <p className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-card border border-border text-[13px] font-semibold tracking-normal text-foreground shadow-sm mb-4">
             <Radio className="w-4 h-4" />
             REAL-TIME ACOUSTIC ORCHESTRATION
           </p>
@@ -153,14 +153,14 @@ function LoginContent() {
           </p>
 
           {/* Live cluster card */}
-          <div className="mt-6 max-w-xl rounded-3xl bg-card border border-border shadow-[0_24px_60px_-24px_color-mix(in_srgb,var(--primary)_25%,transparent)] p-6">
+          <div className="mt-6 max-w-xl rounded-3xl bg-card border border-border shadow-[0_8px_24px_-12px_color-mix(in_srgb,var(--foreground)_12%,transparent)] p-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#E73F1E] to-[#FB6C00] text-white shrink-0 shadow-md">
+                <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-[#A82D11] to-[#7A230D] text-white shrink-0 shadow-md">
                   <Radio className="w-5 h-5" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-bold tracking-wide text-primary">ACTIVE LIVE CLUSTER</p>
+                  <p className="text-[13px] font-bold tracking-normal text-muted-foreground">ACTIVE LIVE CLUSTER</p>
                   <p className="font-mono text-[15px] text-foreground truncate">us-east-speech-edge-04</p>
                 </div>
               </div>
@@ -185,33 +185,33 @@ function LoginContent() {
           {/* Compliance */}
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-primary" /> SOC2 Type II Certified
+              <ShieldCheck className="w-4 h-4 text-muted-foreground" /> SOC2 Type II Certified
             </span>
             <span className="text-accent" aria-hidden="true">
               •
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Lock className="w-4 h-4 text-primary" /> HIPAA Compliant
+              <Lock className="w-4 h-4 text-muted-foreground" /> HIPAA Compliant
             </span>
             <span className="text-accent" aria-hidden="true">
               •
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Cpu className="w-4 h-4 text-primary" /> Zero-Retention Option
+              <Cpu className="w-4 h-4 text-muted-foreground" /> Zero-Retention Option
             </span>
           </div>
         </div>
 
         {/* Sign-in card */}
         <div className="relative">
-          <div className="absolute -top-1 inset-x-8 h-2 rounded-t-full bg-gradient-to-r from-accent via-ember-500 to-primary" aria-hidden="true" />
-          <div className="rounded-[2rem] bg-card shadow-[0_32px_80px_-24px_color-mix(in_srgb,var(--foreground)_25%,transparent)] border border-border p-6">
+          <div className="absolute -top-1 inset-x-8 h-1 rounded-t-full bg-gradient-to-r from-accent via-ember-500 to-primary" aria-hidden="true" />
+          <div className="rounded-3xl bg-card shadow-[0_8px_24px_-12px_color-mix(in_srgb,var(--foreground)_12%,transparent)] border border-border p-6">
             <div className="mb-5">
               <BrandLockup
                 size="md"
                 textClassName="text-lg"
                 sublabel="WORKSPACE PORTAL"
-                sublabelClassName="text-[12px] font-bold tracking-widest text-primary"
+                sublabelClassName="text-[13px] font-bold tracking-normal text-muted-foreground"
                 link={false}
               />
             </div>
@@ -233,11 +233,11 @@ function LoginContent() {
               <AuthPasswordField name="password" label="PASSWORD" />
 
               <div className="flex items-center justify-between text-[14px]">
-                <label className="flex items-center gap-2.5 text-muted-foreground cursor-pointer select-none">
+                <label className="flex items-center gap-2.5 text-muted-foreground cursor-pointer select-none min-h-[44px] py-1">
                   <input
                     {...form.register("remember")}
                     type="checkbox"
-                    className="w-[18px] h-[18px] rounded-md border-input accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="w-[28px] h-[28px] rounded-md border-input accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   />
                   Remember for 30 days
                 </label>
@@ -245,13 +245,13 @@ function LoginContent() {
                   type="button"
                   onClick={() => setShowResetNote((value) => !value)}
                   aria-expanded={showResetNote}
-                  className="font-medium text-primary hover:text-primary/80 hover:underline underline-offset-4 cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
+                  className="inline-flex items-center justify-center min-h-[44px] px-2 font-medium text-primary hover:text-primary/80 hover:underline underline-offset-4 cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
                 >
                   Forgot password?
                 </button>
               </div>
               {showResetNote && (
-                <p className="text-[13px] leading-relaxed text-muted-foreground rounded-2xl border border-border bg-muted px-4 py-3">
+                <p className="text-[13px] leading-relaxed text-muted-foreground rounded-xl border border-border bg-muted px-4 py-3">
                   Self-serve resets aren&apos;t available yet — ask your workspace owner to remove and
                   re-invite your account.
                 </p>
@@ -275,14 +275,14 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={() => notify.info("Coming soon", { description: "Google sign-in is on the roadmap." })}
-                className="h-12 rounded-2xl border border-input bg-card text-[15px] font-medium text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 motion-reduce:transition-none flex items-center justify-center gap-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                className="h-11 rounded-xl border border-input bg-card text-[15px] font-medium text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 motion-reduce:transition-none flex items-center justify-center gap-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               >
                 <GoogleMark /> Google
               </button>
               <button
                 type="button"
                 onClick={() => notify.info("Coming soon", { description: "SAML/Okta SSO ships on enterprise plans." })}
-                className="h-12 rounded-2xl border border-input bg-card text-[15px] font-medium text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 motion-reduce:transition-none flex items-center justify-center gap-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                className="h-11 rounded-xl border border-input bg-card text-[15px] font-medium text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 motion-reduce:transition-none flex items-center justify-center gap-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               >
                 <KeyRound className="w-4 h-4 text-primary" aria-hidden="true" /> SAML / Okta
               </button>

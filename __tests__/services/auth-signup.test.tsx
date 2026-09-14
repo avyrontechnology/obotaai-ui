@@ -22,15 +22,23 @@ describe("useSignup", () => {
   it("strips confirm and posts the signup payload", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
+      // Auth endpoints serve the `{ok, data, message, meta}` envelope under
+      // `/api/v1` (backend spec 0006); the hook unwraps `data` and parses it
+      // with the existing userSchema, so the fixture must be enveloped.
       json: async () => ({
-        user_id: "usr_1",
-        email: "owner@company.com",
-        name: null,
-        role: "owner",
-        org_id: "default",
-        disabled: false,
-        created_at: new Date().toISOString(),
-        last_login_at: null,
+        ok: true,
+        data: {
+          user_id: "usr_1",
+          email: "owner@company.com",
+          name: null,
+          role: "owner",
+          org_id: "default",
+          disabled: false,
+          created_at: new Date().toISOString(),
+          last_login_at: null,
+        },
+        message: "Signed up",
+        meta: {},
       }),
     });
     const { result } = renderHook(() => useSignup(), { wrapper });

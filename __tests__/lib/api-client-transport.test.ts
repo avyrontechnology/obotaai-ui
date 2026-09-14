@@ -1,4 +1,4 @@
-import { ApiError, apiClient, API_BASE_URL } from "@/lib/api-client";
+import { ApiError, apiClient, API_BASE_URL, API_V1 } from "@/lib/api-client";
 
 function mockFetchOnce(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   global.fetch = jest.fn().mockResolvedValue({
@@ -21,7 +21,7 @@ describe("apiClient transport contract (F7 ownership)", () => {
     const fetchMock = global.fetch as jest.Mock;
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${API_BASE_URL}/executions?agent_id=a1`);
+    expect(url).toBe(`${API_BASE_URL}${API_V1}/executions?agent_id=a1`);
     expect(options.credentials).toBe("include");
     expect((options.headers as Record<string, string>)["Content-Type"]).toBe(
       "application/json"
