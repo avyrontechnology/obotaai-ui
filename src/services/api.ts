@@ -146,6 +146,10 @@ export function useUpdateAgent() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(variables.id) });
+      // PUT overwrites the prompts file too — the ["agents", id, "prompts"]
+      // sub-key shares the detail prefix (fuzzy match covers it), but
+      // invalidate explicitly so the intent survives exact-match changes.
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.agents.detail(variables.id), "prompts"] });
     },
   });
 }
@@ -159,8 +163,11 @@ export function useDeleteAgent() {
         method: "DELETE",
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+      // Drop the deleted record's detail + prompts from cache so a
+      // back-navigation cannot render stale data for a gone agent.
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(id) });
     },
   });
 }

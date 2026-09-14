@@ -81,7 +81,7 @@ export function GettingStarted() {
           </div>
           <button
             onClick={dismiss}
-            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 shrink-0 rounded-lg px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer shrink-0 rounded-lg px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             Dismiss ×
           </button>
@@ -112,7 +112,7 @@ export function GettingStarted() {
                 {!step.done && (
                   <Link
                     href={step.href}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                   >
                     {step.cta} <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                   </Link>

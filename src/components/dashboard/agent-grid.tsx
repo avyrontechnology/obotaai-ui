@@ -79,7 +79,7 @@ export function AgentGrid() {
         </div>
         <button 
           onClick={() => refetch()}
-          className="relative z-10 px-8 py-3 mt-4 rounded-xl bg-red-600 text-white shadow-lg hover:bg-red-700 transition-colors duration-200 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+          className="relative z-10 px-8 py-3 mt-4 rounded-xl bg-red-600 text-white shadow-lg hover:bg-red-700 transition-colors duration-200 cursor-pointer font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
         >
           Re-establish Link
         </button>
@@ -118,7 +118,7 @@ export function AgentGrid() {
         </div>
         <Link
           href="/agents/new"
-          className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+          className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
           <span>Deploy Agent</span>
@@ -149,7 +149,7 @@ export function AgentGrid() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.15 }}
-              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 cursor-pointer relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               Deploy your first agent
             </motion.button>

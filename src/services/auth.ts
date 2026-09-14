@@ -6,7 +6,6 @@ import {
   inviteListSchema,
   userListSchema,
   userSchema,
-  wsTicketSchema,
   type AcceptInviteInput,
   type AuthMe,
   type ChangePasswordInput,
@@ -57,8 +56,11 @@ export function useSignup() {
   return useMutation({
     mutationFn: async (input: SignupInput) => {
       // `confirm` is a client-side repeat check; the API takes password only.
-      const { confirm, ...payload } = input;
+      // Empty optional `name` ("") maps to undefined (omitted) — the API
+      // rejects "" via min_length=1, so never send phantom empty strings.
+      const { confirm, name, ...rest } = input;
       void confirm;
+      const payload = { ...rest, ...(name?.trim() ? { name: name.trim() } : {}) };
       const raw = await apiClient<unknown>("/auth/signup", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -102,9 +104,12 @@ export function useInviteUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: InviteInput) => {
+      // Empty optional `name` maps to undefined (omitted) — never send "".
+      const { name, ...rest } = input;
+      const payload = { ...rest, ...(name?.trim() ? { name: name.trim() } : {}) };
       const raw = await apiClient<unknown>("/auth/invite", {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify(payload),
       });
       return raw as { invite_id: string; email: string; role: Role; token: string; expires_at: string };
     },
@@ -130,9 +135,12 @@ export function useAcceptInvite() {
   return useMutation({
     mutationFn: async (input: AcceptInviteInput) => {
       const { token, name, password } = input;
+      // Empty optional `name` maps to undefined (omitted) — never send "".
+      const trimmed = name?.trim();
+      const payload = trimmed ? { token, name: trimmed, password } : { token, password };
       const raw = await apiClient<unknown>("/auth/accept", {
         method: "POST",
-        body: JSON.stringify({ token, name, password }),
+        body: JSON.stringify(payload),
       });
       return authMeSchema.parse(raw) as AuthMe;
     },
@@ -184,10 +192,10 @@ export function useChangePassword() {
   });
 }
 
-export async function fetchWsTicket(): Promise<string> {
-  const raw = await apiClient<unknown>("/auth/ws-ticket", { method: "POST" });
-  return wsTicketSchema.parse(raw).ticket;
-}
+// Canonical implementation lives in `@/lib/api-client` (credentials include,
+// 401 -> /login?next=, POST /auth/ws-ticket with cookie fallback). Re-export
+// here so playground (`fetchWsTicket` from `@/services/auth`) keeps working.
+export { fetchWsTicket } from "@/lib/api-client";
 
 export function useAuthEvents(enabled = true) {
   return useQuery({

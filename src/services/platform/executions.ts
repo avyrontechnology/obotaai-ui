@@ -24,6 +24,8 @@ export const executionKeys = {
     ["executions", filters] as const,
   detail: (id: string) => ["executions", id] as const,
   stats: (agent_id?: string) => ["executions", "stats", { agent_id }] as const,
+  latency: (agent_id?: string, days = 30) =>
+    ["executions", "latency", { agent_id, days }] as const,
 };
 
 async function fetchExecutions(filters: ExecutionFilters = {}) {
@@ -64,7 +66,7 @@ export function useExecution(id: string, enabled = true) {
 
 export function useExecutionStats(
   agent_id?: string,
-  options?: { refetchInterval?: number | false; staleTime?: number }
+  options?: { refetchInterval?: number | false; staleTime?: number; enabled?: boolean }
 ) {
   return useQuery({
     queryKey: executionKeys.stats(agent_id),
@@ -75,16 +77,17 @@ export function useExecutionStats(
     },
     staleTime: options?.staleTime,
     refetchInterval: options?.refetchInterval,
+    enabled: options?.enabled,
   });
 }
 
 export function useLatencyStats(
   agent_id?: string,
   days = 30,
-  options?: { refetchInterval?: number | false; staleTime?: number }
+  options?: { refetchInterval?: number | false; staleTime?: number; enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: ["executions", "latency", { agent_id, days }] as const,
+    queryKey: executionKeys.latency(agent_id, days),
     queryFn: async () => {
       const params = new URLSearchParams({ days: String(days) });
       if (agent_id) params.set("agent_id", agent_id);
@@ -93,6 +96,7 @@ export function useLatencyStats(
     },
     staleTime: options?.staleTime,
     refetchInterval: options?.refetchInterval,
+    enabled: options?.enabled,
   });
 }
 

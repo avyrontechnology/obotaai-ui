@@ -97,6 +97,7 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
 
   const [draft, setDraft] = useState<GraphDefinition | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [prevGraphId, setPrevGraphId] = useState<string | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
@@ -108,8 +109,12 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
   const [savedFlash, setSavedFlash] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  if (graph && draft === null) {
+  // Derived draft init without setState-in-effect: render-phase adjustment
+  // resets when the route id (graph) changes, so /graphs/a → /graphs/b
+  // never shows a stale canvas.
+  if (graph && (draft === null || prevGraphId !== graph.graph_id)) {
     const next = graph.definition;
+    setPrevGraphId(graph.graph_id);
     setDraft(next);
     setSavedSnapshot(JSON.stringify(next));
     setName(graph.name);
@@ -279,9 +284,9 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
 
   if (isLoading || !graph || !draft) {
     return (
-      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4">
-        <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse" />
-        <div className="h-[500px] rounded-[2rem] bg-card border border-border animate-pulse" />
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4" aria-hidden="true">
+        <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse motion-reduce:animate-none" />
+        <div className="h-[500px] rounded-[2rem] bg-card border border-border animate-pulse motion-reduce:animate-none" />
       </div>
     );
   }
@@ -290,9 +295,9 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
     <div className="flex flex-col flex-1 min-h-[100dvh] max-w-[1400px] mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
         href="/flows?tab=graphs"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 w-fit"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer mb-4 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
-        <ArrowLeft className="w-4 h-4" /> Flows
+        <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Flows
       </Link>
 
       {/* Top bar */}
@@ -309,48 +314,48 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
         <div className="flex flex-wrap items-center gap-2 xl:ml-auto">
           {savedFlash && !dirty && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400 mr-1">
-              <Check className="w-4 h-4" /> Saved
+              <Check className="w-4 h-4" aria-hidden="true" /> Saved
             </span>
           )}
           <button
             onClick={() => void handleSave().catch(() => undefined)}
             disabled={!dirty || updateGraph.isPending}
-            className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            {updateGraph.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {updateGraph.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Save{dirty ? " *" : ""}
           </button>
           <button
             onClick={() => void handleValidate().catch(() => undefined)}
             disabled={validateGraph.isPending}
-            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <ShieldCheck className="w-4 h-4" /> Validate
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" /> Validate
           </button>
           <button
             onClick={() => void handleDryRun().catch(() => undefined)}
             disabled={dryRunGraph.isPending}
-            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <Play className="w-4 h-4" /> Dry-run
+            <Play className="w-4 h-4" aria-hidden="true" /> Dry-run
           </button>
           <button
             onClick={() => {
               setShowVersions(true);
               void refetchVersions();
             }}
-            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <History className="w-4 h-4" /> Versions
+            <History className="w-4 h-4" aria-hidden="true" /> Versions
           </button>
           <button
             onClick={() => {
               setDeployName(name || graph.name);
               setShowDeploy(true);
             }}
-            className="h-10 px-4 rounded-xl bg-card border border-primary/30 text-sm text-ember-700 dark:text-ember-300 hover:bg-primary/10 transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-primary/30 text-sm text-ember-700 dark:text-ember-300 hover:bg-primary/10 transition-colors duration-200 cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <Rocket className="w-4 h-4" /> Deploy
+            <Rocket className="w-4 h-4" aria-hidden="true" /> Deploy
           </button>
         </div>
       </div>
@@ -363,9 +368,14 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
       )}
 
       {actionError && (
-        <p className="mb-4 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 w-fit">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {actionError}
-        </p>
+        <div
+          role="alert"
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          className="mb-4 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 w-fit focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {actionError}
+        </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
@@ -380,9 +390,9 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
                   key={type}
                   onClick={() => addNode(type)}
                   title={NODE_META[type].hint}
-                  className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
-                  <Icon className="w-3.5 h-3.5" /> {NODE_META[type].label}
+                  <Icon className="w-3.5 h-3.5" aria-hidden="true" /> {NODE_META[type].label}
                 </button>
               );
             })}
@@ -390,13 +400,13 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
               onClick={() => setConnectFrom((value) => (value ? null : (selectedId ?? value)))}
               disabled={!selectedId && !connectFrom}
               className={cn(
-                "flex items-center gap-1.5 h-9 px-3 rounded-xl border text-xs transition-colors disabled:opacity-40",
+                "flex items-center gap-1.5 h-9 px-3 rounded-xl border text-xs transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                 connectFrom
                   ? "border-ember-400/50 bg-ember-400/10 text-ember-700 dark:text-ember-300"
                   : "border-border bg-card text-muted-foreground hover:text-foreground"
               )}
             >
-              <GitFork className="w-3.5 h-3.5" />
+              <GitFork className="w-3.5 h-3.5" aria-hidden="true" />
               {connectFrom ? "Cancel connect" : "Connect"}
             </button>
           </div>
@@ -522,9 +532,9 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
                 void deleteGraph.mutateAsync(id).then(() => router.push("/flows?tab=graphs"));
               }
             }}
-            className="w-full h-10 rounded-xl text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-2"
+            className="w-full h-10 rounded-xl text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete graph
+            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete graph
           </button>
         </div>
       </div>
@@ -586,20 +596,20 @@ export default function GraphBuilderPage({ params }: { params: Promise<{ id: str
                   className="w-full h-11 px-4 bg-muted/50 border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50"
                 />
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => void handleDeploy().catch(() => undefined)}
-                    disabled={!deployName.trim() || deployGraph.isPending}
-                    className="flex-1 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {deployGraph.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Deploy
-                  </button>
-                  <button
-                    onClick={() => setShowDeploy(false)}
-                    className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Cancel
-                  </button>
+                <button
+                  onClick={() => void handleDeploy().catch(() => undefined)}
+                  disabled={!deployName.trim() || deployGraph.isPending}
+                  className="flex-1 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                >
+                  {deployGraph.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+                  Deploy
+                </button>
+                <button
+                  onClick={() => setShowDeploy(false)}
+                  className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                >
+                  Cancel
+                </button>
                 </div>
       </Modal>
     </div>
@@ -625,7 +635,7 @@ function RestoreVersionButton({
           .catch(() => undefined)
       }
       disabled={restoreVersion.isPending}
-      className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors shrink-0"
+      className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
     >
       Restore
     </button>
@@ -659,7 +669,7 @@ function NodeInspector({
       <div className="flex items-center justify-between">
         <p className="font-mono text-sm font-semibold text-foreground">{node.id}</p>
         {!isStart && (
-          <button onClick={onSetStart} className="text-xs text-ember-700 dark:text-ember-300 hover:underline underline-offset-4">
+          <button onClick={onSetStart} className="text-xs text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none">
             Set as start
           </button>
         )}
@@ -809,9 +819,9 @@ function NodeInspector({
                 <button
                   onClick={() => onDeleteEdge(index)}
                   aria-label={`Delete route ${index + 1}`}
-                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -848,9 +858,9 @@ function NodeInspector({
               }
             }}
             disabled={!edgeTarget}
-            className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors flex items-center gap-1"
+            className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <Plus className="w-3.5 h-3.5" /> Add
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Add
           </button>
         </div>
       </div>

@@ -37,7 +37,28 @@ import {
 } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 
-type Phase = "idle" | "mic" | "connecting" | "live" | "ended" | "error";
+type Phase = "idle" | "mic" | "connecting" | "live" | "reconnecting" | "ended" | "error";
+
+/** Engine stream sentinels: control frames, never user-visible transcript. */
+const STREAM_SENTINELS = new Set(["<beginning_of_stream>", "<end_of_stream>"]);
+
+/** Map a getUserMedia DOMException name to an actionable, user-facing message. Pure — unit-tested via behavior. */
+export function micErrorMessage(name?: string): string {
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Microphone blocked. Allow mic access in the browser site settings, then try again.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "No microphone found. Connect a mic, then try again.";
+    case "NotReadableError":
+      return "Microphone is in use by another app. Close it and try again.";
+    case "AbortError":
+      return "Mic request was interrupted. Try again.";
+    default:
+      return "Couldn't access the microphone. Check permissions and try again.";
+  }
+}
 
 interface TalkTurn {
   id: number;
@@ -112,6 +133,7 @@ export function LiveTalk({
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<SessionTab>("transcript");
   const [draft, setDraft] = useState("");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [stats, setStats] = useState<SessionStats>({ e2eMs: null, jitterMs: null, turns: 0, elapsedSec: 0, deviceRate: null, playedChunks: 0 });
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -146,6 +168,18 @@ export function LiveTalk({
     onStatsRef.current = onStats;
   }, [onStats]);
 
+  // Error summary focus: move keyboard + screen-reader users to the failure.
+  // Focusing is a DOM effect, not React state — the set-state-in-effect rule stays green.
+  const errorRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (phase === "error" && error) errorRef.current?.focus();
+  }, [phase, error]);
+
+  // Reconnect backoff (mid-call drops only). Refs survive re-renders; the
+  // timer is always cleared on hangup/teardown/unmount so no zombie retries.
+  const attemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const pushTurn = useCallback((role: TalkTurn["role"], text: string) => {
     const id = ++turnIdRef.current;
     if (role !== "system") turnCountRef.current += 1;
@@ -157,6 +191,9 @@ export function LiveTalk({
     cancelAnimationFrame(rafRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = null;
+    attemptRef.current = 0;
     try {
       wsRef.current?.close(1000, "ui hangup");
     } catch {
@@ -302,6 +339,8 @@ export function LiveTalk({
         }
         playPcm24k(message.data);
       } else if (message.type === "text" && typeof message.data === "string") {
+        // Engine stream sentinels are control frames, never transcript.
+        if (STREAM_SENTINELS.has(message.data)) return;
         if (pendingSinceRef.current !== null) {
           lastE2eRef.current = Math.round(performance.now() - pendingSinceRef.current);
           pendingSinceRef.current = null;
@@ -334,13 +373,165 @@ export function LiveTalk({
     [playPcm24k, stopPlayback]
   );
 
+  const startHeartbeat = useCallback(() => {
+    if (timerRef.current) return;
+    timerRef.current = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - liveSinceRef.current) / 1000);
+      setElapsed(elapsedSec);
+      const arrivals = audioTimesRef.current;
+      let jitter: number | null = null;
+      if (arrivals.length >= 3) {
+        const gaps: number[] = [];
+        for (let i = 1; i < arrivals.length; i++) gaps.push(arrivals[i] - arrivals[i - 1]);
+        const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+        const variance = gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length;
+        jitter = Math.round(Math.sqrt(variance));
+      }
+      setStats((prev) => {
+        const next = {
+          e2eMs: lastE2eRef.current,
+          jitterMs: jitter,
+          turns: turnCountRef.current,
+          elapsedSec,
+          deviceRate: deviceRateRef.current || null,
+          playedChunks: playedRef.current,
+        };
+        return next.e2eMs === prev.e2eMs &&
+          next.jitterMs === prev.jitterMs &&
+          next.turns === prev.turns &&
+          next.elapsedSec === prev.elapsedSec &&
+          next.deviceRate === prev.deviceRate &&
+          next.playedChunks === prev.playedChunks
+          ? prev
+          : next;
+      });
+      onStatsRef.current?.({
+        phase: "live",
+        turns: turnCountRef.current,
+        elapsedSec,
+        framesIn: framesInRef.current,
+        framesOut: framesOutRef.current,
+        deviceRate: deviceRateRef.current || undefined,
+        playedChunks: playedRef.current,
+      });
+    }, 1000);
+  }, []);
+
+  /** Open (or re-open) the browser-leg socket. Mic + AudioContext stay alive
+   *  across retries so a mid-call blip doesn't re-prompt for permissions.
+   *  Transcript + turn ids are never reset here — turns outlive the socket
+   *  (Phase-2 SSE seam). Retries go through openSocketRef to avoid a
+   *  hook self-reference cycle. */
+  const openSocketRef = useRef<(isRetry: boolean) => Promise<void>>(async () => undefined);
+  const openSocket = useCallback(
+    async (isRetry: boolean) => {
+      if (endedRef.current) return;
+      if (!isRetry) setPhase("connecting");
+      // Same-origin cookies ride the handshake automatically; otherwise (or
+      // for fresh sessions) attach a single-use ticket minted for this call.
+      // leg=browser is always sent: telephony-configured agents must still bind
+      // default handlers on playground legs (see buildTalkSocketUrl).
+      // WS_BASE_URL comes from env — never hardcoded (see lib/api-client).
+      let url = buildTalkSocketUrl(WS_BASE_URL, agentId);
+      try {
+        const ticket = await fetchWsTicket();
+        url = buildTalkSocketUrl(WS_BASE_URL, agentId, ticket);
+      } catch {
+        /* fall back to cookie auth */
+      }
+      if (endedRef.current) return;
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (endedRef.current) return;
+        openedAtRef.current = Date.now();
+        liveRef.current = true;
+        if (!isRetry) liveSinceRef.current = Date.now();
+        try {
+          ws.send(JSON.stringify({ type: "init", meta_data: { agent_id: agentId, source: "ui-live-talk" } }));
+        } catch {
+          /* init is best-effort */
+        }
+        pushTurn("system", isRetry ? "Reconnected — continue speaking." : "Connected — speak anytime.");
+        setReconnectAttempt(0);
+        attemptRef.current = 0;
+        setPhase("live");
+        // Greeting latency baseline: measured to the first agent frame below.
+        pendingSinceRef.current = performance.now();
+        startHeartbeat();
+      };
+
+      ws.onmessage = handleServerMessage;
+
+      ws.onerror = () => {
+        // Pre-live socket failures mean the backend is unreachable. Mid-call
+        // blips are left to onclose so a healthy conversation isn't dropped.
+        // Retries never surface here — onclose owns the retry decision.
+        if (!endedRef.current && !liveRef.current && !isRetry && attemptRef.current === 0) {
+          endedRef.current = true;
+          setPhase("error");
+          setError("Couldn't reach the voice backend. Is it running at the configured API URL?");
+          teardown();
+        }
+      };
+
+      ws.onclose = () => {
+        if (endedRef.current) return;
+        liveRef.current = false;
+        const quickDeath = Date.now() - openedAtRef.current < 4000;
+        if (quickDeath && !audioHeardRef.current && !isRetry) {
+          endedRef.current = true;
+          teardown();
+          setPhase("error");
+          setError(
+            "The voice backend hung up before any audio — the model session failed to open. " +
+              "Check the backend logs for the real error (API keys, model access, or agent config), then try again."
+          );
+          return;
+        }
+        // Mid-call drop (or a retry that never went live): back off and
+        // re-open on the same mic/graph. Transcript is preserved.
+        if (attemptRef.current < 3) {
+          const delay = Math.min(4000, 800 * 2 ** attemptRef.current);
+          attemptRef.current += 1;
+          setReconnectAttempt(attemptRef.current);
+          setPhase("reconnecting");
+          pushTurn("system", `Connection lost — retrying (${attemptRef.current}/3)…`);
+          if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
+            if (endedRef.current) return;
+            void openSocketRef.current(true);
+          }, delay);
+          return;
+        }
+        endedRef.current = true;
+        teardown();
+        setPhase("ended");
+        pushTurn("system", "Call ended.");
+      };
+    },
+    [agentId, handleServerMessage, pushTurn, startHeartbeat, teardown]
+  );
+
+  // Keep the retry pointer fresh without writing a ref during render.
+  // Ref writes in effects are safe — no setState, so the lint rules stay green.
+  useEffect(() => {
+    openSocketRef.current = openSocket;
+  }, [openSocket]);
+
   const start = useCallback(async () => {
     if (!agentId) return;
     endedRef.current = false;
     liveRef.current = false;
     mutedRef.current = false;
+    attemptRef.current = 0;
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = null;
     setMuted(false);
     setError(null);
+    setReconnectAttempt(0);
     setTurns([]);
     setElapsed(0);
     setLevels([]);
@@ -371,9 +562,9 @@ export function LiveTalk({
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-    } catch {
+    } catch (unknownError) {
       setPhase("error");
-      setError("Microphone blocked. Allow mic access in the browser site settings, then try again.");
+      setError(micErrorMessage((unknownError as DOMException | undefined)?.name));
       return;
     }
     if (endedRef.current) {
@@ -459,6 +650,7 @@ export function LiveTalk({
       const pcm = floatTo16BitPCM(event.data);
       try {
         ws.send(JSON.stringify({ type: "audio", data: pcmToBase64(pcm) }));
+        framesOutRef.current += 1;
       } catch {
         /* socket closing */
       }
@@ -472,112 +664,17 @@ export function LiveTalk({
     capture.connect(sink);
     sink.connect(ctx.destination);
 
-    setPhase("connecting");
     pushTurn("system", `Dialing ${agentName}…`);
-    // Same-origin cookies ride the handshake automatically; otherwise (or
-    // for fresh sessions) attach a single-use ticket minted for this call.
-    // leg=browser is always sent: telephony-configured agents must still bind
-    // default handlers on playground legs (see buildTalkSocketUrl).
-    let url = buildTalkSocketUrl(WS_BASE_URL, agentId);
-    try {
-      const ticket = await fetchWsTicket();
-      url = buildTalkSocketUrl(WS_BASE_URL, agentId, ticket);
-    } catch {
-      /* fall back to cookie auth */
-    }
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      openedAtRef.current = Date.now();
-      liveRef.current = true;
-      liveSinceRef.current = Date.now();
-      try {
-        ws.send(JSON.stringify({ type: "init", meta_data: { agent_id: agentId, source: "ui-live-talk" } }));
-      } catch {
-        /* init is best-effort */
-      }
-      pushTurn("system", "Connected — speak anytime.");
-      setPhase("live");
-      // Greeting latency baseline: measured to the first agent frame below.
-      pendingSinceRef.current = performance.now();
-      timerRef.current = setInterval(() => {
-        const elapsedSec = Math.floor((Date.now() - liveSinceRef.current) / 1000);
-        setElapsed(elapsedSec);
-        const arrivals = audioTimesRef.current;
-        let jitter: number | null = null;
-        if (arrivals.length >= 3) {
-          const gaps: number[] = [];
-          for (let i = 1; i < arrivals.length; i++) gaps.push(arrivals[i] - arrivals[i - 1]);
-          const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-          const variance = gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length;
-          jitter = Math.round(Math.sqrt(variance));
-        }
-        setStats((prev) => {
-          const next = {
-            e2eMs: lastE2eRef.current,
-            jitterMs: jitter,
-            turns: turnCountRef.current,
-            elapsedSec,
-            deviceRate: deviceRateRef.current || null,
-            playedChunks: playedRef.current,
-          };
-          return next.e2eMs === prev.e2eMs &&
-            next.jitterMs === prev.jitterMs &&
-            next.turns === prev.turns &&
-            next.elapsedSec === prev.elapsedSec &&
-            next.deviceRate === prev.deviceRate &&
-            next.playedChunks === prev.playedChunks
-            ? prev
-            : next;
-        });
-        onStatsRef.current?.({
-          phase: "live",
-          turns: turnCountRef.current,
-          elapsedSec,
-          framesIn: framesInRef.current,
-          framesOut: framesOutRef.current,
-          deviceRate: deviceRateRef.current || undefined,
-          playedChunks: playedRef.current,
-        });
-      }, 1000);
-    };
-
-    ws.onmessage = handleServerMessage;
-
-    ws.onerror = () => {
-      // Pre-live socket failures mean the backend is unreachable. Mid-call
-      // blips are left to onclose so a healthy conversation isn't dropped.
-      if (!endedRef.current && !liveRef.current) {
-        endedRef.current = true;
-        setPhase("error");
-        setError("Couldn't reach the voice backend. Is it running at the configured API URL?");
-        teardown();
-      }
-    };
-
-    ws.onclose = () => {
-      if (endedRef.current) return;
-      endedRef.current = true;
-      liveRef.current = false;
-      const quickDeath = Date.now() - openedAtRef.current < 4000;
-      teardown();
-      if (quickDeath && !audioHeardRef.current) {
-        setPhase("error");
-        setError(
-          "The voice backend hung up before any audio — the model session failed to open. " +
-            "Check the backend logs for the real error (API keys, model access, or agent config), then try again."
-        );
-      } else {
-        setPhase("ended");
-        pushTurn("system", "Call ended.");
-      }
-    };
-  }, [agentId, agentName, handleServerMessage, pushTurn, teardown]);
+    await openSocket(false);
+  }, [agentId, agentName, openSocket, pushTurn, teardown]);
 
   const hangup = useCallback(() => {
     endedRef.current = true;
     liveRef.current = false;
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = null;
+    attemptRef.current = 0;
+    setReconnectAttempt(0);
     teardown();
     setPhase("ended");
     pushTurn("system", "You hung up.");
@@ -634,7 +731,7 @@ export function LiveTalk({
     return () => document.removeEventListener("keydown", onKey);
   }, [phase]);
 
-  const starting = phase === "mic" || phase === "connecting";
+  const starting = phase === "mic" || phase === "connecting" || phase === "reconnecting";
   const live = phase === "live";
 
   const previewTurns = turns.filter((turn) => turn.role !== "system").slice(-2);
@@ -645,18 +742,18 @@ export function LiveTalk({
   };
 
   return (
-    <div className="grid xl:grid-cols-[1.15fr_1fr] gap-6 flex-1 min-h-0">
-      {/* Left: live session card */}
+    <div className="grid xl:grid-cols-[1.15fr_1fr] gap-4 sm:gap-6 flex-1 min-h-0">
+      {/* Left: live session card — p-4 at 375px so the orb + controls fit 295px */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
         data-testid="session-card"
-        className="bg-card border border-border rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-0 min-w-0"
+        className="bg-card border border-border rounded-3xl p-4 sm:p-6 relative overflow-hidden flex flex-col min-h-0 min-w-0"
       >
-        <div className="flex items-center justify-between gap-3 shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 shrink-0">
           <p className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground min-w-0">
-            <RadioReceiver className="w-4 h-4 text-ember-600 dark:text-ember-400 shrink-0" />
+            <RadioReceiver className="w-4 h-4 text-ember-700 dark:text-ember-300 shrink-0" aria-hidden="true" />
             <span className="truncate">Live session · {agentName}</span>
           </p>
           <span className="flex items-center gap-3 shrink-0">
@@ -691,7 +788,7 @@ export function LiveTalk({
               ))}
           <span
             className={cn(
-              "relative w-28 h-28 rounded-full overflow-hidden transition-all duration-300",
+              "relative w-28 h-28 rounded-full overflow-hidden transition-all duration-300 motion-reduce:transition-none motion-reduce:transform-none",
               live
                 ? "bg-[radial-gradient(circle_at_35%_30%,var(--primary-foreground),var(--primary)_70%)] shadow-lg shadow-primary/30"
                 : "bg-[radial-gradient(circle_at_35%_30%,var(--color-ember-100),var(--color-ember-400)_140%)] dark:bg-[radial-gradient(circle_at_35%_30%,var(--color-ember-800),var(--color-ember-600)_140%)] border border-ember-500/30"
@@ -706,6 +803,7 @@ export function LiveTalk({
           {phase === "idle" && "Ready"}
           {phase === "mic" && "Requesting microphone…"}
           {phase === "connecting" && "Dialing…"}
+          {phase === "reconnecting" && `Reconnecting… (attempt ${reconnectAttempt}/3)`}
           {live && (muted ? "Muted — press Space to talk" : "Listening — press Space to mute")}
           {phase === "ended" && "Ended"}
           {phase === "error" && "Failed"}
@@ -721,7 +819,7 @@ export function LiveTalk({
               onClick={() => void start()}
               disabled={!agentId || !canTalk}
               title={canTalk ? undefined : "Requires member role or higher"}
-              className="h-11 px-8 rounded-2xl bg-gradient-to-r from-ember-600 to-ember-500 text-white font-semibold text-sm transition-all hover:brightness-105 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-primary/20"
+              className="h-11 px-8 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm transition-all duration-200 motion-reduce:transition-none hover:bg-primary/90 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2 shadow-lg shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <Mic className="w-5 h-5" aria-hidden="true" />
               <span>{phase === "ended" ? "Talk again" : "Start talking"}</span>
@@ -730,10 +828,24 @@ export function LiveTalk({
             <button
               onClick={() => void start()}
               disabled={!agentId}
-              className="h-10 px-6 rounded-2xl bg-card border border-border text-foreground font-medium text-sm hover:bg-accent transition-all flex items-center gap-2"
+              className="h-10 px-6 rounded-2xl bg-card border border-border text-foreground font-medium text-sm hover:bg-accent hover:border-primary/40 transition-all duration-200 motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Try again
             </button>
+          ) : phase === "reconnecting" ? (
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" aria-hidden="true" />
+                Reconnecting…
+              </span>
+              <button
+                onClick={hangup}
+                aria-label="Cancel reconnect and hang up"
+                className="h-10 px-5 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-sm flex items-center gap-2 transition-all duration-200 motion-reduce:transition-none cursor-pointer shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <PhoneOff className="w-4 h-4" aria-hidden="true" /> Cancel
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-3">
               <button
@@ -747,29 +859,65 @@ export function LiveTalk({
                 aria-pressed={muted}
                 title="Mute (or press Space)"
                 className={cn(
-                  "w-11 h-11 rounded-full border flex items-center justify-center transition-all disabled:opacity-50",
+                  "w-11 h-11 rounded-full border flex items-center justify-center transition-all duration-200 motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   muted
-                    ? "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
-                    : "bg-card border-border text-foreground hover:bg-accent"
+                    ? "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/20"
+                    : "bg-card border-border text-foreground hover:bg-accent hover:border-primary/40"
                 )}
               >
-                {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {muted ? <MicOff className="w-5 h-5" aria-hidden="true" /> : <Mic className="w-5 h-5" aria-hidden="true" />}
               </button>
               <button
                 onClick={hangup}
                 aria-label="Hang up"
-                className="h-11 px-6 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-sm flex items-center gap-2 transition-all shadow-md"
+                className="h-11 px-6 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-sm flex items-center gap-2 transition-all duration-200 motion-reduce:transition-none cursor-pointer shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <PhoneOff className="w-4 h-4" /> End
+                <PhoneOff className="w-4 h-4" aria-hidden="true" /> End
               </button>
             </div>
           )}
           {starting && <Loader2 className="w-5 h-5 animate-spin text-primary" aria-hidden="true" />}
 
           {phase === "error" && error && (
-            <p role="alert" className="max-w-sm text-center text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
-            </p>
+            <div
+              ref={errorRef}
+              role="alert"
+              tabIndex={-1}
+              aria-labelledby="live-talk-error-title"
+              className="max-w-sm rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 flex items-start gap-2 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-700 dark:text-red-300" aria-hidden="true" />
+              <span className="min-w-0">
+                <span id="live-talk-error-title" className="block text-sm font-semibold text-red-800 dark:text-red-200">
+                  Couldn&apos;t start the session
+                </span>
+                <span className="block text-sm text-red-800 dark:text-red-200">{error}</span>
+                <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                  <a
+                    href="https://support.google.com/chrome/answer/2693767"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 font-medium text-red-800 dark:text-red-200 hover:opacity-80 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-background transition-all duration-200 motion-reduce:transition-none"
+                  >
+                    Chrome mic help
+                  </a>
+                  <a
+                    href="https://support.mozilla.org/en-US/kb/how-manage-your-camera-and-microphone-permissions"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 font-medium text-red-800 dark:text-red-200 hover:opacity-80 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-background transition-all duration-200 motion-reduce:transition-none"
+                  >
+                    Firefox mic help
+                  </a>
+                  <a
+                    href="/calls"
+                    className="underline underline-offset-2 font-medium text-red-800 dark:text-red-200 hover:opacity-80 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-background transition-all duration-200 motion-reduce:transition-none"
+                  >
+                    View call history
+                  </a>
+                </span>
+              </span>
+            </div>
           )}
         </div>
 
@@ -804,7 +952,7 @@ export function LiveTalk({
                 onClick={() => sendTextMessage(intent)}
                 disabled={!live}
                 title={live ? `Send "${intent}"` : "Start a session first"}
-                className="shrink-0 px-3.5 h-8 rounded-full border border-border bg-card text-xs text-foreground hover:border-primary/40 hover:bg-primary/5 disabled:opacity-40 transition-all whitespace-nowrap"
+                className="shrink-0 px-3.5 h-8 rounded-full border border-border bg-card text-xs text-foreground hover:border-primary/40 hover:bg-primary/5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 motion-reduce:transition-none whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {intent}
               </button>
@@ -823,15 +971,15 @@ export function LiveTalk({
               placeholder="Type a custom message or prompt injection…"
               disabled={!live}
               aria-label="Type a message to the agent"
-              className="flex-1 min-w-0 h-10 px-4 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 disabled:opacity-50 transition-all"
+              className="flex-1 min-w-0 h-10 px-4 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 motion-reduce:transition-none"
             />
             <button
               type="submit"
               disabled={!live || !draft.trim()}
               aria-label="Send message"
-              className="h-10 w-10 shrink-0 rounded-2xl bg-foreground text-background flex items-center justify-center hover:opacity-90 disabled:opacity-40 transition-all"
+              className="h-10 w-10 shrink-0 rounded-2xl bg-foreground text-background flex items-center justify-center hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <SendHorizonal className="w-4 h-4" />
+              <SendHorizonal className="w-4 h-4" aria-hidden="true" />
             </button>
           </form>
         </div>
@@ -842,7 +990,7 @@ export function LiveTalk({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.05 }}
-        className="flex flex-col bg-card border border-border rounded-3xl p-6 relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
+        className="flex flex-col bg-card border border-border rounded-3xl p-4 sm:p-6 relative overflow-hidden min-h-[420px] lg:min-h-0 min-w-0"
       >
         <SessionTabs tab={tab} onChange={setTab} onClear={() => emitPlaygroundBus({ type: "clear-transcript" })} />
         <div className="pt-4 flex-1 flex flex-col min-h-0 min-w-0">

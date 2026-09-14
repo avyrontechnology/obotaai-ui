@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCreateAgent, useUpdateAgent, Agent } from "@/services/api";
 import { ArrowRight, ArrowLeft, Loader2, Save, Lightbulb, Cpu, Sparkles, Mic, Terminal } from "lucide-react";
 import { firstErrorMessage } from "@/components/settings/form-controls";
+import { ErrorSummaryView, flattenErrors } from "@/components/settings/error-summary";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 
@@ -179,6 +180,11 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
           (errors) =>
             notify.error("Cannot continue yet", new Error(firstErrorMessage(errors as Record<string, unknown>)))
         )} noValidate className="flex flex-col gap-8 min-h-[300px]">
+          {/* Accessible error summary: role=alert + auto-focus + field links.
+              Inline errors below are retained; this is additive. The wizard
+              drives RHF without a FormProvider, so flatten errors directly
+              from formState instead of the context-based FormErrorSummary. */}
+          <ErrorSummaryView items={flattenErrors(form.formState.errors as Record<string, unknown>)} />
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -272,9 +278,9 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
 
                   <div className="space-y-6">
                     <div>
-                      <label htmlFor="system_prompt" className={FIELD_LABEL_CLASS}>System Prompt</label>
+                      <label htmlFor="agent_prompts.system_prompt" className={FIELD_LABEL_CLASS}>System Prompt</label>
                       <textarea
-                        id="system_prompt"
+                        id="agent_prompts.system_prompt"
                         {...form.register("agent_prompts.system_prompt")}
                         aria-invalid={form.formState.errors.agent_prompts?.system_prompt ? true : undefined}
                         rows={7}
@@ -286,9 +292,9 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                       )}
                     </div>
                     <div>
-                      <label htmlFor="welcome_message" className={FIELD_LABEL_CLASS}>Welcome Message</label>
+                      <label htmlFor="agent_prompts.welcome_message" className={FIELD_LABEL_CLASS}>Welcome Message</label>
                       <input
-                        id="welcome_message"
+                        id="agent_prompts.welcome_message"
                         {...form.register("agent_prompts.welcome_message")}
                         className={FIELD_CLASS}
                         placeholder="Hello! How can I assist you today?"
@@ -315,26 +321,29 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                     {agentType === "s2s" ? (
                       <>
                         <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Realtime Provider</label>
+                          <label htmlFor="agent_config.s2s.provider" className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Realtime Provider</label>
                           <select
+                            id="agent_config.s2s.provider"
                             {...form.register("agent_config.s2s.provider")}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none transition-colors duration-200"
                           >
                             <option value="openai_realtime">OpenAI Realtime</option>
                             <option value="gemini_live">Gemini Live</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Model</label>
+                          <label htmlFor="agent_config.s2s.model" className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Model</label>
                           <input
+                            id="agent_config.s2s.model"
                             {...form.register("agent_config.s2s.model")}
                             className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 transition-all"
                             placeholder="e.g. gpt-realtime-2.1"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Voice</label>
+                          <label htmlFor="agent_config.s2s.voice" className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Voice</label>
                           <input
+                            id="agent_config.s2s.voice"
                             {...form.register("agent_config.s2s.voice")}
                             className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 transition-all"
                             placeholder="e.g. marin, Kore"
@@ -344,10 +353,11 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                     ) : (
                       <>
                     <div>
-                      <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">LLM Provider</label>
+                      <label htmlFor="agent_config.llm_provider" className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">LLM Provider</label>
                       <select
+                        id="agent_config.llm_provider"
                         {...form.register("agent_config.llm_provider")}
-                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none transition-colors duration-200"
                       >
                         <option value="openai">OpenAI (GPT-4o)</option>
                         <option value="anthropic">Anthropic (Claude 3.5)</option>
@@ -358,10 +368,11 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                     {agentType === "voice" && (
                       <>
                         <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">ASR Provider (Speech-to-Text)</label>
+                          <label htmlFor="agent_config.asr_provider" className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">ASR Provider (Speech-to-Text)</label>
                           <select
+                            id="agent_config.asr_provider"
                             {...form.register("agent_config.asr_provider")}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none transition-colors duration-200"
                           >
                             <option value="deepgram">Deepgram</option>
                             <option value="assembly">AssemblyAI</option>
@@ -371,10 +382,11 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">TTS Provider (Text-to-Speech)</label>
+                          <label htmlFor="agent_config.tts_provider" className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">TTS Provider (Text-to-Speech)</label>
                           <select
+                            id="agent_config.tts_provider"
                             {...form.register("agent_config.tts_provider")}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none transition-colors duration-200"
                           >
                             <option value="elevenlabs">ElevenLabs</option>
                             <option value="openai">OpenAI</option>
@@ -399,7 +411,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
               type="button"
               onClick={prevStep}
               disabled={currentStep === 0 || isPending}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-muted text-muted-foreground font-medium hover:bg-muted/80 hover:text-foreground disabled:opacity-30 disabled:hover:bg-muted disabled:hover:text-muted-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-muted text-muted-foreground font-medium cursor-pointer hover:bg-muted/80 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted disabled:hover:text-muted-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
             >
               <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Back
             </button>
@@ -408,7 +420,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
               <button
                 type="button"
                 onClick={nextStep}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold cursor-pointer hover:bg-primary/90 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
                 {currentStep === 1 ? "Continue to Toolchain" : "Continue"} <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -416,7 +428,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
               <button
                 type="submit"
                 disabled={isPending}
-                className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold cursor-pointer hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
                 {isPending ? (
                   <Loader2 className="w-5 h-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />

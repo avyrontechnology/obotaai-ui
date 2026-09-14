@@ -99,7 +99,7 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
               <button
                 onClick={() => copy(execution.execution_id, "Execution ID")}
                 aria-label="Copy execution ID"
-                className="p-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                className="p-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none shrink-0"
               >
                 <Copy className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
@@ -109,7 +109,7 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
                 onClick={copyLink}
                 aria-label="Copy link to this call"
                 title="Copy shareable link to this call"
-                className="p-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                className="p-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none shrink-0"
               >
                 <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
@@ -150,7 +150,7 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
               <Link
                 href={`/agents/${execution.agent_id}`}
                 onClick={onClose}
-                className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+                className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 Agent <ExternalLink aria-hidden="true" className="w-3 h-3" />
               </Link>
@@ -158,7 +158,7 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
                 <Link
                   href={`/batches/${execution.batch_id}`}
                   onClick={onClose}
-                  className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+                  className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   Batch <ExternalLink aria-hidden="true" className="w-3 h-3" />
                 </Link>
@@ -241,7 +241,7 @@ function TranscriptView({ transcript }: { transcript: NonNullable<import("@/lib/
           <p className="text-sm text-muted-foreground">No turns match “{transcriptQuery.trim()}”.</p>
           <button
             onClick={() => setTranscriptQuery("")}
-            className="text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 shrink-0"
+            className="text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 shrink-0 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             Clear
           </button>

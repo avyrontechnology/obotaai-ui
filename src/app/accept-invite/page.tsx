@@ -9,9 +9,16 @@ import { ArrowRight } from "lucide-react";
 import { AuthFooter, AuthNavbar } from "@/components/auth/auth-navbar";
 import { AuthAlert, AuthField, AuthPasswordField, AuthSubmitButton } from "@/components/auth/fields";
 import { BrandLockup } from "@/components/common/brand-lockup";
+import { FormErrorSummary } from "@/components/settings/error-summary";
 import { acceptInviteSchema, type AcceptInviteInput } from "@/lib/schemas/auth";
 import { useAcceptInvite } from "@/services/auth";
 import { notify } from "@/lib/notify";
+
+/**
+ * Invite acceptance. Theme tokens only (no hardcoded hex): surfaces use
+ * background/card, text uses foreground/muted-foreground/primary, the
+ * brand gradient uses from-primary via-ember-500 to-accent.
+ */
 
 export default function AcceptInvitePage() {
   return (
@@ -48,34 +55,35 @@ function AcceptContent() {
   };
 
   return (
-    <div className="min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
+    <div className="min-h-dvh lg:h-dvh bg-background text-foreground flex flex-col lg:overflow-hidden">
       <AuthNavbar />
 
       <main className="flex-1 min-h-0 w-full max-w-xl mx-auto px-6 flex flex-col items-center justify-center py-8">
         <div className="relative w-full">
           <div
-            className="absolute -top-1 inset-x-10 h-2 rounded-t-full bg-gradient-to-r from-[#E73F1E] via-[#FB6C00] to-[#F9B637]"
+            className="absolute -top-1 inset-x-10 h-2 rounded-t-full bg-gradient-to-r from-primary via-ember-500 to-accent"
             aria-hidden="true"
           />
-          <div className="rounded-[2rem] bg-white shadow-[0_32px_80px_-24px_rgba(17,24,39,0.25)] border border-[#F6E8C8] p-6 md:p-8">
+          <div className="rounded-[2rem] bg-card shadow-[0_32px_80px_-24px_color-mix(in_srgb,var(--foreground)_25%,transparent)] border border-border p-6 md:p-8">
             <div className="mb-5">
               <BrandLockup
                 size="md"
                 textClassName="text-lg"
                 sublabel="INVITE"
-                sublabelClassName="text-[12px] font-bold tracking-widest text-[#C2410C]"
+                sublabelClassName="text-[12px] font-bold tracking-widest text-primary"
                 link={false}
               />
             </div>
 
             {token ? (
               <>
-                <h1 className="text-[26px] font-bold tracking-tight text-[#111827]">Accept invite</h1>
-                <p className="text-[14px] text-[#6B7280] mt-1 mb-5">
+                <h1 className="text-[26px] font-bold tracking-tight text-foreground">Accept invite</h1>
+                <p className="text-[14px] text-muted-foreground mt-1 mb-5">
                   Set your name and password to join the workspace.
                 </p>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
                   <FormProvider {...form}>
+                  <FormErrorSummary title="Please fix the following before joining" />
                   <AuthField
                     name="name"
                     label="FULL NAME"
@@ -101,22 +109,22 @@ function AcceptContent() {
               </>
             ) : (
               <>
-                <h1 className="text-[26px] font-bold tracking-tight text-[#111827]">Invalid invite</h1>
-                <p className="text-[14px] text-[#6B7280] mt-1 mb-5">
+                <h1 className="text-[26px] font-bold tracking-tight text-foreground">Invalid invite</h1>
+                <p className="text-[14px] text-muted-foreground mt-1 mb-5">
                   This invite link is missing its token. Ask your workspace owner for a fresh invite.
                 </p>
                 <Link
                   href="/login"
-                  className="flex items-center justify-center h-11 rounded-2xl bg-gradient-to-r from-[#E73F1E] to-[#FB6C00] text-white font-semibold text-[16px] hover:brightness-105 transition-all shadow-[0_16px_32px_-12px_rgba(231,63,30,0.55)]"
+                  className="flex items-center justify-center h-11 rounded-2xl bg-gradient-to-r from-[#E73F1E] to-[#FB6C00] text-white font-semibold text-[16px] hover:brightness-105 cursor-pointer transition-all duration-200 motion-reduce:transition-none shadow-[0_16px_32px_-12px_rgba(231,63,30,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
                 >
                   Go to sign in
                 </Link>
               </>
             )}
 
-            <p className="mt-4 text-center text-[14px] text-[#6B7280]">
+            <p className="mt-4 text-center text-[14px] text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-[#C2410C] hover:underline underline-offset-4">
+              <Link href="/login" className="font-semibold text-primary hover:text-primary/80 hover:underline underline-offset-4 cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none">
                 Sign in
               </Link>
             </p>

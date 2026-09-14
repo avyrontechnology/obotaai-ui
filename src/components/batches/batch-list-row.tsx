@@ -81,7 +81,7 @@ export const BatchListRow = memo(function BatchListRow({
       {/* Campaign identity → detail */}
       <Link
         href={detailHref}
-        className="lg:col-span-4 flex items-center gap-4 min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+        className="lg:col-span-4 flex items-center gap-4 min-w-0 rounded-2xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
       >
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center border border-border shadow-inner shrink-0 bg-ember-500/10">
           <Megaphone className="w-5 h-5 text-ember-700 dark:text-ember-300" strokeWidth={1.5} aria-hidden="true" />
@@ -89,7 +89,7 @@ export const BatchListRow = memo(function BatchListRow({
         <div className="min-w-0">
           <h3
             title={batch.name}
-            className="font-medium text-foreground tracking-tight truncate group-hover:text-ember-700 dark:group-hover:text-ember-300 transition-colors motion-reduce:transition-none"
+            className="font-medium text-foreground tracking-tight truncate group-hover:text-ember-700 dark:group-hover:text-ember-300 transition-colors duration-200 motion-reduce:transition-none"
           >
             {batch.name}
           </h3>
@@ -149,7 +149,7 @@ export const BatchListRow = memo(function BatchListRow({
               disabled={busy}
               aria-label={`Retry ${batch.stats.failed} failed calls in ${batch.name}`}
               title={`Retry ${batch.stats.failed} failed`}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <RotateCcw className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -157,7 +157,7 @@ export const BatchListRow = memo(function BatchListRow({
             <span
               title={`Requires ${minRoleFor("batches.write")} role`}
               aria-label="Retry unavailable for your role"
-              className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center text-muted-foreground/40 cursor-not-allowed"
+              className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center text-muted-foreground/60 cursor-not-allowed"
             >
               <RotateCcw className="w-4 h-4" aria-hidden="true" />
             </span>
@@ -168,14 +168,14 @@ export const BatchListRow = memo(function BatchListRow({
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
               aria-label={`Confirm delete ${batch.name}`}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-700 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
             >
               <Check className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setConfirming(false)}
               aria-label="Cancel delete"
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -185,7 +185,7 @@ export const BatchListRow = memo(function BatchListRow({
             onClick={() => setConfirming(true)}
             aria-label={`Delete ${batch.name}`}
             title="Delete"
-            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
           >
             <Trash2 className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -193,7 +193,7 @@ export const BatchListRow = memo(function BatchListRow({
           <span
             title={`Requires ${minRoleFor("batches.write")} role`}
             aria-label="Delete unavailable for your role"
-            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center text-muted-foreground/40 cursor-not-allowed"
+            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center text-muted-foreground/60 cursor-not-allowed"
           >
             <Trash2 className="w-4 h-4" aria-hidden="true" />
           </span>
@@ -203,7 +203,7 @@ export const BatchListRow = memo(function BatchListRow({
           aria-label={`Open ${batch.name}`}
           title="Open campaign"
           className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors",
+            "w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer motion-reduce:transition-none",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           )}
         >

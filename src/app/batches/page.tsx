@@ -4,11 +4,12 @@ import { Suspense, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, Megaphone, Play, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BatchCreateDialog } from "@/components/batches/batch-create-dialog";
 import { BatchListRow } from "@/components/batches/batch-list-row";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
+import { RouteLoader } from "@/components/common/route-loader";
 import { SearchInput } from "@/components/common/search-input";
 import { SkeletonList } from "@/components/common/skeleton-list";
 import { ErrorState } from "@/components/common/error-state";
@@ -23,9 +24,11 @@ type StatusFilter = "all" | Batch["status"];
 
 const STATUS_OPTIONS: StatusFilter[] = ["all", "draft", "scheduled", "running", "paused", "completed", "stopped"];
 
+const BATCH_PAGE_SIZE = 25;
+
 export default function BatchesPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<RouteLoader label="Loading campaigns..." />}>
       <BatchesContent />
     </Suspense>
   );
@@ -33,14 +36,55 @@ export default function BatchesPage() {
 
 function BatchesContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   // ?agent= from the agent overview filters the list and prefills the
   // create dialog. ?new= auto-opens the dialog (Launch Campaign flow).
+  // Deep-link derivation: override ?? param ?? default, never setState in
+  // effect. Manual open wins; otherwise the ?new= param opens the dialog.
+  // Closing clears ?new= so back/forward stays in sync.
   const deepLinkedAgent = searchParams.get("agent") ?? undefined;
+  const newParam = searchParams.get("new");
   const canWrite = useCan("batches.write");
   // Auto-open is param-driven; the dialog itself gates submission by role.
-  const [dialogOpen, setDialogOpen] = useState(() => searchParams.get("new") !== null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [newDismissed, setNewDismissed] = useState<string | null>(null);
+  const dialogOpen = manualOpen || (newParam !== null && newDismissed !== newParam);
+  const setDialogOpen = (open: boolean) => {
+    if (open) {
+      setManualOpen(true);
+    } else {
+      setManualOpen(false);
+      if (newParam !== null) setNewDismissed(newParam);
+      if (searchParams.has("new")) {
+        const next = new URLSearchParams(searchParams.toString());
+        next.delete("new");
+        const qs = next.toString();
+        router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+      }
+    }
+  };
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  // Paginated rendering (performance): 25 rows per page keeps initial paint
+  // fast on large fleets. Page is URL-derived (?page=) so deep links share;
+  // filter changes reset to page 0 via router.replace — no setState-in-effect.
+  const pageParam = parseInt(searchParams.get("page") ?? "0", 10);
+  const page = Number.isFinite(pageParam) && pageParam >= 0 ? pageParam : 0;
+  const setPage = (nextPage: number) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (nextPage <= 0) next.delete("page");
+    else next.set("page", String(nextPage));
+    const qs = next.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
+  const resetPage = () => {
+    if (!searchParams.has("page")) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("page");
+    const qs = next.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
   const { data: batches, isLoading, error, refetch } = useBatches(deepLinkedAgent);
   const { data: agents } = useAgents();
 
@@ -91,6 +135,13 @@ function BatchesContent() {
 
   const countBadge = isLoading ? "—" : `${summary.total} campaign${summary.total === 1 ? "" : "s"}`;
 
+  // Paginated slice: 25 rows per page keeps paint fast; clamps when filters shrink.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / BATCH_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(safePage * BATCH_PAGE_SIZE, safePage * BATCH_PAGE_SIZE + BATCH_PAGE_SIZE);
+  const from = filtered.length === 0 ? 0 : safePage * BATCH_PAGE_SIZE + 1;
+  const to = safePage * BATCH_PAGE_SIZE + pageRows.length;
+
   return (
     <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <PageHeader
@@ -110,7 +161,10 @@ function BatchesContent() {
           <>
             <SearchInput
               value={query}
-              onChange={setQuery}
+              onChange={(value) => {
+                setQuery(value);
+                resetPage();
+              }}
               placeholder="Search campaigns..."
               label="Search campaigns"
               className="w-full sm:w-auto"
@@ -122,7 +176,7 @@ function BatchesContent() {
               onClick={() => setDialogOpen(true)}
               disabled={!canWrite}
               title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
-              className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2 self-start sm:self-auto shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-xl disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 self-start sm:self-auto shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               <span>New Campaign</span>
@@ -136,7 +190,7 @@ function BatchesContent() {
           <Link
             href="/batches"
             title={deepLinkedAgent}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             agent: {agentNames.get(deepLinkedAgent) ?? `${deepLinkedAgent.slice(0, 14)}…`} <X className="w-3.5 h-3.5" aria-hidden="true" />
           </Link>
@@ -184,10 +238,13 @@ function BatchesContent() {
           {STATUS_OPTIONS.map((option) => (
             <button
               key={option}
-              onClick={() => setStatusFilter(option)}
+              onClick={() => {
+                setStatusFilter(option);
+                resetPage();
+              }}
               aria-pressed={statusFilter === option}
               className={cn(
-                "px-4 h-9 rounded-full text-xs font-mono border transition-colors duration-200 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
+                "px-4 h-9 rounded-full text-xs font-mono border transition-colors duration-200 capitalize cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                 statusFilter === option
                   ? "border-primary/40 bg-primary/10 text-foreground"
                   : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -216,7 +273,7 @@ function BatchesContent() {
             onClick={() => setDialogOpen(true)}
             disabled={!canWrite}
             title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
-            className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all hover:shadow-xl disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:bg-primary/90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             Create Campaign
           </button>
@@ -231,8 +288,9 @@ function BatchesContent() {
             onClick={() => {
               setQuery("");
               setStatusFilter("all");
+              resetPage();
             }}
-            className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold transition-all hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold transition-all duration-200 hover:bg-accent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             Clear filters
           </button>
@@ -254,7 +312,7 @@ function BatchesContent() {
           </div>
 
           <AnimatePresence initial={false}>
-            {filtered.map((batch, index) => (
+            {pageRows.map((batch, index) => (
               <BatchListRow
                 key={batch.batch_id}
                 batch={batch}
@@ -263,6 +321,35 @@ function BatchesContent() {
               />
             ))}
           </AnimatePresence>
+
+          <div className="mt-2 flex flex-col sm:flex-row items-center justify-between gap-3 pb-1">
+            <p className="text-xs font-mono text-muted-foreground tabular-nums" aria-live="polite">
+              Showing {from}–{to} of {filtered.length} campaigns · Page size: {BATCH_PAGE_SIZE} rows
+            </p>
+            {pageCount > 1 && (
+              <nav aria-label="Campaign pages" className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  onClick={() => setPage(safePage - 1)}
+                  disabled={safePage === 0}
+                  aria-label="Previous page"
+                  className="h-9 px-4 rounded-2xl bg-card border border-border text-sm font-medium transition-colors duration-200 hover:bg-accent disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                >
+                  Previous
+                </button>
+                <span className="text-xs font-mono text-muted-foreground min-w-[64px] text-center tabular-nums">
+                  Page {safePage + 1} of {pageCount}
+                </span>
+                <button
+                  onClick={() => setPage(safePage + 1)}
+                  disabled={safePage >= pageCount - 1}
+                  aria-label="Next page"
+                  className="h-9 px-4 rounded-2xl bg-card border border-border text-sm font-medium transition-colors duration-200 hover:bg-accent disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                >
+                  Next
+                </button>
+              </nav>
+            )}
+          </div>
         </motion.div>
       )}
 

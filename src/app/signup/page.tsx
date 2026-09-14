@@ -14,6 +14,12 @@ import { signupSchema, type SignupInput } from "@/lib/schemas/auth";
 import { useSignup } from "@/services/auth";
 import { notify } from "@/lib/notify";
 
+/**
+ * First-run owner setup. Theme tokens only (no hardcoded hex): surfaces
+ * use background/card, text uses foreground/muted-foreground/primary,
+ * the brand gradient uses from-primary via-ember-500 to-accent.
+ */
+
 export default function SignupPage() {
   return (
     <Suspense>
@@ -53,47 +59,47 @@ function SignupContent() {
   };
 
   return (
-    <div className="min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
+    <div className="min-h-dvh lg:h-dvh bg-background text-foreground flex flex-col lg:overflow-hidden">
       <AuthNavbar />
       <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-6 md:px-10 grid lg:grid-cols-2 gap-8 xl:gap-12 items-center py-6 relative">
         <div className="relative pt-6">
-          <p className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-white border border-[#F3E3C3] text-[13px] font-semibold tracking-wide text-[#C2410C] shadow-sm mb-4">
+          <p className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-card border border-border text-[13px] font-semibold tracking-wide text-primary shadow-sm mb-4">
             <UserPlus className="w-4 h-4" />
             FIRST-RUN SETUP
           </p>
-          <h1 className="text-4xl xl:text-[52px] font-bold leading-[1.05] tracking-tight text-[#111827]">
+          <h1 className="text-4xl xl:text-[52px] font-bold leading-[1.05] tracking-tight text-foreground">
             Create your
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E73F1E] via-[#FB6C00] to-[#F9B637]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-ember-500 to-accent">
               owner account.
             </span>
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-[#4B5563] max-w-xl">
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground max-w-xl">
             The first account on a fresh workspace becomes its owner. After this,
             signup closes and teammates join by invite.
           </p>
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#6B7280]">
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#C2410C]" /> You control invites &amp; roles
+              <ShieldCheck className="w-4 h-4 text-primary" /> You control invites &amp; roles
             </span>
           </div>
         </div>
 
         <div className="relative">
-          <div className="absolute -top-1 inset-x-8 h-2 rounded-t-full bg-gradient-to-r from-[#F9B637] via-[#FB6C00] to-[#E73F1E]" aria-hidden="true" />
-          <div className="rounded-[2rem] bg-white shadow-[0_32px_80px_-24px_rgba(17,24,39,0.25)] border border-[#F6E8C8] p-6">
+          <div className="absolute -top-1 inset-x-8 h-2 rounded-t-full bg-gradient-to-r from-accent via-ember-500 to-primary" aria-hidden="true" />
+          <div className="rounded-[2rem] bg-card shadow-[0_32px_80px_-24px_color-mix(in_srgb,var(--foreground)_25%,transparent)] border border-border p-6">
             <div className="mb-5">
               <BrandLockup
                 size="md"
                 textClassName="text-lg"
                 sublabel="WORKSPACE PORTAL"
-                sublabelClassName="text-[12px] font-bold tracking-widest text-[#C2410C]"
+                sublabelClassName="text-[12px] font-bold tracking-widest text-primary"
                 link={false}
               />
             </div>
 
-            <h2 className="text-[26px] font-bold tracking-tight text-[#111827]">Set up workspace</h2>
-            <p className="text-[14px] text-[#6B7280] mt-1 mb-5">Create the owner account to get started.</p>
+            <h2 className="text-[26px] font-bold tracking-tight text-foreground">Set up workspace</h2>
+            <p className="text-[14px] text-muted-foreground mt-1 mb-5">Create the owner account to get started.</p>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
               <FormProvider {...form}>
@@ -116,9 +122,9 @@ function SignupContent() {
 
                 {formError && <AuthAlert message={formError} />}
                 {closed && (
-                  <p className="text-[14px] text-[#4B5563]">
+                  <p className="text-[14px] text-muted-foreground">
                     Already set up?{" "}
-                    <Link href="/login" className="font-medium text-[#C2410C] hover:underline underline-offset-4">
+                    <Link href="/login" className="font-medium text-primary hover:text-primary/80 hover:underline underline-offset-4 cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none">
                       Sign in
                     </Link>
                   </p>
@@ -130,9 +136,9 @@ function SignupContent() {
               </FormProvider>
             </form>
 
-            <p className="mt-4 text-center text-[14px] text-[#6B7280]">
+            <p className="mt-4 text-center text-[14px] text-muted-foreground">
               Already set up?{" "}
-              <Link href="/login" className="font-medium text-[#C2410C] hover:underline underline-offset-4">
+              <Link href="/login" className="font-medium text-primary hover:text-primary/80 hover:underline underline-offset-4 cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none">
                 Sign in
               </Link>
             </p>

@@ -76,7 +76,7 @@ export const CallsTable = memo(function CallsTable({ executions, agentNames, age
               onClick={() => onSelect(execution.execution_id)}
               aria-label={`Open call ${execution.execution_id}`}
               className={cn(
-                "grid grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-1.5 lg:gap-3 xl:gap-4 lg:items-center p-4 lg:px-4 xl:px-6 lg:py-4 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
+                "grid grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-1.5 lg:gap-3 xl:gap-4 lg:items-center p-4 lg:px-4 xl:px-6 lg:py-4 text-left transition-colors duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                 // Mobile: card. Desktop: row in divided list
                 "bg-card border border-border rounded-3xl lg:rounded-none lg:border-0 lg:border-b lg:last:border-b-0 hover:bg-muted/60",
                 index === 0 && "lg:rounded-t-3xl",

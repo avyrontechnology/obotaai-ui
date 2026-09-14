@@ -7,7 +7,7 @@ export default function NewAgentPage() {
     <div className="flex flex-col flex-1 min-h-full max-w-5xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
         href="/agents"
-        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground cursor-pointer hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
       >
         <ArrowLeft className="w-4 h-4" aria-hidden="true" /> OboFleet directory
       </Link>

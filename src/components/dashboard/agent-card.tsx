@@ -123,14 +123,14 @@ export const AgentCard = memo(function AgentCard({ agent, sessions, stats }: Age
                     setShowConfirm(false);
                   }}
                   disabled={isDeleting}
-                  className="flex items-center gap-1 px-2.5 h-8 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                  className="flex items-center gap-1 px-2.5 h-8 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                   aria-label="Confirm delete"
                 >
                   <Check className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted text-muted-foreground border border-border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted text-muted-foreground border border-border transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                   aria-label="Cancel delete"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden="true" />
@@ -144,7 +144,7 @@ export const AgentCard = memo(function AgentCard({ agent, sessions, stats }: Age
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.15 }}
                 onClick={() => setShowConfirm(true)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 shrink-0 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 cursor-pointer shrink-0 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                 aria-label={`Delete ${agent.agent_name}`}
                 title="Delete agent"
               >
@@ -173,7 +173,7 @@ export const AgentCard = memo(function AgentCard({ agent, sessions, stats }: Age
       <div className="relative z-10 flex items-center gap-2 mt-3">
         <Link
           href={`/agents/${agent.agent_id}`}
-          className="flex-1 flex justify-center items-center gap-1.5 px-3 h-10 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold shadow-md hover:shadow-lg hover:bg-primary/90 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+          className="flex-1 flex justify-center items-center gap-1.5 px-3 h-10 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold shadow-md hover:shadow-lg hover:bg-primary/90 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           aria-label={`Open ${agent.agent_name}`}
         >
           Open <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -182,7 +182,7 @@ export const AgentCard = memo(function AgentCard({ agent, sessions, stats }: Age
           href={`/agents/${agent.agent_id}/configure`}
           aria-label={`Configure ${agent.agent_name}`}
           title="Configure"
-          className="flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
           <Settings2 className="w-4 h-4" aria-hidden="true" />
         </Link>
@@ -190,7 +190,7 @@ export const AgentCard = memo(function AgentCard({ agent, sessions, stats }: Age
           href={`/playground?agent=${agent.agent_id}&mode=talk`}
           aria-label={`Talk to ${agent.agent_name}`}
           title="Talk in Playground"
-          className="flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
           <PhoneCall className="w-4 h-4" aria-hidden="true" />
         </Link>

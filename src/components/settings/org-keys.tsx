@@ -176,7 +176,7 @@ function CreateKeySection() {
           !showForm ? (
             <button
               onClick={() => setShowForm(true)}
-              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 cursor-pointer transition-colors duration-200 flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <Plus className="w-4 h-4" aria-hidden="true" /> New key
             </button>
@@ -204,7 +204,7 @@ function CreateKeySection() {
               onClick={() => void copySecret()}
               aria-label="Copy secret key"
               title="Copy secret key"
-              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 motion-reduce:transition-none"
+              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 motion-reduce:transition-none"
             >
               {copied ? <Check className="w-4 h-4" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
             </button>
@@ -213,7 +213,7 @@ function CreateKeySection() {
                 setFreshSecret(null);
                 setCopied(false);
               }}
-              className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               Done
             </button>
@@ -248,7 +248,7 @@ function CreateKeySection() {
                 value={expiry}
                 onChange={(event) => setExpiry(event.target.value)}
                 aria-label="Key expiry"
-                className={cn(fieldStyles.fieldSm, "min-w-0")}
+                className={cn(fieldStyles.fieldSm, "min-w-0 cursor-pointer")}
               >
                 {EXPIRY_OPTIONS.map((option) => (
                   <option key={option.label} value={option.value}>
@@ -269,7 +269,7 @@ function CreateKeySection() {
                     aria-pressed={scopes.includes(scope)}
                     title={scope}
                     className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-mono border transition-colors truncate max-w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
+                      "px-2.5 py-1 rounded-full text-xs font-mono border cursor-pointer transition-colors duration-200 truncate max-w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                       scopes.includes(scope)
                         ? "border-primary/40 bg-primary/10 text-foreground"
                         : "border-border text-muted-foreground hover:text-foreground"
@@ -281,7 +281,7 @@ function CreateKeySection() {
               </div>
             </div>
             {error && (
-              <p className="flex items-center gap-2 text-xs text-destructive min-w-0">
+              <p role="alert" className="flex items-center gap-2 text-xs text-destructive min-w-0">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />{" "}
                 <span className="truncate" title={error}>
                   {error}
@@ -292,7 +292,7 @@ function CreateKeySection() {
               <button
                 onClick={() => void handleCreate()}
                 disabled={createKey.isPending}
-                className="flex-1 min-w-[140px] h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="flex-1 min-w-[140px] h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 {createKey.isPending && (
                   <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -304,7 +304,7 @@ function CreateKeySection() {
                   setShowForm(false);
                   setError(null);
                 }}
-                className="h-10 px-4 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="h-10 px-4 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 Cancel
               </button>
@@ -465,7 +465,7 @@ function KeysListSection() {
                               onClick={() => void copyPrefix(key.key_id, key.prefix)}
                               aria-label={`Copy prefix for ${key.name}`}
                               title={`Copy prefix ${key.prefix}`}
-                              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                             >
                               {copiedPrefixId === key.key_id ? (
                                 <Check className="w-3.5 h-3.5" aria-hidden="true" />
@@ -510,7 +510,7 @@ function KeysListSection() {
                                   void deleteKey.mutateAsync(key.key_id).finally(() => setConfirmRevokeId(null))
                                 }
                                 disabled={deleteKey.isPending}
-                                className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shrink-0 flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                                className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 text-white text-xs font-semibold shrink-0 flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                               >
                                 {deleteKey.isPending && (
                                   <Loader2
@@ -524,7 +524,7 @@ function KeysListSection() {
                                 onClick={() => setConfirmRevokeId(null)}
                                 aria-label={`Cancel revoking ${key.name}`}
                                 title={`Cancel revoking ${key.name}`}
-                                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                               >
                                 <X className="w-3.5 h-3.5" aria-hidden="true" />
                               </button>
@@ -534,7 +534,7 @@ function KeysListSection() {
                               onClick={() => setConfirmRevokeId(key.key_id)}
                               aria-label={`Revoke ${key.name}`}
                               title={`Revoke ${key.name}`}
-                              className="px-4 h-9 rounded-xl text-xs font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                              className="px-4 h-9 rounded-xl text-xs font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors duration-200 shrink-0 flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                             >
                               <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Revoke
                             </button>

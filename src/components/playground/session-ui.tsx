@@ -62,19 +62,20 @@ export function SessionTabs({
           role="tab"
           aria-selected={tab === option.id}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-3 text-[11px] font-mono uppercase tracking-widest transition-colors border-b-2 -mb-px shrink-0 whitespace-nowrap",
+            "flex items-center gap-1.5 px-3 py-3 text-[11px] font-mono uppercase tracking-widest transition-all duration-200 motion-reduce:transition-none border-b-2 -mb-px shrink-0 whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-t",
             tab === option.id
               ? "text-ember-700 dark:text-ember-300 border-ember-600 dark:border-ember-400 font-semibold"
-              : "text-muted-foreground border-transparent hover:text-foreground"
+              : "text-muted-foreground border-transparent hover:text-foreground hover:bg-accent/50"
           )}
         >
-          {option.icon && <option.icon className="w-3.5 h-3.5" />}
+          {option.icon && <option.icon className="w-3.5 h-3.5" aria-hidden="true" />}
           {option.label}
         </button>
       ))}
       <button
         onClick={onClear}
-        className="ml-auto text-[11px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-2 py-3 shrink-0"
+        aria-label="Clear transcript"
+        className="ml-auto text-[11px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 motion-reduce:transition-none px-2 py-3 shrink-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         Clear
       </button>
@@ -153,8 +154,12 @@ export function TranscriptList({
       ref={listRef}
       onScroll={handleScroll}
       data-testid="transcript-list"
+      role="log"
+      aria-live="polite"
+      aria-label="Session transcript"
+      tabIndex={0}
       className={cn(
-        "flex-1 max-h-[50vh] lg:max-h-none overflow-y-auto space-y-5 pr-2 custom-scrollbar relative z-10",
+        "flex-1 max-h-[50vh] lg:max-h-none overflow-y-auto space-y-5 pr-2 custom-scrollbar relative z-10 min-w-0 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         minHeight
       )}
     >
@@ -164,17 +169,18 @@ export function TranscriptList({
         <AnimatePresence initial={false}>
           {turns.map((turn) =>
             turn.role === "system" ? (
-              <p key={turn.id} className="text-[11px] font-mono text-muted-foreground text-center">
+              <p key={turn.id} className="text-[11px] font-mono text-muted-foreground text-center px-2 break-words">
                 {turn.text}
               </p>
             ) : (
               <motion.div
                 key={turn.id}
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className={cn("flex flex-col", turn.role === "agent" ? "items-start" : "items-end")}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                className={cn("flex flex-col min-w-0", turn.role === "agent" ? "items-start" : "items-end")}
               >
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2 mb-1.5 min-w-0">
                   <span
                     className={cn(
                       "text-[10px] uppercase font-mono tracking-wider",
@@ -189,7 +195,7 @@ export function TranscriptList({
                 </div>
                 <div
                   className={cn(
-                    "px-5 py-3.5 max-w-[90%] text-sm leading-relaxed break-words shadow-sm",
+                    "px-4 sm:px-5 py-3.5 max-w-[92%] sm:max-w-[90%] text-sm leading-relaxed break-words min-w-0",
                     turn.role === "agent"
                       ? "bg-card/80 border border-border text-foreground rounded-2xl rounded-tl-sm"
                       : "bg-primary border border-primary text-primary-foreground rounded-2xl rounded-tr-sm"
@@ -206,7 +212,7 @@ export function TranscriptList({
         <button
           type="button"
           onClick={jumpToLatest}
-          className="sticky bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 h-8 px-4 rounded-full bg-foreground text-background text-xs font-medium shadow-lg hover:opacity-90 transition-all"
+          className="sticky bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 h-8 px-4 rounded-full bg-foreground text-background text-xs font-medium shadow-lg hover:opacity-90 transition-all duration-200 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ArrowDown className="w-3.5 h-3.5" aria-hidden="true" />
           New messages
@@ -219,7 +225,7 @@ export function TranscriptList({
 export function ToolsPanel({ agentId }: { agentId: string }) {
   const { data: tools, isLoading } = useAgentTools(agentId);
   if (isLoading) {
-    return <div className="h-24 rounded-2xl bg-muted/50 animate-pulse" aria-label="Loading tools" />;
+    return <div className="h-24 rounded-2xl bg-muted/50 animate-pulse motion-reduce:animate-none" aria-label="Loading tools" />;
   }
   if (!tools || tools.length === 0) {
     return (

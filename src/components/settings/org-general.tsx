@@ -5,6 +5,7 @@ import { AlertCircle, Building2, Check, Globe2, Loader2, Lock, Timer, X } from "
 import { useOrganization, useResetWorkspace, useUpdateOrganization } from "@/services/platform/organization";
 import { minRoleFor, useCan } from "@/lib/rbac";
 import { fieldStyles } from "@/lib/field-styles";
+import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/common/section-header";
 import { SettingsStatCard, SettingsStatsGrid } from "@/components/settings/settings-stats";
 
@@ -133,9 +134,18 @@ export function OrgGeneral() {
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <SectionHeader
           title="Organization Profile"
-          description="Saved to the platform on every change."
+          description={
+            canWriteSettings
+              ? "Saved to the platform on every change."
+              : `Read-only — requires ${minRoleFor("settings.write")} role.`
+          }
           className="mb-6"
         />
+        {!canWriteSettings && (
+          <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Read-only for your role — profile edits need an {minRoleFor("settings.write")} role.
+          </p>
+        )}
 
         <div className="grid gap-4 min-w-0">
           <div className="space-y-2 min-w-0">
@@ -150,7 +160,9 @@ export function OrgGeneral() {
                 setName(event.target.value);
                 setSavedFlash(false);
               }}
-              className={fieldStyles.fieldMuted}
+              disabled={!canWriteSettings}
+              title={canWriteSettings ? undefined : `Requires ${minRoleFor("settings.write")} role`}
+              className={cn(fieldStyles.fieldMuted, "disabled:opacity-60")}
             />
           </div>
 
@@ -166,7 +178,9 @@ export function OrgGeneral() {
                 setEmail(event.target.value);
                 setSavedFlash(false);
               }}
-              className={fieldStyles.fieldMuted}
+              disabled={!canWriteSettings}
+              title={canWriteSettings ? undefined : `Requires ${minRoleFor("settings.write")} role`}
+              className={cn(fieldStyles.fieldMuted, "disabled:opacity-60")}
             />
           </div>
         </div>
@@ -176,7 +190,7 @@ export function OrgGeneral() {
             onClick={() => void handleSave().catch(() => undefined)}
             disabled={!dirty || updateOrg.isPending || !canWriteSettings}
             title={canWriteSettings ? undefined : `Requires ${minRoleFor("settings.write")} role`}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             {updateOrg.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Save Profile
@@ -187,7 +201,7 @@ export function OrgGeneral() {
             </span>
           )}
           {saveError && (
-            <span className="flex items-center gap-1.5 text-sm text-destructive min-w-0">
+            <span role="alert" className="flex items-center gap-1.5 text-sm text-destructive min-w-0">
               <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> <span className="truncate">{saveError}</span>
             </span>
           )}
@@ -218,7 +232,7 @@ export function OrgGeneral() {
               <button
                 onClick={() => void handleReset().catch(() => undefined)}
                 disabled={resetWorkspace.isPending}
-                className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 text-sm font-semibold hover:bg-red-500/20 disabled:opacity-50 transition-colors duration-200 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 text-sm font-semibold hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
               >
                 {resetWorkspace.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                 Reset Workspace
@@ -228,7 +242,7 @@ export function OrgGeneral() {
                 <button
                   onClick={() => void handleReset().catch(() => undefined)}
                   disabled={resetWorkspace.isPending}
-                  className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                  className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                 >
                   {resetWorkspace.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -240,7 +254,7 @@ export function OrgGeneral() {
                 <button
                   onClick={() => setConfirmReset(false)}
                   aria-label="Cancel reset"
-                  className="h-11 w-11 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                  className="h-11 w-11 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   <X className="w-4 h-4" aria-hidden="true" />
                 </button>

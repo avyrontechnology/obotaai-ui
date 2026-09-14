@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertCircle, Check, Globe2, KeyRound, Loader2, Lock, ScrollText, Timer, X } from "lucide-react";
 import { useOrganization, useUpdateOrganization } from "@/services/platform/organization";
 import { useAuthEvents, useChangePassword } from "@/services/auth";
-import { useCan } from "@/lib/rbac";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { timeAgo } from "@/lib/format";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
@@ -134,7 +134,7 @@ function PasswordSection() {
           className={cn(fieldStyles.fieldSm, "min-w-0")}
         />
       </div>
-      {error && <p className="text-xs text-destructive truncate" title={error}>{error}</p>}
+      {error && <p role="alert" className="text-xs text-destructive truncate" title={error}>{error}</p>}
       {done && (
         <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
           <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> Password updated.
@@ -143,7 +143,7 @@ function PasswordSection() {
       <button
         onClick={() => void handleSave()}
         disabled={changePassword.isPending}
-        className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+        className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
         {changePassword.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
         Update password
@@ -189,6 +189,9 @@ function AuditSection() {
 export function OrgSecurity() {
   const { data: org, isLoading } = useOrganization();
   const updateOrg = useUpdateOrganization();
+  // Session/roles gating (UI-only, backend re-checks admin on PUT /organization):
+  // viewers/members see the policy read-only; admins can save.
+  const canWriteSettings = useCan("settings.write");
 
   const [residency, setResidency] = useState<string | null>(null);
   const [timeout, setTimeout] = useState<string | null>(null);
@@ -267,6 +270,11 @@ export function OrgSecurity() {
 
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-4">Session policy</p>
+        {!canWriteSettings && (
+          <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Read-only for your role — session policy needs an {minRoleFor("settings.write")} role.
+          </p>
+        )}
         <div className="grid gap-4 min-w-0">
           <div className="space-y-2 min-w-0">
             <label htmlFor="data-residency" className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
@@ -279,7 +287,8 @@ export function OrgSecurity() {
                 setResidency(event.target.value);
                 setSavedFlash(false);
               }}
-              className={fieldStyles.fieldMuted}
+              disabled={!canWriteSettings}
+              className={cn(fieldStyles.fieldMuted, "cursor-pointer disabled:cursor-not-allowed disabled:opacity-60")}
             >
               {RESIDENCIES.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -301,7 +310,8 @@ export function OrgSecurity() {
                 setTimeout(event.target.value);
                 setSavedFlash(false);
               }}
-              className={cn(fieldStyles.fieldMuted, "tabular-nums")}
+              disabled={!canWriteSettings}
+              className={cn(fieldStyles.fieldMuted, "tabular-nums disabled:opacity-60")}
             />
           </div>
 
@@ -324,7 +334,8 @@ export function OrgSecurity() {
                       setSavedFlash(false);
                     }}
                     aria-label={`Remove ${entry}`}
-                    className="hover:text-red-600 dark:hover:text-red-400 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 rounded motion-reduce:transition-none"
+                    disabled={!canWriteSettings}
+                    className="hover:text-red-600 dark:hover:text-red-400 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 rounded motion-reduce:transition-none"
                   >
                     <X className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
@@ -343,11 +354,13 @@ export function OrgSecurity() {
                 }}
                 placeholder="10.0.0.0/8"
                 aria-label="IP or CIDR to allow"
-                className={cn(fieldStyles.fieldMuted, "font-mono min-w-0 flex-1")}
+                disabled={!canWriteSettings}
+                className={cn(fieldStyles.fieldMuted, "font-mono min-w-0 flex-1 disabled:opacity-60")}
               />
               <button
                 onClick={addIp}
-                className="h-12 px-5 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                disabled={!canWriteSettings}
+                className="h-12 px-5 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 Add
               </button>
@@ -358,8 +371,9 @@ export function OrgSecurity() {
         <div className="flex flex-wrap items-center gap-3 mt-5">
           <button
             onClick={() => void handleSave().catch(() => undefined)}
-            disabled={!dirty || updateOrg.isPending}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            disabled={!dirty || updateOrg.isPending || !canWriteSettings}
+            title={canWriteSettings ? undefined : `Requires ${minRoleFor("settings.write")} role`}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             {updateOrg.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Save Security
@@ -370,7 +384,7 @@ export function OrgSecurity() {
             </span>
           )}
           {saveError && (
-            <span className="flex items-center gap-1.5 text-sm text-destructive min-w-0">
+            <span role="alert" className="flex items-center gap-1.5 text-sm text-destructive min-w-0">
               <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> <span className="truncate">{saveError}</span>
             </span>
           )}

@@ -13,6 +13,7 @@ import { LatencyInsights } from "@/components/calls/latency-insights";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
+import { RouteLoader } from "@/components/common/route-loader";
 import { SkeletonList } from "@/components/common/skeleton-list";
 import { downloadCsv, executionsToCsv } from "@/lib/calls-export";
 import { fieldStyles } from "@/lib/field-styles";
@@ -27,7 +28,7 @@ const DAY_OPTIONS = [7, 30, 90];
 
 export default function CallsPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<RouteLoader label="Loading call history..." />}>
       <CallsContent />
     </Suspense>
   );
@@ -38,10 +39,18 @@ function CallsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const batchId = searchParams.get("batch_id");
-  const deepLinkedAgent = searchParams.get("agent");
+  const agentParam = searchParams.get("agent") ?? "all";
 
+  // Deep-link derivation: override ?? param ?? default. Render-phase
+  // adjustment (no setState-in-effect) keeps back/forward in sync — when
+  // the URL param changes externally the override is dropped.
   const [agentOverride, setAgentOverride] = useState<string | null>(null);
-  const agentFilter = agentOverride ?? deepLinkedAgent ?? "all";
+  const [prevAgentParam, setPrevAgentParam] = useState(agentParam);
+  if (agentParam !== prevAgentParam) {
+    setPrevAgentParam(agentParam);
+    setAgentOverride(null);
+  }
+  const agentFilter = agentOverride ?? agentParam;
   const setAgentFilter = useCallback(
     (value: string) => {
       setAgentOverride(value);
@@ -55,8 +64,13 @@ function CallsContent() {
     [searchParams, router, pathname]
   );
 
-  const [statusOverride, setStatusOverride] = useState<string | null>(null);
   const statusParam = searchParams.get("status") ?? "all";
+  const [statusOverride, setStatusOverride] = useState<string | null>(null);
+  const [prevStatusParam, setPrevStatusParam] = useState(statusParam);
+  if (statusParam !== prevStatusParam) {
+    setPrevStatusParam(statusParam);
+    setStatusOverride(null);
+  }
   const statusFilter = statusOverride ?? statusParam;
   const setStatusFilter = useCallback(
     (value: string) => {
@@ -71,8 +85,18 @@ function CallsContent() {
     [searchParams, router, pathname]
   );
 
-  const initialQ = searchParams.get("q") ?? "";
-  const [search, setSearchRaw] = useState(initialQ);
+  const qParam = searchParams.get("q") ?? "";
+  // Deep-link derivation: override ?? param ?? default. Render-phase
+  // adjustment (no setState-in-effect) keeps back/forward in sync — when
+  // the URL param changes externally the override is dropped.
+  const [searchOverride, setSearchOverride] = useState<string | null>(null);
+  const [prevQParam, setPrevQParam] = useState(qParam);
+  if (qParam !== prevQParam) {
+    setPrevQParam(qParam);
+    setSearchOverride(null);
+  }
+  const search = searchOverride ?? qParam;
+  const setSearchRaw = (value: string) => setSearchOverride(value);
   const setSearch = useCallback(
     (value: string) => {
       setSearchRaw(value);
@@ -313,7 +337,7 @@ function CallsContent() {
                   ? "No rows to export"
                   : `Exports the ${filtered.length} rows loaded on this page`
               }
-              className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm transition-all hover:bg-accent disabled:opacity-40 flex items-center gap-2 shrink-0"
+              className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm transition-colors duration-200 hover:bg-accent disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <Download className="w-4 h-4" aria-hidden="true" />
               <span>Export page ({filtered.length})</span>
@@ -329,7 +353,7 @@ function CallsContent() {
                   : "Live ingest off — turn on to refresh every 5 seconds"
               }
               className={cn(
-                "h-11 px-4 rounded-2xl border text-sm font-medium flex items-center gap-2 transition-colors shrink-0",
+                "h-11 px-4 rounded-2xl border text-sm font-medium flex items-center gap-2 transition-colors duration-200 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                 liveIngest
                   ? "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20"
                   : "bg-card border-border text-foreground hover:bg-accent"
@@ -374,7 +398,7 @@ function CallsContent() {
               onClick={() => setAgentFilter("all")}
               title="Clear agent filter"
               aria-label="Remove agent filter"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               agent: {(agents ?? []).find((a) => a.agent_id === agentFilter)?.agent_name ?? `${agentFilter.slice(0, 14)}…`} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -384,7 +408,7 @@ function CallsContent() {
               onClick={() => setStatusFilter("all")}
               title="Clear status filter"
               aria-label="Remove status filter"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               status: {statusFilter} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -394,7 +418,7 @@ function CallsContent() {
               onClick={() => setDirectionFilter("all")}
               title="Page filter — narrows the loaded rows. The executions API has no direction parameter."
               aria-label="Remove direction filter"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               direction: {directionFilter} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -404,7 +428,7 @@ function CallsContent() {
               href={batchClearHref}
               title={batchId}
               aria-label={`Remove batch filter ${batchId}`}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               batch: {batchId.slice(0, 14)}… <X className="w-3.5 h-3.5" aria-hidden="true" />
             </Link>
@@ -414,7 +438,7 @@ function CallsContent() {
               onClick={() => setSearch("")}
               title="Clear search"
               aria-label="Remove search filter"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 hover:bg-primary/20 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               search: {search.trim().slice(0, 20)} <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -422,7 +446,7 @@ function CallsContent() {
           <button
             onClick={clearFilters}
             aria-label={batchId ? "Clear all filters except batch context" : "Clear all filters"}
-            className="text-xs font-mono text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+            className="text-xs font-mono text-muted-foreground hover:text-foreground underline-offset-4 hover:underline rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             {batchId ? "Clear filters (keep batch)" : "Clear all"}
           </button>
@@ -464,14 +488,14 @@ function CallsContent() {
           {hasAnyFilter ? (
             <button
               onClick={clearFilters}
-              className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold transition-all hover:bg-accent"
+              className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold transition-colors duration-200 hover:bg-accent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               Clear filters
             </button>
           ) : (
             <Link
               href="/playground"
-              className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all hover:shadow-xl inline-flex items-center justify-center"
+              className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-colors duration-200 hover:shadow-xl hover:bg-primary/90 cursor-pointer inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               Open Playground
             </Link>
@@ -500,7 +524,7 @@ function CallsContent() {
                   onClick={() => setPage(page - 1)}
                   disabled={page === 0}
                   aria-label="Previous page"
-                  className="h-9 px-4 rounded-2xl bg-card border border-border text-sm font-medium transition-all hover:bg-accent disabled:opacity-40"
+                  className="h-9 px-4 rounded-2xl bg-card border border-border text-sm font-medium transition-colors duration-200 hover:bg-accent disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   Previous
                 </button>
@@ -511,7 +535,7 @@ function CallsContent() {
                     aria-label={`Go to page ${visited + 1}`}
                     aria-current={visited === page ? "page" : undefined}
                     className={cn(
-                      "h-9 min-w-9 px-2 rounded-xl border text-sm font-mono tabular-nums transition-colors",
+                      "h-9 min-w-9 px-2 rounded-xl border text-sm font-mono tabular-nums transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                       visited === page
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-card border-border hover:bg-accent"
@@ -529,7 +553,7 @@ function CallsContent() {
                     <button
                       onClick={() => setPage(page + 1)}
                       aria-label="Next page"
-                      className="h-9 px-4 rounded-2xl bg-card border border-border text-sm font-medium transition-all hover:bg-accent disabled:opacity-40"
+                      className="h-9 px-4 rounded-2xl bg-card border border-border text-sm font-medium transition-colors duration-200 hover:bg-accent disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                     >
                       Next
                     </button>

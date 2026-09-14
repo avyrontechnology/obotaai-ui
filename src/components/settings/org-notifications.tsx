@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertCircle, BellRing, Check, Loader2, Mail, Plug2, SlidersHorizontal } from "lucide-react";
 import { useOrganization, useUpdateOrganization } from "@/services/platform/organization";
 import type { NotificationPrefs } from "@/lib/schemas/platform";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { Toggle } from "@/components/common/toggle";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,8 @@ function NotificationsStats({ prefs, loading }: { prefs: NotificationPrefs | nul
 export function OrgNotifications() {
   const { data: org, isLoading } = useOrganization();
   const updateOrg = useUpdateOrganization();
+  // UI-only gate (backend re-checks admin on PUT /organization).
+  const canWriteSettings = useCan("settings.write");
 
   const [draft, setDraft] = useState<Partial<NotificationPrefs> | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -122,15 +125,20 @@ export function OrgNotifications() {
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <SectionHeader
           title="Notifications"
-          description="What fires, and where it goes."
+          description={canWriteSettings ? "What fires, and where it goes." : `Read-only — requires ${minRoleFor("settings.write")} role.`}
           className="mb-6"
         />
+        {!canWriteSettings && (
+          <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Read-only for your role — notification prefs need an {minRoleFor("settings.write")} role.
+          </p>
+        )}
 
         <div className="space-y-3 min-w-0">
           <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Events</p>
           <LabeledToggle
             checked={prefs.low_balance_enabled}
-            onChange={(value) => patch({ low_balance_enabled: value })}
+            onChange={(value) => { if (canWriteSettings) patch({ low_balance_enabled: value }); }}
             label="Low balance alert"
             description="Warn when credits drop below the threshold"
           />
@@ -145,20 +153,21 @@ export function OrgNotifications() {
                 }}
                 inputMode="decimal"
                 aria-label="Low balance threshold"
-                className={cn(fieldStyles.fieldMuted, "max-w-[140px] font-mono tabular-nums")}
+                disabled={!canWriteSettings}
+                className={cn(fieldStyles.fieldMuted, "max-w-[140px] font-mono tabular-nums disabled:opacity-60")}
               />
               <span className="text-sm text-muted-foreground">credits</span>
             </div>
           )}
           <LabeledToggle
             checked={prefs.call_failed_enabled}
-            onChange={(value) => patch({ call_failed_enabled: value })}
+            onChange={(value) => { if (canWriteSettings) patch({ call_failed_enabled: value }); }}
             label="Failed calls"
             description="Notify when a call ends failed, busy or unanswered"
           />
           <LabeledToggle
             checked={prefs.batch_completed_enabled}
-            onChange={(value) => patch({ batch_completed_enabled: value })}
+            onChange={(value) => { if (canWriteSettings) patch({ batch_completed_enabled: value }); }}
             label="Batch completed"
             description="Notify when a campaign finishes"
           />
@@ -168,13 +177,13 @@ export function OrgNotifications() {
           <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Channels</p>
           <LabeledToggle
             checked={prefs.channel_email}
-            onChange={(value) => patch({ channel_email: value })}
+            onChange={(value) => { if (canWriteSettings) patch({ channel_email: value }); }}
             label="Email"
             description={`Sent to ${org.support_email}`}
           />
           <LabeledToggle
             checked={prefs.channel_webhook}
-            onChange={(value) => patch({ channel_webhook: value })}
+            onChange={(value) => { if (canWriteSettings) patch({ channel_webhook: value }); }}
             label="Webhooks"
             description="Delivered to agent webhook endpoints"
           />
@@ -183,8 +192,9 @@ export function OrgNotifications() {
         <div className="flex flex-wrap items-center gap-3 mt-5">
           <button
             onClick={() => void handleSave().catch(() => undefined)}
-            disabled={!dirty || updateOrg.isPending}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            disabled={!dirty || updateOrg.isPending || !canWriteSettings}
+            title={canWriteSettings ? undefined : `Requires ${minRoleFor("settings.write")} role`}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             {updateOrg.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Save Notifications
@@ -195,7 +205,7 @@ export function OrgNotifications() {
             </span>
           )}
           {saveError && (
-            <span className="flex items-center gap-1.5 text-sm text-destructive min-w-0">
+            <span role="alert" className="flex items-center gap-1.5 text-sm text-destructive min-w-0">
               <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> <span className="truncate">{saveError}</span>
             </span>
           )}

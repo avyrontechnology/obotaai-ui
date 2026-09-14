@@ -36,7 +36,7 @@ function FlowsContent() {
             role="tab"
             aria-selected={tab === option.id}
             className={cn(
-              "flex items-center gap-2 px-5 h-11 rounded-2xl text-sm font-medium border transition-all",
+              "flex items-center gap-2 px-5 h-11 rounded-2xl text-sm font-medium border transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
               tab === option.id
                 ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
                 : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent"

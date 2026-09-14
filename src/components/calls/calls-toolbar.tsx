@@ -60,10 +60,16 @@ export const CallsToolbar = memo(function CallsToolbar({
   const [stuck, setStuck] = useState(false);
   // Local input state — commits to the URL debounced so every keystroke
   // doesn't trigger a navigation + full list re-render.
+  // Derived-state sync without setState-in-effect: when the parent `search`
+  // changes externally (e.g. Clear filters), the render-phase adjustment
+  // below resets the draft. Debounce commit calls onSearch (parent state),
+  // never local setState, so no effect-to-state cascade.
   const [draft, setDraft] = useState(search);
-  useEffect(() => {
+  const [prevSearch, setPrevSearch] = useState(search);
+  if (search !== prevSearch) {
+    setPrevSearch(search);
     setDraft(search);
-  }, [search]);
+  }
   useEffect(() => {
     if (draft === search) return;
     const timer = setTimeout(() => onSearch(draft), 300);
@@ -151,7 +157,7 @@ export const CallsToolbar = memo(function CallsToolbar({
             onClick={onRefresh}
             aria-label="Refresh call history"
             title="Refresh call history"
-            className="inline-flex items-center justify-center h-11 w-11 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+            className="inline-flex items-center justify-center h-11 w-11 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none shrink-0"
           >
             <RefreshCw
               className={cn("w-4 h-4", isFetching && "animate-spin motion-reduce:animate-none")}

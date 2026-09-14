@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import {
   templateDetailSchema,
@@ -33,6 +33,7 @@ export function useTemplate(id: string, enabled = true) {
 }
 
 export function useImportTemplate() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       const raw = await apiClient<unknown>(`/templates/${id}/import`, { method: "POST" });
@@ -41,6 +42,11 @@ export function useImportTemplate() {
         throw new Error("Template import returned an unexpected payload");
       }
       return parsed.agent_payload;
+    },
+    // Import materializes a new agent server-side — refresh directory + templates.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: templateKeys.all });
     },
   });
 }

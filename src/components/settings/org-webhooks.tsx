@@ -5,6 +5,7 @@ import { BellRing, Globe2, Plug2, Power, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useAgents } from "@/services/api";
 import { useDeleteWebhook, useWebhooks } from "@/services/platform/webhooks";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { timeAgo } from "@/lib/format";
 import { SectionHeader } from "@/components/common/section-header";
 import { SettingsStatCard, SettingsStatsGrid } from "@/components/settings/settings-stats";
@@ -59,6 +60,8 @@ export function OrgWebhooks() {
   const { data: webhooks, isLoading } = useWebhooks();
   const { data: agents } = useAgents();
   const deleteWebhook = useDeleteWebhook();
+  // Webhook deletes need platform:write (member+). UI-only gate; backend re-checks.
+  const canManageWebhooks = useCan("agents.write");
 
   const agentNames = new Map((agents ?? []).map((agent) => [agent.agent_id, agent.agent_name]));
 
@@ -69,9 +72,14 @@ export function OrgWebhooks() {
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <SectionHeader
           title="Webhooks"
-          description="Every endpoint in one place. Manage per-agent webhooks from Analytics settings."
+          description={canManageWebhooks ? "Every endpoint in one place. Manage per-agent webhooks from Analytics settings." : `Read-only — requires ${minRoleFor("agents.write")} role.`}
           className="mb-6"
         />
+        {!canManageWebhooks && (webhooks ?? []).length > 0 && (
+          <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Read-only for your role — webhook deletes need a {minRoleFor("agents.write")} role.
+          </p>
+        )}
 
         {isLoading ? (
           <div className="h-32 rounded-3xl bg-muted/50 border border-border animate-pulse motion-reduce:animate-none" />
@@ -112,7 +120,7 @@ export function OrgWebhooks() {
                     {hook.agent_id && (
                       <Link
                         href={`/agents/${hook.agent_id}/configure`}
-                        className="text-xs text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 rounded"
+                        className="text-xs text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 rounded motion-reduce:transition-none"
                       >
                         Open agent
                       </Link>
@@ -122,7 +130,9 @@ export function OrgWebhooks() {
                     <button
                       onClick={() => void deleteWebhook.mutateAsync(hook.webhook_id)}
                       aria-label={`Delete webhook ${hook.url}`}
-                      className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                      disabled={!canManageWebhooks}
+                      title={canManageWebhooks ? undefined : `Requires ${minRoleFor("agents.write")} role`}
+                      className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none disabled:opacity-50"
                     >
                       <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>

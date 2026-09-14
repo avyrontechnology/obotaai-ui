@@ -135,6 +135,63 @@ describe("LiveTalk session orb", () => {
     // the point is the bars exist inside the live (white) orb.
     expect(screen.getByTestId("voice-waveform").children).toHaveLength(12);
   });
+
+  it("skips engine stream sentinels instead of rendering them", async () => {
+    const socket = await startLive();
+    act(() => {
+      socket.onmessage?.({ data: JSON.stringify({ type: "text", role: "agent", data: "<beginning_of_stream>" }) });
+      socket.onmessage?.({ data: JSON.stringify({ type: "text", role: "agent", data: "<end_of_stream>" }) });
+      socket.onmessage?.({ data: JSON.stringify({ type: "text", role: "agent", data: "Hello from the agent" }) });
+    });
+    expect(screen.queryByText("<beginning_of_stream>")).not.toBeInTheDocument();
+    expect(screen.queryByText("<end_of_stream>")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Hello from the agent").length).toBeGreaterThan(0);
+  });
+
+  it("echoes marks and stops playback on clear without dropping the call", async () => {
+    const socket = await startLive();
+    act(() => {
+      socket.onmessage?.({ data: JSON.stringify({ type: "mark", name: "m-1" }) });
+      socket.onmessage?.({ data: JSON.stringify({ type: "clear" }) });
+    });
+    expect(socket.sent).toContainEqual(JSON.stringify({ type: "mark", name: "m-1" }));
+    expect(screen.getByTestId("session-orb")).toHaveAttribute("data-live", "true");
+  });
+
+  it("reconnects after a mid-call drop and preserves the transcript", async () => {
+    jest.useFakeTimers();
+    try {
+      const socket = await startLive();
+      act(() => {
+        socket.onmessage?.({ data: JSON.stringify({ type: "text", role: "agent", data: "Hello" }) });
+      });
+      expect(screen.getAllByText("Hello").length).toBeGreaterThan(0);
+      // Age the socket past the 4s quick-death window so onclose takes the
+      // mid-call reconnect path (fake timers also advance Date.now).
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      act(() => {
+        socket.onclose?.({});
+      });
+      expect(screen.getAllByText(/retrying \(1\/3\)/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Hello").length).toBeGreaterThan(0);
+      await act(async () => {
+        jest.advanceTimersByTime(900);
+      });
+      expect(MockSocket.instances.length).toBeGreaterThan(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("exposes pointer + focus affordances on session controls", async () => {
+    const socket = await startLive();
+    const mute = screen.getByRole("button", { name: /Mute microphone/ });
+    expect(mute.className).toContain("cursor-pointer");
+    expect(mute.className).toContain("focus-visible:ring-2");
+    expect(socket.url).toContain("/chat/v1/agent-1?leg=browser");
+  });
 });
 
 describe("combineLevels", () => {

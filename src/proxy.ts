@@ -27,16 +27,17 @@ function isSameSiteDeployment(request: NextRequest): boolean {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const lastSegment = pathname.split("/").pop() ?? "";
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/brand") ||
     pathname === "/favicon.ico" ||
-    pathname.includes(".")
+    lastSegment.includes(".")
   ) {
     return NextResponse.next();
   }
 
-  const isPublic = PUBLIC_PATHS.some((route) => pathname.startsWith(route));
+  const isPublic = PUBLIC_PATHS.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   const hasSession = Boolean(request.cookies.get(SESSION_COOKIE)?.value);
 
   if (!isPublic && !hasSession && !isSameSiteDeployment(request)) {
@@ -50,7 +51,12 @@ export function proxy(request: NextRequest) {
     login.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(login);
   }
-  if (isPublic && hasSession && pathname !== "/accept-invite") {
+  if (isPublic && hasSession && pathname !== "/accept-invite" && !pathname.startsWith("/accept-invite/")) {
+    // /login bounces home when already signed in (except ?clear_session=1,
+    // which api-client appends on a 401 so the stale cookie is cleared and
+    // the login form renders). /accept-invite stays public even with a
+    // session so a signed-in user can still accept a second workspace invite.
+    // Prefix check (not exact) keeps /accept-invite/<nested> public too.
     if (request.nextUrl.searchParams.get("clear_session")) {
       const response = NextResponse.next();
       response.cookies.delete(SESSION_COOKIE);

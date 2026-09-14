@@ -56,8 +56,13 @@ export function TemplatesPanel() {
   return (
     <>
       {importError && (
-        <p className="mb-6 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {importError}
+        <p
+          role="alert"
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          className="mb-6 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {importError}
         </p>
       )}
 
@@ -66,8 +71,9 @@ export function TemplatesPanel() {
           <button
             key={option}
             onClick={() => setIndustry(option)}
+            aria-pressed={industry === option}
             className={cn(
-              "px-4 h-9 rounded-full text-xs font-mono border transition-colors",
+              "px-4 h-9 rounded-full text-xs font-mono border transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
               industry === option
                 ? "border-primary/40 bg-primary/10 text-foreground"
                 : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"

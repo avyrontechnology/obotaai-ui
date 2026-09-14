@@ -151,16 +151,16 @@ export function RAGConfigForm({ agentId }: { agentId?: string }) {
                     key={kb.kb_id}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs"
                   >
-                    <Database className="w-3.5 h-3.5" />
+                    <Database className="w-3.5 h-3.5" aria-hidden="true" />
                     {kb.name}
                     <button
                       onClick={() =>
                         void runAttach(() => detachKb.mutateAsync({ id: kb.kb_id, agent_id: agentId }))
                       }
                       aria-label={`Detach ${kb.name}`}
-                      className="hover:text-foreground transition-colors"
+                      className="hover:text-foreground transition-colors duration-200 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 motion-reduce:transition-none"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   </span>
                 ))}
@@ -354,17 +354,17 @@ export function RAGConfigForm({ agentId }: { agentId?: string }) {
           disabled={!agentId || updateVector.isPending || !dirty}
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          {updateVector.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          {updateVector.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
           Save Vector Store
         </button>
         {savedFlash && !dirty && (
           <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
-            <Check className="w-4 h-4" /> Saved
+            <Check className="w-4 h-4" aria-hidden="true" /> Saved
           </span>
         )}
         {updateVector.isError && (
           <span className="flex items-center gap-1.5 text-sm text-red-700 dark:text-red-400">
-            <AlertCircle className="w-4 h-4" /> Save failed
+            <AlertCircle className="w-4 h-4" aria-hidden="true" /> Save failed
           </span>
         )}
       </div>

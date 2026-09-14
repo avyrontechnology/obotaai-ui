@@ -53,8 +53,13 @@ export const LatencyInsights = memo(function LatencyInsights({
   stats?: LatencyStats | null;
   isLoading?: boolean;
 }) {
-  const { data: statsFallback, isLoading: isLoadingFallback, isError } = useLatencyStats(agent_id, days);
-  const stats = statsProp !== undefined ? statsProp : statsFallback;
+  const statsProvided = statsProp !== undefined;
+  // Telemetry split: parent owns useLatencyStats(agent_id, days). Fallback
+  // only fires when no prop is passed — never a per-card N+1.
+  const { data: statsFallback, isLoading: isLoadingFallback, isError } = useLatencyStats(agent_id, days, {
+    enabled: !statsProvided,
+  });
+  const stats = statsProvided ? statsProp : statsFallback;
   const isLoading = isLoadingProp ?? isLoadingFallback;
 
   const stages = useMemo(

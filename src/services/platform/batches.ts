@@ -27,7 +27,9 @@ export function useBatches(agent_id?: string) {
   });
 }
 
-export function useBatch(id: string, enabled = true) {
+type RefetchInterval = number | false | ((data: unknown, query: unknown) => number | false);
+
+export function useBatch(id: string, enabled = true, options?: { refetchInterval?: RefetchInterval }) {
   return useQuery({
     queryKey: batchKeys.detail(id),
     queryFn: async () => {
@@ -35,10 +37,17 @@ export function useBatch(id: string, enabled = true) {
       return batchSchema.parse(raw);
     },
     enabled: enabled && id.length > 0,
+    // TanStack v5 accepts a function clock; pass through so the detail page
+    // polls only while status === "running" with no useEffect interval.
+    refetchInterval: options?.refetchInterval as never,
   });
 }
 
-export function useBatchExecutions(batch_id: string, enabled = true) {
+export function useBatchExecutions(
+  batch_id: string,
+  enabled = true,
+  options?: { refetchInterval?: RefetchInterval }
+) {
   return useQuery({
     queryKey: [...batchKeys.detail(batch_id), "executions"] as const,
     queryFn: async () => {
@@ -46,6 +55,7 @@ export function useBatchExecutions(batch_id: string, enabled = true) {
       return executionListSchema.parse(raw).executions;
     },
     enabled: enabled && batch_id.length > 0,
+    refetchInterval: options?.refetchInterval as never,
   });
 }
 
@@ -109,6 +119,6 @@ export function useRetryFailed() {
       const raw = await apiClient<unknown>(`/batches/${id}/retry-failed`, { method: "POST" });
       return batchSchema.parse(raw) as Batch;
     },
-    onSuccess: () => invalidateBatch(queryClient),
+    onSuccess: (batch) => invalidateBatch(queryClient, batch.batch_id),
   });
 }

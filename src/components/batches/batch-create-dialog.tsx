@@ -76,6 +76,20 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
   const overLimit = preview.entries.length > MAX_ENTRIES;
   const canWrite = useCan("batches.write");
 
+  // Accessible error summary: each item links to its field id so keyboard +
+  // screen-reader users can jump straight to the problem. Additive — inline
+  // errors below are retained.
+  const summaryItems: { path: string; message: string }[] = [];
+  if (!canWrite) summaryItems.push({ path: "batch-submit", message: "You need the batches.write role to create campaigns." });
+  if (name.trim().length === 0) summaryItems.push({ path: "batch-name", message: "Give the campaign a name." });
+  if (!effectiveAgentId) summaryItems.push({ path: "batch-agent", message: "Select an agent for this campaign." });
+  if (!csv) summaryItems.push({ path: "batch-csv", message: "Upload a recipients CSV." });
+  else if (preview.entries.length === 0) summaryItems.push({ path: "batch-csv", message: "No valid phone numbers found in the CSV." });
+  if (overLimit) summaryItems.push({ path: "batch-csv", message: `Over the ${MAX_ENTRIES} recipient limit — trim the CSV.` });
+  if (parseError) summaryItems.push({ path: "batch-csv", message: parseError });
+  if (createBatch.isError) summaryItems.push({ path: "batch-submit", message: "Failed to create the batch. Check the backend and retry." });
+  const showSummary = open && summaryItems.length > 0 && (name.trim().length > 0 || csv !== null || parseError !== null || createBatch.isError);
+
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
     setParseError(null);
@@ -143,29 +157,69 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
           <button
             onClick={onClose}
             aria-label="Close batch creator"
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       }
     >
       <div className="p-6 space-y-6">
+                {showSummary && (
+                  <div
+                    role="alert"
+                    tabIndex={-1}
+                    ref={(el) => el?.focus()}
+                    aria-labelledby="batch-error-summary-title"
+                    className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                  >
+                    <div className="flex items-center gap-2 mb-2 min-w-0">
+                      <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" aria-hidden="true" />
+                      <h2 id="batch-error-summary-title" className="text-sm font-semibold text-red-700 dark:text-red-300 truncate">
+                        Please fix the following before saving ({summaryItems.length})
+                      </h2>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {summaryItems.map((item) => (
+                        <li key={`${item.path}-${item.message}`} className="min-w-0">
+                          <a
+                            href={`#${item.path}`}
+                            onClick={(event) => {
+                              const target = document.getElementById(item.path) as HTMLElement | null;
+                              if (target) {
+                                event.preventDefault();
+                                target.focus({ preventScroll: false });
+                                target.scrollIntoView?.({ block: "center", behavior: "smooth" });
+                              }
+                            }}
+                            className="block truncate text-sm text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 underline underline-offset-2 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                          >
+                            {item.message}
+                            <span className="sr-only"> (go to {item.path})</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
                       Campaign name
                     </span>
                     <input
+                      id="batch-name"
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       placeholder="COD confirmations"
+                      aria-invalid={name.trim().length === 0}
                       className={fieldStyles.field}
                     />
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Agent</span>
                     <select
+                      id="batch-agent"
                       value={effectiveAgentId}
                       onChange={(event) => setAgentId(event.target.value)}
                       aria-label="Batch agent"
@@ -230,10 +284,11 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                     Recipients CSV
                   </span>
                   <button
+                    id="batch-csv"
                     onClick={() => fileRef.current?.click()}
-                    className="mt-2 w-full flex items-center justify-center gap-2 min-h-24 px-4 py-3 rounded-2xl border border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors text-sm text-muted-foreground text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                    className="mt-2 w-full flex items-center justify-center gap-2 min-h-24 px-4 py-3 rounded-2xl border border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors duration-200 cursor-pointer text-sm text-muted-foreground text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                   >
-                    <FileUp className="w-5 h-5 shrink-0" />
+                    <FileUp className="w-5 h-5 shrink-0" aria-hidden="true" />
                     <span className="truncate" title={fileName || undefined}>{fileName || "Upload CSV — phone,name,…"}</span>
                   </button>
                   <input
@@ -350,20 +405,21 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
 
                 {createBatch.isError && (
                   <p role="alert" className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
-                    <AlertCircle className="w-4 h-4 shrink-0" /> Failed to create the batch. Check the backend and retry.
+                    <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> Failed to create the batch. Check the backend and retry.
                   </p>
                 )}
 
                 <button
+                  id="batch-submit"
                   onClick={handleSubmit}
                   disabled={!canSubmit}
                   title={canWrite ? undefined : `Requires ${minRoleFor("batches.write")} role`}
-                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm transition-all hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   {createBatch.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                   ) : (
-                    <Upload className="w-4 h-4" />
+                    <Upload className="w-4 h-4" aria-hidden="true" />
                   )}
                   Create batch{preview.entries.length > 0 && ` · ${preview.entries.length} calls`}
                 </button>

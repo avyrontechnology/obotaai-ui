@@ -37,7 +37,7 @@ describe("SessionTabs", () => {
     expect(screen.getByRole("tab", { name: /Live Transcript/ })).toHaveAttribute("aria-selected", "true");
     fireEvent.click(screen.getByRole("tab", { name: /Tools/ }));
     expect(onChange).toHaveBeenCalledWith("tools");
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    fireEvent.click(screen.getByRole("button", { name: /Clear/ }));
     expect(onClear).toHaveBeenCalled();
   });
 

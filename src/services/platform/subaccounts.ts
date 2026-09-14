@@ -15,13 +15,14 @@ export const subAccountKeys = {
   detail: (id: string) => ["sub-accounts", id] as const,
 };
 
-export function useSubAccounts() {
+export function useSubAccounts(enabled = true) {
   return useQuery({
     queryKey: subAccountKeys.all,
     queryFn: async () => {
       const raw = await apiClient<unknown>("/sub-accounts");
       return subAccountListSchema.parse(raw).sub_accounts;
     },
+    enabled,
   });
 }
 

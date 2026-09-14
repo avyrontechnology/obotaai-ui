@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { useAgents } from "@/services/api";
 import type { Execution } from "@/lib/schemas/platform";
 import { formatLatency } from "@/lib/format";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 function TrendPill({ value }: { value: number | null }) {
   if (value === null) return null;
   const positive = value >= 0;
+  const Icon = positive ? TrendingUp : TrendingDown;
   return (
     <span
       className={cn(
@@ -21,7 +23,7 @@ function TrendPill({ value }: { value: number | null }) {
           : "bg-red-500/10 text-red-700 dark:text-red-400"
       )}
     >
-      {positive ? "▲" : "▼"} {positive ? "+" : ""}
+      <Icon className="w-3 h-3" aria-hidden="true" /> {positive ? "+" : ""}
       {value.toFixed(1)}%
     </span>
   );
@@ -43,7 +45,7 @@ function Card({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay }}
-      className="rounded-3xl border border-border bg-card p-5 md:p-6 flex flex-col gap-2 min-w-0"
+      className="rounded-3xl border border-border bg-card p-5 md:p-6 flex flex-col gap-2 min-w-0 motion-reduce:transition-none"
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground truncate">{title}</p>
@@ -60,7 +62,8 @@ function BigValue({ value }: { value: string }) {
       key={value}
       initial={{ opacity: 0.35 }}
       animate={{ opacity: 1 }}
-      className="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground tabular-nums"
+      transition={{ duration: 0.2 }}
+      className="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground tabular-nums motion-reduce:transition-none"
     >
       {value}
     </motion.p>

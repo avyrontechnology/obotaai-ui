@@ -20,6 +20,7 @@ import {
   useUpdateIntegration,
 } from "@/services/platform/integrations";
 import type { Integration, IntegrationKind } from "@/lib/schemas/platform";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { Modal } from "@/components/common/modal";
 import { Toggle } from "@/components/common/toggle";
 import { fieldStyles } from "@/lib/field-styles";
@@ -253,7 +254,7 @@ export function ConfigModal({
               onSave(config);
             }}
             disabled={pending}
-            className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             {pending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Save configuration
@@ -268,6 +269,8 @@ export function ConfigModal({
 function IntegrationCard({ integration }: { integration: Integration }) {
   const updateIntegration = useUpdateIntegration();
   const deleteIntegration = useDeleteIntegration();
+  // Integration writes need platform:write (member+). UI-only gate.
+  const canManageIntegrations = useCan("agents.write");
   const [editing, setEditing] = useState(false);
   const [naming, setNaming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -311,9 +314,9 @@ function IntegrationCard({ integration }: { integration: Integration }) {
           </span>
           <Toggle
             checked={integration.enabled}
-            onChange={(value) =>
-              void updateIntegration.mutateAsync({ id: integration.integration_id, enabled: value })
-            }
+            onChange={(value) => {
+              if (canManageIntegrations) void updateIntegration.mutateAsync({ id: integration.integration_id, enabled: value });
+            }}
             label={`Enable ${integration.name}`}
           />
         </div>
@@ -334,11 +337,17 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         </p>
       )}
       {cardError && (
-        <p className="flex items-center gap-2 text-xs text-destructive mb-3 min-w-0">
+        <p role="alert" className="flex items-center gap-2 text-xs text-destructive mb-3 min-w-0">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           <span className="truncate" title="Could not save. Is the backend running?">
             Could not save. Is the backend running?
           </span>
+        </p>
+      )}
+
+      {!canManageIntegrations && (
+        <p className="mb-3 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-2">
+          Read-only — integration edits need a {minRoleFor("agents.write")} role.
         </p>
       )}
 
@@ -349,14 +358,16 @@ function IntegrationCard({ integration }: { integration: Integration }) {
               value={name}
               onChange={(event) => setName(event.target.value)}
               aria-label="Integration name"
-              className={cn(fieldStyles.fieldSm, "h-9 min-w-0")}
+              disabled={!canManageIntegrations}
+              className={cn(fieldStyles.fieldSm, "h-9 min-w-0 disabled:opacity-60")}
             />
             <button
               onClick={() => {
                 if (name.trim()) void updateIntegration.mutateAsync({ id: integration.integration_id, name: name.trim() });
                 setNaming(false);
               }}
-              className="h-9 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              disabled={!canManageIntegrations}
+              className="h-9 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shrink-0 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none disabled:opacity-50"
             >
               Save
             </button>
@@ -373,9 +384,9 @@ function IntegrationCard({ integration }: { integration: Integration }) {
                   .catch(() => undefined);
                 setConfirmingDelete(false);
               }}
-              disabled={deleteIntegration.isPending}
+              disabled={deleteIntegration.isPending || !canManageIntegrations}
               aria-label={`Confirm delete ${integration.name}`}
-              className="flex items-center gap-1 px-2.5 h-9 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors disabled:opacity-50 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+              className="flex items-center gap-1 px-2.5 h-9 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 disabled:opacity-50 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
             >
               {deleteIntegration.isPending ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -387,7 +398,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <button
               onClick={() => setConfirmingDelete(false)}
               aria-label="Cancel delete"
-              className="flex items-center justify-center w-9 h-9 rounded-xl bg-muted text-muted-foreground border border-border transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-muted text-muted-foreground border border-border cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -395,8 +406,10 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         ) : (
           <>
             <button
-              onClick={() => setEditing(true)}
-              className="flex-1 min-w-[100px] h-9 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none truncate px-2"
+              onClick={() => { if (canManageIntegrations) setEditing(true); }}
+              disabled={!canManageIntegrations}
+              title={canManageIntegrations ? undefined : `Requires ${minRoleFor("agents.write")} role`}
+              className="flex-1 min-w-[100px] h-9 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none truncate px-2 disabled:opacity-50"
             >
               Configure
             </button>
@@ -405,15 +418,17 @@ function IntegrationCard({ integration }: { integration: Integration }) {
                 setName(integration.name);
                 setNaming(true);
               }}
-              className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none shrink-0"
+              disabled={!canManageIntegrations}
+              className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none shrink-0 disabled:opacity-50"
             >
               Rename
             </button>
             <button
-              onClick={() => setConfirmingDelete(true)}
+              onClick={() => { if (canManageIntegrations) setConfirmingDelete(true); }}
               aria-label={`Delete ${integration.name}`}
-              title={`Delete ${integration.name}`}
-              className="h-9 w-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+              title={canManageIntegrations ? `Delete ${integration.name}` : `Requires ${minRoleFor("agents.write")} role`}
+              disabled={!canManageIntegrations}
+              className="h-9 w-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -444,6 +459,8 @@ export function OrgIntegrations() {
   const createIntegration = useCreateIntegration();
   const [addingKind, setAddingKind] = useState<IntegrationKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Add-integration needs platform:write (member+). UI-only gate.
+  const canAddIntegrations = useCan("agents.write");
 
   const configuredKinds = useMemo(
     () => new Set((integrations ?? []).map((item) => item.kind)),
@@ -487,12 +504,19 @@ export function OrgIntegrations() {
           description={
             isLoading
               ? "Loading provider status."
-              : missing.length === 0
-                ? "Every supported provider is connected."
-                : `${missing.length} of ${KINDS.length} providers still available.`
+              : !canAddIntegrations
+                ? `Read-only — requires ${minRoleFor("agents.write")} role.`
+                : missing.length === 0
+                  ? "Every supported provider is connected."
+                  : `${missing.length} of ${KINDS.length} providers still available.`
           }
           className="mb-6"
         />
+        {!canAddIntegrations && !isLoading && missing.length > 0 && (
+          <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Read-only for your role — connecting providers needs a {minRoleFor("agents.write")} role.
+          </p>
+        )}
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -526,8 +550,9 @@ export function OrgIntegrations() {
                           setError(null);
                           setAddingKind(kind);
                         }}
-                        className="h-12 rounded-2xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors truncate px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none flex items-center justify-center gap-1.5 min-w-0"
-                        title={`Connect ${KIND_FIELDS[kind].label}`}
+                        disabled={!canAddIntegrations}
+                        className="h-12 rounded-2xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 truncate px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none flex items-center justify-center gap-1.5 min-w-0 disabled:opacity-50"
+                        title={canAddIntegrations ? `Connect ${KIND_FIELDS[kind].label}` : `Requires ${minRoleFor("agents.write")} role`}
                       >
                         <Plus className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                         <span className="truncate">{KIND_FIELDS[kind].label}</span>
@@ -540,7 +565,7 @@ export function OrgIntegrations() {
           </div>
         )}
         {error && (
-          <p className="flex items-center gap-2 text-xs text-destructive mt-4 min-w-0">
+          <p role="alert" className="flex items-center gap-2 text-xs text-destructive mt-4 min-w-0">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate" title={error}>{error}</span>
           </p>

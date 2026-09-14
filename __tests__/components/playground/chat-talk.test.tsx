@@ -61,7 +61,7 @@ describe("ChatTalk socket protocol", () => {
 
   it("connects to the agent voice socket and sends init", async () => {
     const socket = await renderChat();
-    expect(socket.url).toBe("ws://localhost:5001/chat/v1/agent-1");
+    expect(socket.url).toBe("ws://localhost:5001/chat/v1/agent-1?leg=browser");
     act(() => socket.open());
     expect(socket.sent).toEqual([
       JSON.stringify({ type: "init", meta_data: { agent_id: "agent-1", source: "ui-chat" } }),
@@ -81,7 +81,7 @@ describe("ChatTalk socket protocol", () => {
     });
     render(<ChatTalk agentId="agent-9" agentName="Test Agent" />);
     await act(async () => {});
-    expect(MockSocket.instances[0].url).toBe("ws://localhost:5001/chat/v1/agent-9?token=t-123");
+    expect(MockSocket.instances[0].url).toBe("ws://localhost:5001/chat/v1/agent-9?leg=browser&token=t-123");
   });
 
   it("sends typed turns and renders both transcript roles", async () => {
@@ -118,5 +118,68 @@ describe("ChatTalk socket protocol", () => {
       socket.onerror?.({});
     });
     expect(screen.getByText(/Couldn't reach the voice backend/)).toBeInTheDocument();
+  });
+
+  it("skips engine stream sentinels instead of rendering them", async () => {
+    const socket = await renderChat();
+    act(() => socket.open());
+    act(() => {
+      socket.receive({ type: "text", role: "agent", data: "<beginning_of_stream>" });
+      socket.receive({ type: "text", role: "agent", data: "<end_of_stream>" });
+      socket.receive({ type: "text", role: "agent", data: "Real reply" });
+    });
+    expect(screen.queryByText("<beginning_of_stream>")).not.toBeInTheDocument();
+    expect(screen.queryByText("<end_of_stream>")).not.toBeInTheDocument();
+    expect(screen.getByText("Real reply")).toBeInTheDocument();
+  });
+
+  it("reconnects with backoff after a mid-thread drop and preserves turns", async () => {
+    jest.useFakeTimers();
+    try {
+      const socket = await renderChat();
+      act(() => socket.open());
+      fireEvent.change(screen.getByLabelText("Chat message"), { target: { value: "Hello" } });
+      fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+
+      // Unexpected drop after live: transcript survives, retry UI appears.
+      act(() => {
+        socket.onclose?.({});
+      });
+      expect(screen.getAllByText(/retrying \(1\/3\)/i).length).toBeGreaterThan(0);
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Cancel reconnect/i })).toBeInTheDocument();
+
+      // Backoff fires a fresh socket on the same thread.
+      await act(async () => {
+        jest.advanceTimersByTime(900);
+      });
+      expect(MockSocket.instances).toHaveLength(2);
+      expect(MockSocket.instances[1].url).toBe("ws://localhost:5001/chat/v1/agent-1?leg=browser");
+      act(() => MockSocket.instances[1].open());
+      expect(screen.getByText(/Reconnected/)).toBeInTheDocument();
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("focuses the error summary for screen-reader users", async () => {
+    await renderChat();
+    act(() => {
+      MockSocket.instances[0].onerror?.({});
+    });
+    const summary = screen.getByRole("alert");
+    expect(summary).toHaveFocus();
+  });
+
+  it("exposes visible focus rings and pointer affordances on controls", async () => {
+    const socket = await renderChat();
+    act(() => socket.open());
+    const send = screen.getByRole("button", { name: "Send message" });
+    expect(send.className).toContain("cursor-pointer");
+    expect(send.className).toContain("focus-visible:ring-2");
+    const input = screen.getByLabelText("Chat message");
+    expect(input.className).toContain("focus-visible:ring-2");
   });
 });

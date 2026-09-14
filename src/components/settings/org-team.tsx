@@ -36,7 +36,7 @@ function TeamStats() {
   const canManage = useCan("team.manage");
   const { data: users, isLoading: usersLoading } = useUsers(canManage || !!session);
   const { data: invites, isLoading: invitesLoading } = useInvites(canManage);
-  const { data: subs, isLoading: subsLoading } = useSubAccounts();
+  const { data: subs, isLoading: subsLoading } = useSubAccounts(canManage);
   const loading = usersLoading || invitesLoading || subsLoading;
   const counts = useMemo(() => {
     const list = users ?? [];
@@ -193,7 +193,7 @@ function MembersSection() {
                             aria-label={`Role for ${user.email}`}
                             disabled={!isOwner}
                             title={!isOwner ? "Only owners change roles" : undefined}
-                            className="h-9 px-2 w-full max-w-[180px] rounded-xl bg-card border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 disabled:opacity-60 truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                            className="h-9 px-2 w-full max-w-[180px] rounded-xl bg-card border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 disabled:opacity-60 truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 cursor-pointer disabled:cursor-not-allowed"
                           >
                             {ROLES.map((option) => (
                               <option key={option} value={option}>
@@ -225,14 +225,14 @@ function MembersSection() {
                                     .mutateAsync(user.user_id)
                                     .finally(() => setConfirmRemoveId(null))
                                 }
-                                className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                                className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                               >
                                 Confirm
                               </button>
                               <button
                                 onClick={() => setConfirmRemoveId(null)}
                                 aria-label={`Cancel removing ${user.email}`}
-                                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                               >
                                 <X className="w-3.5 h-3.5" aria-hidden="true" />
                               </button>
@@ -242,7 +242,7 @@ function MembersSection() {
                               onClick={() => setConfirmRemoveId(user.user_id)}
                               aria-label={`Remove ${user.email}`}
                               title={`Remove ${user.email}`}
-                              className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                              className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                             >
                               <X className="w-4 h-4" aria-hidden="true" />
                             </button>
@@ -332,7 +332,7 @@ function InviteSection() {
           value={role}
           onChange={(event) => setRole(event.target.value as Role)}
           aria-label="Invite role"
-          className={cn(fieldStyles.fieldSm, "sm:w-36 shrink-0")}
+          className={cn(fieldStyles.fieldSm, "sm:w-36 shrink-0 cursor-pointer")}
         >
           {(session?.user.role === "owner" ? ROLES : (["member", "viewer"] as const)).map((option) => (
             <option key={option} value={option}>
@@ -343,14 +343,14 @@ function InviteSection() {
         <button
           onClick={() => void handleInvite()}
           disabled={inviteUser.isPending}
-          className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+          className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center justify-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
           {inviteUser.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Plus className="w-3.5 h-3.5" aria-hidden="true" />}
           Invite
         </button>
       </div>
       {error && (
-        <p className="mt-3 flex items-center gap-2 text-xs text-destructive min-w-0">
+        <p role="alert" className="mt-3 flex items-center gap-2 text-xs text-destructive min-w-0">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate" title={error}>{error}</span>
         </p>
       )}
@@ -367,7 +367,7 @@ function InviteSection() {
             <button
               onClick={() => void copyToken()}
               aria-label="Copy invite link"
-              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 motion-reduce:transition-none"
+              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 motion-reduce:transition-none"
             >
               {copied ? <Check className="w-4 h-4" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
             </button>
@@ -376,7 +376,7 @@ function InviteSection() {
                 setInviteToken(null);
                 setCopied(false);
               }}
-              className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               Done
             </button>
@@ -469,14 +469,14 @@ function SubAccountMemberRow({ subId, email, name, role }: { subId: string; emai
         <span className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => void removeMember.mutateAsync({ id: subId, email }).finally(() => setConfirming(false))}
-            className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+            className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
           >
             Confirm
           </button>
           <button
             onClick={() => setConfirming(false)}
             aria-label={`Cancel removing ${email}`}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
@@ -486,7 +486,7 @@ function SubAccountMemberRow({ subId, email, name, role }: { subId: string; emai
           onClick={() => setConfirming(true)}
           aria-label={`Remove ${email}`}
           title={`Remove ${email}`}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
         >
           <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
@@ -537,14 +537,14 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
           <span className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => void deleteSub.mutateAsync(sub.sub_id).finally(() => setConfirmingDelete(false))}
-              className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+              className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
             >
               Confirm
             </button>
             <button
               onClick={() => setConfirmingDelete(false)}
               aria-label={`Cancel deleting ${sub.name}`}
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -554,7 +554,7 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
             onClick={() => setConfirmingDelete(true)}
             aria-label={`Delete ${sub.name}`}
             title={`Delete ${sub.name}`}
-            className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+            className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
           >
             <Trash2 className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -576,7 +576,7 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
       {!showMemberForm ? (
         <button
           onClick={() => setShowMemberForm(true)}
-          className="mt-3 w-full h-10 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+          className="mt-3 w-full h-10 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-colors duration-200 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
           <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Invite member
         </button>
@@ -603,7 +603,7 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
               value={role}
               onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])}
               aria-label="Member role"
-              className={cn(fieldStyles.fieldSm, "flex-1 min-w-[120px]")}
+              className={cn(fieldStyles.fieldSm, "flex-1 min-w-[120px] cursor-pointer")}
             >
               {ROLES.map((option) => (
                 <option key={option} value={option}>
@@ -614,7 +614,7 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
             <button
               onClick={() => void handleAdd()}
               disabled={addMember.isPending}
-              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               {addMember.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
               Add
@@ -624,13 +624,13 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
                 setShowMemberForm(false);
                 setError(null);
               }}
-              className="h-10 px-3 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-10 px-3 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               Cancel
             </button>
           </div>
           {error && (
-            <p className="flex items-center gap-2 text-xs text-destructive min-w-0">
+            <p role="alert" className="flex items-center gap-2 text-xs text-destructive min-w-0">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate" title={error}>{error}</span>
             </p>
           )}
@@ -641,8 +641,10 @@ function SubAccountCard({ sub }: { sub: SubAccount }) {
 }
 
 function SubAccountsSection() {
-  const { data: subs, isLoading } = useSubAccounts();
+  const { data: subs, isLoading } = useSubAccounts(useCan("team.manage"));
   const createSub = useCreateSubAccount();
+  // Sub-accounts endpoints require admin (backend require_role("admin")). UI-only gate.
+  const canManageSubs = useCan("team.manage");
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -672,12 +674,12 @@ function SubAccountsSection() {
     <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
       <SectionHeader
         title="Sub-Accounts"
-        description="Isolate customers and teams. Sub-account membership is organizational; sign-in roles live above."
+        description={canManageSubs ? "Isolate customers and teams. Sub-account membership is organizational; sign-in roles live above." : `Read-only — requires ${minRoleFor("team.manage")} role.`}
         action={
-          !showForm ? (
+          !showForm && canManageSubs ? (
             <button
               onClick={() => setShowForm(true)}
-              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 cursor-pointer transition-colors duration-200 flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <Plus className="w-4 h-4" aria-hidden="true" /> New
             </button>
@@ -685,6 +687,11 @@ function SubAccountsSection() {
         }
         className="mb-6"
       />
+      {!canManageSubs && (
+        <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+          Read-only for your role — sub-accounts need an {minRoleFor("team.manage")} role.
+        </p>
+      )}
 
       <AnimatePresence>
         {showForm && (
@@ -713,7 +720,7 @@ function SubAccountsSection() {
               />
             </div>
             {error && (
-              <p className="flex items-center gap-2 text-xs text-destructive min-w-0">
+              <p role="alert" className="flex items-center gap-2 text-xs text-destructive min-w-0">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate" title={error}>{error}</span>
               </p>
             )}
@@ -721,7 +728,7 @@ function SubAccountsSection() {
               <button
                 onClick={() => void handleCreate()}
                 disabled={createSub.isPending}
-                className="flex-1 min-w-[160px] h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="flex-1 min-w-[160px] h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 {createSub.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                 Create sub-account
@@ -731,7 +738,7 @@ function SubAccountsSection() {
                   setShowForm(false);
                   setError(null);
                 }}
-                className="h-10 px-4 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="h-10 px-4 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 Cancel
               </button>

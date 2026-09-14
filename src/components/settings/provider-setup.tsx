@@ -15,6 +15,7 @@ import {
 } from "@/components/settings/org-integrations";
 import { Toggle } from "@/components/common/toggle";
 import { SectionHeader } from "@/components/common/section-header";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 import type { IntegrationKind } from "@/lib/schemas/platform";
 
@@ -27,6 +28,8 @@ export function ProviderSetup() {
   const { data: numbers } = usePhoneNumbers();
   const createIntegration = useCreateIntegration();
   const updateIntegration = useUpdateIntegration();
+  // Telephony connects need platform:write (member+). UI-only gate.
+  const canManageProviders = useCan("agents.write");
   const [configuring, setConfiguring] = useState<IntegrationKind | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +49,7 @@ export function ProviderSetup() {
     <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
       <SectionHeader
         title="Providers"
-        description="Connect a telephony provider before adding its numbers. Secrets stay masked."
+        description={canManageProviders ? "Connect a telephony provider before adding its numbers. Secrets stay masked." : `Read-only — requires ${minRoleFor("agents.write")} role.`}
         className="mb-6"
       />
 
@@ -97,7 +100,7 @@ export function ProviderSetup() {
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2 min-w-0">
-                  {entry && (
+                  {entry && canManageProviders && (
                     <Toggle
                       checked={enabled}
                       onChange={(value) =>
@@ -111,7 +114,9 @@ export function ProviderSetup() {
                       setError(null);
                       setConfiguring(kind);
                     }}
-                    className="flex-1 min-w-0 h-9 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                    disabled={!canManageProviders}
+                    title={canManageProviders ? undefined : `Requires ${minRoleFor("agents.write")} role`}
+                    className="flex-1 min-w-0 h-9 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none disabled:opacity-50"
                   >
                     {!connected && <Plus className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
                     <span className="truncate">{connected ? "Configure" : `Connect ${KIND_FIELDS[kind].label}`}</span>
@@ -123,7 +128,7 @@ export function ProviderSetup() {
         </div>
       )}
 
-      {error && <p className="text-xs text-destructive truncate mt-3" title={error}>{error}</p>}
+      {error && <p role="alert" className="text-xs text-destructive truncate mt-3" title={error}>{error}</p>}
 
       {configuring && (
         <ConfigModal

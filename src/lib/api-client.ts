@@ -1,4 +1,5 @@
 import { env } from "./env";
+import { wsTicketSchema } from "./schemas/auth";
 
 export const API_BASE_URL = env.NEXT_PUBLIC_API_BASE_URL;
 export const WS_BASE_URL = env.NEXT_PUBLIC_WS_BASE_URL;
@@ -63,4 +64,17 @@ export async function apiClient<T>(
   }
 
   return response.json();
+}
+
+/**
+ * Single-use voice-socket ticket (`POST /auth/ws-ticket`).
+ * Canonical location for the ticket helper — `src/services/auth.ts`
+ * re-exports it so playground imports keep working.
+ * Sessions ride the httpOnly cookie (`credentials: "include"` above), so
+ * when ticket minting fails the caller falls back to cookie auth
+ * (see `buildTalkSocketUrl` + live-talk `try { ticket } catch { cookie }`).
+ */
+export async function fetchWsTicket(): Promise<string> {
+  const raw = await apiClient<unknown>("/auth/ws-ticket", { method: "POST" });
+  return wsTicketSchema.parse(raw).ticket;
 }

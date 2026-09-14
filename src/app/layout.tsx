@@ -1,18 +1,32 @@
-import type { Metadata } from "next";
-import { Outfit, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
 import { ErrorBoundary } from "@/components/error-boundary";
 
-const outfit = Outfit({ 
-  subsets: ["latin"],
+const outfit = localFont({
+  src: [
+    {
+      path: "../../public/fonts/Outfit-Variable.woff2",
+      style: "normal",
+    },
+  ],
   variable: "--font-outfit",
+  display: "swap",
+  preload: true,
 });
 
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrains = localFont({
+  src: [
+    {
+      path: "../../public/fonts/JetBrainsMono-Variable.woff2",
+      style: "normal",
+    },
+  ],
   variable: "--font-mono",
+  display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -31,13 +45,23 @@ export const metadata: Metadata = {
   }
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fffbeb" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a0a04" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${outfit.variable} ${jetbrains.variable} font-sans min-h-screen bg-background text-foreground antialiased selection:bg-ember-400/30`}>
         <Providers>
           <ErrorBoundary>

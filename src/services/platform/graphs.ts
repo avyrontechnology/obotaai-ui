@@ -83,7 +83,11 @@ export function useDeleteGraph() {
       await apiClient<unknown>(`/graphs/${id}`, { method: "DELETE" });
       return id;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: graphKeys.all }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: graphKeys.all });
+      queryClient.invalidateQueries({ queryKey: graphKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: graphKeys.versions(id) });
+    },
   });
 }
 

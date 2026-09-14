@@ -14,7 +14,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="w-[104px] h-10 rounded-xl bg-muted/50 border border-border animate-pulse" />
+      <div className="w-[104px] h-10 rounded-xl bg-muted/50 border border-border animate-pulse motion-reduce:animate-none" aria-hidden="true" />
     );
   }
 
@@ -36,7 +36,7 @@ export function ThemeToggle() {
             onClick={() => setTheme(opt.id)}
             aria-label={opt.label}
             className={cn(
-              "relative p-2 rounded-lg flex items-center justify-center transition-colors z-10",
+              "relative p-2 rounded-lg flex items-center justify-center transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none z-10",
               isActive ? "text-ember-600 dark:text-ember-300" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -47,7 +47,7 @@ export function ThemeToggle() {
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}
-            <Icon className="w-4 h-4" />
+            <Icon className="w-4 h-4" aria-hidden="true" />
           </button>
         );
       })}

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Clock3,
   Flag,
+  GitFork,
   Globe,
   History,
   Loader2,
@@ -112,6 +113,7 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
 
   const [draft, setDraft] = useState<WorkflowDefinition | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [prevWorkflowId, setPrevWorkflowId] = useState<string | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
@@ -123,7 +125,10 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
   const [testContact, setTestContact] = useState("+911234567890");
   const [actionError, setActionError] = useState<string | null>(null);
 
-  if (workflow && draft === null) {
+  // Derived draft init without setState-in-effect: render-phase adjustment
+  // resets when the route id (workflow) changes.
+  if (workflow && (draft === null || prevWorkflowId !== workflow.workflow_id)) {
+    setPrevWorkflowId(workflow.workflow_id);
     setDraft(workflow.definition);
     setSavedSnapshot(JSON.stringify(workflow.definition));
     setName(workflow.name);
@@ -241,9 +246,9 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
 
   if (isLoading || !workflow || !draft) {
     return (
-      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4">
-        <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse" />
-        <div className="h-[500px] rounded-[2rem] bg-card border border-border animate-pulse" />
+      <div className="max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8 space-y-4" aria-hidden="true">
+        <div className="h-12 w-64 rounded-2xl bg-card border border-border animate-pulse motion-reduce:animate-none" />
+        <div className="h-[500px] rounded-[2rem] bg-card border border-border animate-pulse motion-reduce:animate-none" />
       </div>
     );
   }
@@ -252,9 +257,9 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
     <div className="flex flex-col flex-1 min-h-[100dvh] max-w-[1400px] mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
         href="/flows?tab=workflows"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 w-fit"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer mb-4 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
-        <ArrowLeft className="w-4 h-4" /> Flows
+        <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Flows
       </Link>
 
       <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6 flex-wrap min-w-0">
@@ -276,44 +281,45 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
           <button
             onClick={() => void handleSave().catch(() => undefined)}
             disabled={!dirty || updateWorkflow.isPending}
-            className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            {updateWorkflow.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {updateWorkflow.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Save{dirty ? " *" : ""}
           </button>
           <button
             onClick={() => void handleValidate().catch(() => undefined)}
             disabled={validateWorkflow.isPending}
-            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <ShieldCheck className="w-4 h-4" /> Validate
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" /> Validate
           </button>
           <button
             onClick={() => void handleTestRun().catch(() => undefined)}
             disabled={testRun.isPending}
-            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <Play className="w-4 h-4" /> Test-run
+            <Play className="w-4 h-4" aria-hidden="true" /> Test-run
           </button>
           <button
             onClick={() => setShowCampaigns((value) => !value)}
+            aria-expanded={showCampaigns}
             className={cn(
-              "h-10 px-4 rounded-xl border text-sm transition-colors flex items-center gap-2",
+              "h-10 px-4 rounded-xl border text-sm transition-colors duration-200 cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
               showCampaigns
                 ? "border-primary/40 bg-primary/10 text-foreground"
                 : "bg-card border-border text-muted-foreground hover:text-foreground"
             )}
           >
-            <Megaphone className="w-4 h-4" /> Campaigns
+            <Megaphone className="w-4 h-4" aria-hidden="true" /> Campaigns
           </button>
           <button
             onClick={() => {
               setShowVersions(true);
               void refetchVersions();
             }}
-            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-xl bg-card border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <History className="w-4 h-4" /> Versions
+            <History className="w-4 h-4" aria-hidden="true" /> Versions
           </button>
         </div>
       </div>
@@ -326,9 +332,14 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
       )}
 
       {actionError && (
-        <p className="mb-4 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 w-fit">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {actionError}
-        </p>
+        <div
+          role="alert"
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          className="mb-4 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 w-fit focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {actionError}
+        </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
@@ -342,9 +353,9 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
                   key={type}
                   onClick={() => addNode(type)}
                   title={NODE_META[type].hint}
-                  className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
-                  <Icon className="w-3.5 h-3.5" /> {NODE_META[type].label}
+                  <Icon className="w-3.5 h-3.5" aria-hidden="true" /> {NODE_META[type].label}
                 </button>
               );
             })}
@@ -352,13 +363,13 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
               onClick={() => setConnectFrom((value) => (value ? null : (selectedId ?? value)))}
               disabled={!selectedId && !connectFrom}
               className={cn(
-                "flex items-center gap-1.5 h-9 px-3 rounded-xl border text-xs transition-colors disabled:opacity-40",
+                "flex items-center gap-1.5 h-9 px-3 rounded-xl border text-xs transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                 connectFrom
                   ? "border-ember-400/50 bg-ember-400/10 text-ember-700 dark:text-ember-300"
                   : "border-border bg-card text-muted-foreground hover:text-foreground"
               )}
             >
-              <GitForkIcon /> {connectFrom ? "Cancel connect" : "Connect"}
+              <GitFork className="w-3.5 h-3.5" aria-hidden="true" /> {connectFrom ? "Cancel connect" : "Connect"}
             </button>
           </div>
 
@@ -470,9 +481,9 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
                 void deleteWorkflow.mutateAsync(id).then(() => router.push("/flows?tab=workflows"));
               }
             }}
-            className="w-full h-10 rounded-xl text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-2"
+            className="w-full h-10 rounded-xl text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete workflow
+            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete workflow
           </button>
         </div>
       </div>
@@ -521,18 +532,6 @@ export default function WorkflowBuilderPage({ params }: { params: Promise<{ id: 
         </div>
       </Drawer>
     </div>
-  );
-}
-
-function GitForkIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="18" r="3" />
-      <circle cx="6" cy="6" r="3" />
-      <circle cx="18" cy="6" r="3" />
-      <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
-      <path d="M12 12v3" />
-    </svg>
   );
 }
 
@@ -741,9 +740,9 @@ function StepInspector({
             <button
               onClick={() => onDeleteEdge(edge)}
               aria-label={`Delete route to ${edge.to_node}`}
-              className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         ))}
@@ -782,9 +781,9 @@ function StepInspector({
               }
             }}
             disabled={!edgeTarget}
-            className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors flex items-center gap-1 shrink-0"
+            className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center gap-1 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            <Plus className="w-3.5 h-3.5" /> Add
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Add
           </button>
         </div>
       </div>
@@ -887,9 +886,10 @@ function CampaignPanel({ workflowId }: { workflowId: string }) {
         <p className="text-sm font-semibold text-foreground">Campaigns</p>
         <button
           onClick={() => setShowForm((value) => !value)}
-          className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          aria-expanded={showForm}
+          className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
-          <Plus className="w-3.5 h-3.5" /> New
+          <Plus className="w-3.5 h-3.5" aria-hidden="true" /> New
         </button>
       </div>
 
@@ -917,13 +917,17 @@ function CampaignPanel({ workflowId }: { workflowId: string }) {
             placeholder="Phone column"
             className={cn(fieldStyles.fieldSm, "font-mono text-xs")}
           />
-          {formError && <p className="text-xs text-red-700 dark:text-red-400">{formError}</p>}
+          {formError && (
+            <p role="alert" className="text-xs text-red-700 dark:text-red-400">
+              {formError}
+            </p>
+          )}
           <button
             onClick={() => void handleCreate().catch(() => undefined)}
             disabled={createCampaign.isPending}
-            className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
-            {createCampaign.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {createCampaign.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Create campaign
           </button>
         </div>
@@ -941,7 +945,8 @@ function CampaignPanel({ workflowId }: { workflowId: string }) {
           <div key={campaign.campaign_id} className="rounded-2xl border border-border bg-muted/40 p-4 space-y-3">
             <button
               onClick={() => setExpandedId(expanded ? null : campaign.campaign_id)}
-              className="w-full flex items-center justify-between gap-3 text-left"
+              aria-expanded={expanded}
+              className="w-full flex items-center justify-between gap-3 text-left rounded-xl cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{campaign.name}</p>
@@ -949,7 +954,7 @@ function CampaignPanel({ workflowId }: { workflowId: string }) {
                   {campaign.status} · {done}/{campaign.stats.total}
                 </p>
               </div>
-              <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+              <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none", expanded && "rotate-180")} aria-hidden="true" />
             </button>
             <ProgressBar value={progress} />
             <div className="flex gap-2">
@@ -965,9 +970,9 @@ function CampaignPanel({ workflowId }: { workflowId: string }) {
                       .catch(() => undefined)
                   }
                   disabled={startCampaign.isPending}
-                  className="h-9 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+                  className="h-9 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
-                  <Play className="w-3.5 h-3.5" /> Start
+                  <Play className="w-3.5 h-3.5" aria-hidden="true" /> Start
                 </button>
               )}
               {campaign.status === "running" && (
@@ -982,9 +987,9 @@ function CampaignPanel({ workflowId }: { workflowId: string }) {
                       .catch(() => undefined)
                   }
                   disabled={stopCampaign.isPending}
-                  className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+                  className="h-9 px-3 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
-                  <Square className="w-3.5 h-3.5" /> Stop
+                  <Square className="w-3.5 h-3.5" aria-hidden="true" /> Stop
                 </button>
               )}
             </div>

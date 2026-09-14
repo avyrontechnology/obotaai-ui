@@ -237,9 +237,9 @@ export function InboundConfigForm({ agentId }: { agentId: string }) {
               type="button"
               onClick={addBlocked}
               aria-label="Block number"
-              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -251,17 +251,17 @@ export function InboundConfigForm({ agentId }: { agentId: string }) {
           disabled={updateInbound.isPending || !dirty}
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          {updateInbound.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          {updateInbound.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
           Save Inbound Settings
         </button>
         {savedFlash && !dirty && (
           <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
-            <Check className="w-4 h-4" /> Saved
+            <Check className="w-4 h-4" aria-hidden="true" /> Saved
           </span>
         )}
         {updateInbound.isError && (
           <span className="flex items-center gap-1.5 text-sm text-red-700 dark:text-red-400">
-            <AlertCircle className="w-4 h-4" /> Save failed
+            <AlertCircle className="w-4 h-4" aria-hidden="true" /> Save failed
           </span>
         )}
       </div>

@@ -144,38 +144,34 @@ export function FlowCanvas<T extends { id: string }>({
               style={{ left: position.x, top: position.y, width: NODE_W }}
               onClick={(event) => event.stopPropagation()}
             >
-              <button
-                onClick={() => onConnectClick(node.id)}
-                className={cn(
-                  "relative w-full text-left rounded-2xl border bg-card shadow-sm transition-all hover:shadow-md",
-                  selected
-                    ? "border-primary/60 shadow-lg shadow-primary/10"
-                    : "border-border hover:border-muted-foreground/40",
-                  isConnectSource && "border-ember-400 shadow-[0_0_20px_rgba(251,108,0,0.3)]"
-                )}
-              >
-                <div className="p-3 min-h-[96px]">{renderNode(node)}</div>
+              <div className="relative">
+                <button
+                  onClick={() => onConnectClick(node.id)}
+                  aria-pressed={isConnectSource}
+                  className={cn(
+                    "relative w-full text-left rounded-2xl border bg-card shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
+                    selected
+                      ? "border-primary/60 shadow-lg shadow-primary/10"
+                      : "border-border hover:border-muted-foreground/40",
+                    isConnectSource && "border-ember-400 shadow-[0_0_20px_rgba(251,108,0,0.3)]"
+                  )}
+                >
+                  <div className="p-3 min-h-[96px]">{renderNode(node)}</div>
+                </button>
                 {selected && (
-                  <span
-                    role="button"
-                    tabIndex={0}
+                  <button
+                    type="button"
                     aria-label={`Delete node ${node.id}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       onDelete(node.id);
                     }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.stopPropagation();
-                        onDelete(node.id);
-                      }
-                    }}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow hover:bg-red-700 transition-colors"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow hover:bg-red-700 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </span>
+                    <X className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
                 )}
-              </button>
+              </div>
               {startId === node.id && (
                 <span className="absolute -top-2 left-3 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-primary text-primary-foreground">
                   Start

@@ -80,9 +80,9 @@ export function Modal({ open, onClose, label, title, header, children, className
                   <button
                     onClick={onClose}
                     aria-label="Close dialog"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </div>
               )}
@@ -139,9 +139,9 @@ export function Drawer({ open, onClose, label, title, children, wide }: DrawerPr
               <button
                 onClick={onClose}
                 aria-label="Close panel"
-                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">{children}</div>

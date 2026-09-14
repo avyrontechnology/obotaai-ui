@@ -16,13 +16,16 @@
 }
 
 :root {
+  color-scheme: light;
   --background: #fffbeb;
   --foreground: #3a1800;
   --card: #ffffff;
   --card-foreground: #3a1800;
   --popover: #ffffff;
   --popover-foreground: #3a1800;
-  --primary: #e73f1e;
+  /* Primary: ember-700 (#a82d11) — ember-600 (#e73f1e) scores 3.95:1 on
+     cream and fails WCAG AA 4.5:1 for button text. Ember-700 scores 6.64:1. */
+  --primary: #a82d11;
   --primary-foreground: #fffbeb;
   --secondary: #ffdd9c;
   --secondary-foreground: #7a230d;
@@ -30,11 +33,13 @@
   --muted-foreground: #8b5a2b;
   --accent: #f9b637;
   --accent-foreground: #3a1800;
-  --destructive: #a82d11;
+  /* Destructive: spec red #DC2626 (4.66:1 on cream) — distinct from primary. */
+  --destructive: #dc2626;
   --destructive-foreground: #fffbeb;
   --border: #ffe2b8;
   --input: #ffe2b8;
-  --ring: #fb6c00;
+  /* Ring: ember-700 (6.64:1) — fb6c00 scores 2.79:1 and fails as a focus ring. */
+  --ring: #a82d11;
   --chart-1: #e73f1e;
   --chart-2: #fb6c00;
   --chart-3: #f9b637;
@@ -43,15 +48,17 @@
   --radius: 0.625rem;
   --sidebar: #FDFBF7;
   --sidebar-foreground: #2C3340;
-  --sidebar-primary: #fb6c00;
+  /* Sidebar primary/ring: ember-700 (6.89:1 on white) — fb6c00 scores 2.90:1. */
+  --sidebar-primary: #a82d11;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #F0EBE1;
   --sidebar-accent-foreground: #2C3340;
   --sidebar-border: #E8E3D9;
-  --sidebar-ring: #fb6c00;
+  --sidebar-ring: #a82d11;
 }
 
 .dark {
+  color-scheme: dark;
   --background: #1a0a04;
   --foreground: #fff7e6;
   --card: #241208;
@@ -66,7 +73,8 @@
   --muted-foreground: #d8a57a;
   --accent: #f9b637;
   --accent-foreground: #1a0a04;
-  --destructive: #e73f1e;
+  /* Dark destructive: #DC2626 (4.53:1 with #fff7e6) — #e73f1e scores 3.84:1. */
+  --destructive: #dc2626;
   --destructive-foreground: #fff7e6;
   --border: #4a2610;
   --input: #3d1e0a;
@@ -87,6 +95,8 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -129,8 +139,46 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  /* Visible focus ring (2px) + focus never obscured by sticky chrome.
+     Per-screen interactive elements extend this via
+     focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Anchor/heading targets clear the sticky top bar when jumped to. */
+  main :target,
+  main [tabindex="-1"]:focus {
+    scroll-margin-top: 5rem;
+  }
+  /* 8dp rhythm: Tailwind spacing scale is 4px-based — compose layout rhythm
+     from even steps only (p-4/md:p-6, gap-4/6/8, space-y-4/6/8) so every
+     gutter is a multiple of 8px across 375/768/1024/1440. */
+  main {
+    scroll-margin-top: 5rem;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 24%, transparent);
+  }
+  /* Global reduced-motion kill-switch: covers Tailwind animate-* utilities
+     (animate-spin/pulse/ping in RouteLoader, badges, dots) that scoped rules
+     below cannot reach. Scoped sonner/eq/wave/ring rules stay for precision. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -292,14 +340,44 @@
   }
 }
 
-/* Premium UI & Glassmorphism Utilities */
+/* Premium UI & Glassmorphism Utilities
+   Subtle glass: 12px blur (spec 10-20px), 1px rgba-white 0.2 border in dark,
+   low-cost static blur (no animation), token-driven surfaces. */
 @layer utilities {
   .glass {
-    @apply bg-card/70 dark:bg-black/40 backdrop-blur-md border border-border dark:border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+    @apply bg-card/70 backdrop-blur-md border border-border shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+  }
+  .dark .glass {
+    background: rgb(0 0 0 / 0.4);
+    border-color: rgb(255 255 255 / 0.2);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass {
+      @apply bg-card;
+    }
+    .dark .glass {
+      background: var(--card);
+    }
   }
 
   .glass-card {
-    @apply bg-card/80 dark:bg-black/40 backdrop-blur-md border border-border dark:border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_8px_40px_rgba(0,0,0,0.15)] hover:bg-card dark:hover:bg-black/60;
+    @apply bg-card/80 backdrop-blur-md border border-border shadow-[0_4px_30px_rgba(0,0,0,0.1)] rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[0_8px_40px_rgba(0,0,0,0.15)] hover:bg-card;
+  }
+  .dark .glass-card {
+    background: rgb(0 0 0 / 0.4);
+    border-color: rgb(255 255 255 / 0.2);
+  }
+  .dark .glass-card:hover {
+    background: rgb(0 0 0 / 0.6);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-card {
+      @apply bg-card;
+    }
+    .dark .glass-card,
+    .dark .glass-card:hover {
+      background: var(--card);
+    }
   }
 
   .text-gradient {
@@ -316,12 +394,10 @@
 
   .custom-scrollbar {
     /* Firefox (webkit rules below are ignored there — without this the
-       native rail scrollbar renders chunky). */
+       native rail scrollbar renders chunky). Token-driven via color-mix so
+       the thumb tracks light/dark --primary with no hardcoded hex. */
     scrollbar-width: thin;
-    scrollbar-color: rgba(231, 63, 30, 0.18) transparent;
-  }
-  .dark .custom-scrollbar {
-    scrollbar-color: rgba(255, 221, 156, 0.18) transparent;
+    scrollbar-color: color-mix(in srgb, var(--primary) 22%, transparent) transparent;
   }
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -331,10 +407,7 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(231, 63, 30, 0.18);
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
     border-radius: 3px;
-  }
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 221, 156, 0.18);
   }
 }

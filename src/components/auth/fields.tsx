@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { useFormContext } from "react-hook-form";
 import { Eye, EyeOff, Loader2, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,13 +10,18 @@ import { getFieldError } from "@/components/settings/form-controls";
  * The one auth field system (login / accept-invite). Every field
  * gets: visible label, programmatic name association, aria-invalid +
  * aria-describedby error wiring, and role=alert errors. One token set —
- * white inputs, h-11 controls, ember focus.
+ * card inputs, h-11 controls, ring focus.
+ *
+ * Theme tokens only (no hardcoded hex) except the primary CTA, which keeps
+ * the fixed brand orange gradient from-[#E73F1E] to-[#FB6C00] (same in
+ * light/dark) for brand consistency.
  */
 
 export const AUTH_INPUT_CLASS =
-  "w-full h-11 bg-white border border-[#E5E7EB] rounded-2xl text-[15px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#FB6C00]/40 focus:border-[#FB6C00] transition-all shadow-sm";
+  "w-full h-11 bg-card border border-input rounded-2xl text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring transition-all shadow-sm";
 
 export function GoogleMark() {
+  // Official Google "G" brand colors — third-party logo spec, not theme tokens.
   return (
     <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
       <path
@@ -57,12 +62,12 @@ export function AuthField({ name, label, icon, action, className, ...inputProps 
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-[13px] font-semibold tracking-wider text-[#374151]">
+      <label htmlFor={id} className="text-[13px] font-semibold tracking-wider text-foreground">
         {label}
       </label>
       <div className="relative">
         {icon && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none [&>svg]:w-[18px] [&>svg]:h-[18px]">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none [&>svg]:w-[18px] [&>svg]:h-[18px]">
             {icon}
           </span>
         )}
@@ -77,7 +82,7 @@ export function AuthField({ name, label, icon, action, className, ...inputProps 
         {action && <span className="absolute right-4 top-1/2 -translate-y-1/2">{action}</span>}
       </div>
       {error && (
-        <span id={errorId} role="alert" className="text-xs text-red-700">
+        <span id={errorId} role="alert" className="text-xs text-destructive">
           {error}
         </span>
       )}
@@ -111,7 +116,7 @@ export function AuthPasswordField({
           onClick={() => setShowPassword((value) => !value)}
           aria-label={showPassword ? "Hide password" : "Show password"}
           aria-pressed={showPassword}
-          className="text-[#9CA3AF] hover:text-[#4B5563] transition-colors"
+          className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
         >
           {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
         </button>
@@ -131,16 +136,22 @@ export function AuthSubmitButton({
     <button
       type="submit"
       disabled={loading}
-      className="w-full h-11 rounded-2xl bg-gradient-to-r from-[#E73F1E] to-[#FB6C00] text-white font-semibold text-[16px] hover:brightness-105 disabled:opacity-50 transition-all shadow-[0_16px_32px_-12px_rgba(231,63,30,0.55)] flex items-center justify-center gap-2"
+      className="w-full h-11 rounded-2xl bg-gradient-to-r from-[#E73F1E] to-[#FB6C00] text-white font-semibold text-[16px] hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 motion-reduce:transition-none shadow-[0_16px_32px_-12px_rgba(231,63,30,0.55)] flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
     >
-      {loading ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : children}
+      {loading ? <Loader2 className="w-5 h-5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : children}
     </button>
   );
 }
 
 export function AuthAlert({ message }: { message: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  // Focus the alert so screen-reader and keyboard users land on the
+  // failure (mirrors ErrorSummaryView). Focusing is a DOM effect, not state.
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
   return (
-    <p role="alert" className="text-sm text-red-700 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+    <p ref={ref} role="alert" tabIndex={-1} className="text-sm text-destructive rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus:outline-none">
       {message}
     </p>
   );

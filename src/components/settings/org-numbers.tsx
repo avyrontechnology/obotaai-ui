@@ -13,6 +13,7 @@ import {
   useUnassignPhoneNumber,
 } from "@/services/platform/phone-numbers";
 import { fieldStyles } from "@/lib/field-styles";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/common/section-header";
@@ -76,6 +77,9 @@ export function OrgNumbers() {
   const deleteNumber = useDeletePhoneNumber();
   const assignNumber = useAssignPhoneNumber();
   const unassignNumber = useUnassignPhoneNumber();
+  // Numbers writes need platform:write (member+). UI-only gate via the
+  // member-level agents.write action; backend re-checks on every endpoint.
+  const canManageNumbers = useCan("agents.write");
 
   const [showForm, setShowForm] = useState(false);
   const [number, setNumber] = useState("");
@@ -138,12 +142,12 @@ export function OrgNumbers() {
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <SectionHeader
           title="Phone Numbers"
-          description="Inventory and agent assignment. Purchasing arrives later."
+          description={canManageNumbers ? "Inventory and agent assignment. Purchasing arrives later." : `Read-only — requires ${minRoleFor("agents.write")} role.`}
           action={
-            !showForm ? (
+            !showForm && canManageNumbers ? (
               <button
                 onClick={() => setShowForm(true)}
-                className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 cursor-pointer transition-colors duration-200 flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 <Plus className="w-4 h-4" aria-hidden="true" /> Add
               </button>
@@ -151,6 +155,11 @@ export function OrgNumbers() {
           }
           className="mb-6"
         />
+        {!canManageNumbers && (
+          <p className="mb-4 text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+            Read-only for your role — number management needs a {minRoleFor("agents.write")} role.
+          </p>
+        )}
 
         <AnimatePresence>
           {showForm && (
@@ -173,7 +182,7 @@ export function OrgNumbers() {
                   value={provider}
                   onChange={(event) => setProvider(event.target.value as (typeof PROVIDERS)[number])}
                   aria-label="Number provider"
-                  className={cn(fieldStyles.fieldSm, "min-w-0")}
+                  className={cn(fieldStyles.fieldSm, "min-w-0 cursor-pointer")}
                 >
                   {PROVIDERS.map((option) => (
                     <option key={option} value={option}>
@@ -190,7 +199,7 @@ export function OrgNumbers() {
                 />
               </div>
               {error && (
-                <p className="flex items-center gap-2 text-xs text-destructive min-w-0">
+                <p role="alert" className="flex items-center gap-2 text-xs text-destructive min-w-0">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate">{error}</span>
                 </p>
               )}
@@ -198,7 +207,7 @@ export function OrgNumbers() {
                 <button
                   onClick={() => void handleCreate()}
                   disabled={createNumber.isPending}
-                  className="flex-1 min-w-[140px] h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                  className="flex-1 min-w-[140px] h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   {createNumber.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                   Add number
@@ -208,7 +217,7 @@ export function OrgNumbers() {
                     setShowForm(false);
                     setError(null);
                   }}
-                  className="h-10 px-4 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                  className="h-10 px-4 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   Cancel
                 </button>
@@ -218,7 +227,7 @@ export function OrgNumbers() {
         </AnimatePresence>
 
         {error && !showForm && (
-          <p className="flex items-center gap-2 text-xs text-destructive mb-4 min-w-0">
+          <p role="alert" className="flex items-center gap-2 text-xs text-destructive mb-4 min-w-0">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate">{error}</span>
           </p>
         )}
@@ -286,7 +295,9 @@ export function OrgNumbers() {
                           value={item.assigned_agent_id ?? ""}
                           onChange={(event) => void handleAssign(item.number_id, event.target.value)}
                           aria-label={`Assign ${item.number}`}
-                          className="h-9 px-2 w-full max-w-[220px] bg-muted/50 border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                          disabled={!canManageNumbers}
+                          title={canManageNumbers ? undefined : `Requires ${minRoleFor("agents.write")} role`}
+                          className="h-9 px-2 w-full max-w-[220px] bg-muted/50 border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ember-400/50 truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <option value="">Unassigned</option>
                           {(agents ?? []).map((agent) => (
@@ -300,7 +311,9 @@ export function OrgNumbers() {
                         <button
                           onClick={() => void deleteNumber.mutateAsync(item.number_id)}
                           aria-label={`Delete ${item.number}`}
-                          className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none"
+                          disabled={!canManageNumbers}
+                          title={canManageNumbers ? undefined : `Requires ${minRoleFor("agents.write")} role`}
+                          className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 motion-reduce:transition-none disabled:opacity-50"
                         >
                           <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -311,7 +324,7 @@ export function OrgNumbers() {
                         <PlugZap className="w-3 h-3 shrink-0" aria-hidden="true" />
                         <Link
                           href={`/agents/${item.assigned_agent_id}`}
-                          className="truncate hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 rounded"
+                          className="truncate hover:underline underline-offset-2 cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 rounded motion-reduce:transition-none"
                           title={assignedName}
                         >
                           {assignedName}
@@ -319,7 +332,8 @@ export function OrgNumbers() {
                         <button
                           onClick={() => void handleAssign(item.number_id, "")}
                           aria-label={`Unassign ${item.number}`}
-                          className="hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 rounded motion-reduce:transition-none"
+                          disabled={!canManageNumbers}
+                          className="hover:text-foreground cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 rounded motion-reduce:transition-none disabled:opacity-50"
                         >
                           <X className="w-3 h-3" aria-hidden="true" />
                         </button>

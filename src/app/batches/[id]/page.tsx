@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 
 function actionClass(primary = false): string {
   return cn(
-    "h-11 px-5 rounded-2xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
+    "h-11 px-5 rounded-2xl font-medium text-sm transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed flex items-center gap-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
     primary
       ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20"
       : "bg-card border border-border text-foreground hover:bg-accent"
@@ -44,22 +44,22 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   const [selectedExecution, setSelectedExecution] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { data: batch, isLoading, error, refetch } = useBatch(id);
-  const { data: executions, refetch: refetchExecutions } = useBatchExecutions(id, !!batch);
+  // Live poll while running via TanStack refetchInterval — no useEffect
+  // interval. The batch clock inspects its own cached data and stops
+  // automatically when the batch leaves "running"; the executions clock
+  // follows the batch status from the sibling query.
+  const batchClock = (data: unknown) =>
+    (data as { status?: string } | undefined)?.status === "running" ? 3000 : false;
+  const { data: batch, isLoading, error, refetch } = useBatch(id, true, {
+    refetchInterval: batchClock,
+  });
+  const { data: executions, refetch: refetchExecutions } = useBatchExecutions(id, !!batch, {
+    refetchInterval: batch?.status === "running" ? 3000 : false,
+  });
   const { data: agents } = useAgents();
   const startBatch = useStartBatch();
   const stopBatch = useStopBatch();
   const retryFailed = useRetryFailed();
-
-  const running = batch?.status === "running";
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(() => {
-      refetch();
-      refetchExecutions();
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [running, refetch, refetchExecutions]);
 
   const agentName = useMemo(
     () => agents?.find((agent) => agent.agent_id === batch?.agent_id)?.agent_name ?? "Unknown agent",
@@ -140,8 +140,9 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                 onClick={() => void runAction(() => startBatch.mutateAsync(id), "Campaign started")}
                 disabled={busy}
                 className={actionClass(true)}
+                aria-busy={startBatch.isPending}
               >
-                {startBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                {startBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Play className="w-4 h-4" aria-hidden="true" />}
                 Start
               </button>
             )}
@@ -150,8 +151,9 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                 onClick={() => void runAction(() => stopBatch.mutateAsync(id), "Campaign stopped")}
                 disabled={busy}
                 className={actionClass()}
+                aria-busy={stopBatch.isPending}
               >
-                {stopBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
+                {stopBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Square className="w-4 h-4" aria-hidden="true" />}
                 Stop
               </button>
             )}
@@ -160,11 +162,12 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                 onClick={() => void runAction(() => retryFailed.mutateAsync(id), "Retry batch created")}
                 disabled={busy}
                 className={actionClass()}
+                aria-busy={retryFailed.isPending}
               >
                 {retryFailed.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                 ) : (
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="w-4 h-4" aria-hidden="true" />
                 )}
                 Retry {batch.stats.failed} failed
               </button>
@@ -174,9 +177,14 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       />
 
       {actionError && (
-        <p className="mb-6 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {actionError}
-        </p>
+        <div
+          role="alert"
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          className="mb-6 flex items-center gap-2 text-sm text-red-700 dark:text-red-400 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {actionError}
+        </div>
       )}
 
       {/* Progress */}
@@ -224,7 +232,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             <button
               key={execution.execution_id}
               onClick={() => setSelectedExecution(execution.execution_id)}
-              className="grid grid-cols-2 lg:grid-cols-12 gap-2 lg:gap-4 lg:items-center p-4 lg:px-6 bg-card border border-border rounded-3xl text-left transition-colors hover:bg-muted/60 group min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+              className="grid grid-cols-2 lg:grid-cols-12 gap-2 lg:gap-4 lg:items-center p-4 lg:px-6 bg-card border border-border rounded-3xl text-left transition-colors duration-200 cursor-pointer hover:bg-muted/60 group min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
             >
               <div className="col-span-1 lg:col-span-4 font-mono text-sm text-foreground min-w-0 truncate" title={execution.to_number ?? undefined}>
                 {execution.to_number ?? "—"}

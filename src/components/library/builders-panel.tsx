@@ -12,7 +12,7 @@ export function BuildersPanel() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Link
         href="/flows?tab=graphs"
-        className="group p-5 md:p-6 bg-card border border-border rounded-3xl transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+        className="group p-5 md:p-6 bg-card border border-border rounded-3xl transition-colors duration-200 cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
         <div className="w-11 h-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
           <GitFork className="w-5 h-5 text-ember-700 dark:text-ember-300" aria-hidden="true" />
@@ -28,7 +28,7 @@ export function BuildersPanel() {
       </Link>
       <Link
         href="/flows?tab=workflows"
-        className="group p-5 md:p-6 bg-card border border-border rounded-3xl transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+        className="group p-5 md:p-6 bg-card border border-border rounded-3xl transition-colors duration-200 cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
         <div className="w-11 h-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
           <Workflow className="w-5 h-5 text-ember-700 dark:text-ember-300" aria-hidden="true" />

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Toggle } from "@/components/common/toggle";
 import { ReactNode, memo } from "react";
 import { motion, Variants } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 
 interface FormFieldProps {
   name: string;
@@ -104,11 +105,13 @@ export const TextInput = memo(function TextInput({ name, label, description, cla
           type={type}
           id={name}
           placeholder={placeholder}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${name}-error` : undefined}
           className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-inner"
         />
       </motion.div>
       {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p id={`${name}-error`} role="alert" className="text-xs text-destructive">{error}</p>}
     </motion.div>
   );
 });
@@ -136,7 +139,9 @@ export const SelectInput = memo(function SelectInput({ name, label, description,
         <select
           {...register(name, { setValueAs: (value) => (value === "" ? undefined : value) })}
           id={name}
-          className="w-full appearance-none bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-inner"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${name}-error` : undefined}
+          className="w-full appearance-none bg-muted/50 border border-border rounded-xl px-4 py-2.5 pr-10 text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all duration-200 shadow-inner"
         >
           {/* NOT disabled: a disabled placeholder is skipped by default
             selection, so an untouched select would submit the first real
@@ -147,14 +152,12 @@ export const SelectInput = memo(function SelectInput({ name, label, description,
             <option key={opt.value} value={opt.value} className="bg-card text-foreground">{opt.label}</option>
           ))}
         </select>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" aria-hidden="true">
+          <ChevronDown className="w-3 h-3" aria-hidden="true" />
         </div>
       </motion.div>
       {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p id={`${name}-error`} role="alert" className="text-xs text-destructive">{error}</p>}
     </motion.div>
   );
 });
@@ -200,10 +203,12 @@ export const TextareaInput = memo(function TextareaInput({ name, label, descript
         id={name}
         rows={rows}
         placeholder={placeholder}
-        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-inner resize-y"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${name}-error` : undefined}
+        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all duration-200 shadow-inner resize-y"
       />
       {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p id={`${name}-error`} role="alert" className="text-xs text-destructive">{error}</p>}
     </motion.div>
   );
 });

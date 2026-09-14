@@ -94,7 +94,11 @@ export function useDeleteWorkflow() {
       await apiClient<unknown>(`/workflows/${id}`, { method: "DELETE" });
       return id;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: workflowKeys.all }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: workflowKeys.all });
+      queryClient.invalidateQueries({ queryKey: workflowKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: workflowKeys.versions(id) });
+    },
   });
 }
 

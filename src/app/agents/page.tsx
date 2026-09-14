@@ -80,7 +80,7 @@ function AgentRow({
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none motion-reduce:hidden" aria-hidden="true" />
 
       {/* Identity → overview */}
-      <Link href={`/agents/${agent.agent_id}`} className="lg:col-span-4 flex items-center gap-4 min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50">
+      <Link href={`/agents/${agent.agent_id}`} className="lg:col-span-4 flex items-center gap-4 min-w-0 rounded-2xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50">
         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border border-border shadow-inner shrink-0", meta.bg)}>
           <Icon className={cn("w-5 h-5", meta.color)} strokeWidth={1.5} aria-hidden="true" />
         </div>
@@ -132,7 +132,7 @@ function AgentRow({
           href={`/playground?agent=${agent.agent_id}&mode=talk`}
           aria-label={`Talk to ${agent.agent_name}`}
           title="Talk in Playground"
-          className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+          className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
         >
           <Mic className="w-4 h-4" aria-hidden="true" />
         </Link>
@@ -140,7 +140,7 @@ function AgentRow({
           href={`/agents/${agent.agent_id}/configure`}
           aria-label={`Configure ${agent.agent_name}`}
           title="Configure"
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+          className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
         >
           <Settings2 className="w-4 h-4" aria-hidden="true" />
         </Link>
@@ -155,14 +155,14 @@ function AgentRow({
               }}
               disabled={deleteMutation.isPending}
               aria-label="Confirm delete"
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+              className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
             >
               <Check className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setConfirming(false)}
               aria-label="Cancel delete"
-              className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+              className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -172,7 +172,7 @@ function AgentRow({
             onClick={() => setConfirming(true)}
             aria-label={`Delete ${agent.agent_name}`}
             title="Delete"
-            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+            className="w-8 h-8 rounded-full hidden sm:flex items-center justify-center cursor-pointer hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
           >
             <Trash2 className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -266,7 +266,7 @@ export default function AgentsPage() {
                 whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.15 }}
-                className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl transition-all duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 cursor-pointer hover:bg-primary/90 hover:shadow-xl transition-all duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
                 <Plus className="w-4 h-4" aria-hidden="true" />
                 <span>Deploy Agent</span>
@@ -290,7 +290,7 @@ export default function AgentsPage() {
             role="tab"
             aria-selected={tab === option.id}
             className={cn(
-              "flex items-center gap-2 px-5 h-11 rounded-2xl text-sm font-medium border transition-all",
+              "flex items-center gap-2 px-5 h-11 rounded-2xl text-sm font-medium border cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50",
               tab === option.id
                 ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
                 : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent"
@@ -311,7 +311,7 @@ export default function AgentsPage() {
               onClick={() => setTypeFilter(option)}
               aria-pressed={typeFilter === option}
               className={cn(
-                "px-4 h-9 rounded-full text-xs font-mono border transition-colors duration-200 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50",
+                "px-4 h-9 rounded-full text-xs font-mono border cursor-pointer transition-colors duration-200 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50",
                 typeFilter === option
                   ? "border-primary/40 bg-primary/10 text-foreground"
                   : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -323,7 +323,7 @@ export default function AgentsPage() {
           <button
             onClick={cycleSort}
             title="Cycle sort: name → volume → latency"
-            className="ml-auto flex items-center gap-2 px-4 h-9 rounded-full text-xs font-mono border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="ml-auto flex items-center gap-2 px-4 h-9 rounded-full text-xs font-mono border border-border text-muted-foreground cursor-pointer hover:text-foreground hover:bg-muted/50 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" />
             Sort: {sortKey}
@@ -350,16 +350,16 @@ export default function AgentsPage() {
           }
         >
           {!query && typeFilter === "all" && (
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setTab("templates")}
-                className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold hover:bg-accent transition-colors"
+                className="px-6 py-3 rounded-2xl bg-card border border-border text-sm font-semibold cursor-pointer hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
                 Browse Templates
               </button>
               <Link
                 href="/agents/new"
-                className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg transition-all hover:shadow-xl"
+                className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl hover:bg-primary/90 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
               >
                 Deploy Agent
               </Link>

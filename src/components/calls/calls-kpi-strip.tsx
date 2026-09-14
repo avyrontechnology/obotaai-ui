@@ -26,8 +26,8 @@ function Card({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay }}
-      className="rounded-3xl border border-border bg-card p-5 flex flex-col gap-2 min-w-0"
+      transition={{ duration: 0.2, delay }}
+      className="rounded-3xl border border-border bg-card p-5 flex flex-col gap-2 min-w-0 motion-reduce:transition-none"
     >
       <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className="w-3.5 h-3.5" />
@@ -89,10 +89,19 @@ export const CallsKpiStrip = memo(function CallsKpiStrip({
   /** Extra scope qualifier, e.g. batch-filtered views whose totals are global. */
   scopeNote?: string;
 }) {
-  const { data: statsFallback, isLoading: statsLoadingFallback } = useExecutionStats(agentId);
-  const { data: latencyFallback, isLoading: latencyLoadingFallback } = useLatencyStats(agentId);
-  const stats = statsProp !== undefined ? statsProp : statsFallback;
-  const latency = latencyProp !== undefined ? latencyProp : latencyFallback;
+  const statsProvided = statsProp !== undefined;
+  const latencyProvided = latencyProp !== undefined;
+  // Telemetry split: parent owns useExecutionStats + useLatencyStats with the
+  // scoped agent_id. Fallback hooks only fire when props are absent, so cards
+  // never N+1 — one aggregate query per scope, shared via queryKeys.
+  const { data: statsFallback, isLoading: statsLoadingFallback } = useExecutionStats(agentId, {
+    enabled: !statsProvided,
+  });
+  const { data: latencyFallback, isLoading: latencyLoadingFallback } = useLatencyStats(agentId, 30, {
+    enabled: !latencyProvided,
+  });
+  const stats = statsProvided ? statsProp : statsFallback;
+  const latency = latencyProvided ? latencyProp : latencyFallback;
   const statsLoading = statsLoadingProp ?? statsLoadingFallback;
   const latencyLoading = latencyLoadingProp ?? latencyLoadingFallback;
 

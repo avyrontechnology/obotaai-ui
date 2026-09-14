@@ -34,7 +34,10 @@ describe("AgentWizard", () => {
   it("blocks continue when the agent name is missing", async () => {
     renderWizard();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(await screen.findByText("Name must be at least 2 characters")).toBeInTheDocument();
+    // Error summary (role=alert) + inline error both render the message.
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts.length).toBeGreaterThanOrEqual(2);
+    expect(await screen.findAllByText("Name must be at least 2 characters")).toHaveLength(2);
     // Still on step 1.
     expect(screen.getByText("Step 1 of 3")).toBeInTheDocument();
   });
@@ -60,9 +63,10 @@ describe("AgentWizard", () => {
 
     fireEvent.change(screen.getByLabelText("System Prompt"), { target: { value: "tiny" } });
     fireEvent.click(screen.getByRole("button", { name: /Continue to Toolchain/ }));
+    // Summary + inline both render; inline is retained.
     expect(
-      await screen.findByText("System prompt must be at least 10 characters")
-    ).toBeInTheDocument();
+      await screen.findAllByText("System prompt must be at least 10 characters")
+    ).toHaveLength(2);
   });
 
   it("reaches the unchanged toolchain step with provider selects", async () => {

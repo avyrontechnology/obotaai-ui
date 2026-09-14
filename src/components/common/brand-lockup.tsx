@@ -13,6 +13,9 @@ import { cn } from "@/lib/utils";
  *
  * The tile uses object-contain, never cover: the mark asset is wide and
  * cover would decapitate the wave sides inside a square tile.
+ *
+ * Theme tokens only (no hardcoded hex): tile is muted/border, wordmark is
+ * foreground, the "AI" accent is primary (adapts light/dark via CSS vars).
  */
 export function BrandLockup({
   size = "md",
@@ -42,7 +45,7 @@ export function BrandLockup({
     <>
       <span
         className={cn(
-          "flex items-center justify-center shrink-0 overflow-hidden bg-[#FFFBF0] border border-[#F3E3C3] shadow-sm",
+          "flex items-center justify-center shrink-0 overflow-hidden bg-muted border border-border shadow-sm",
           tile
         )}
         aria-hidden="true"
@@ -58,8 +61,8 @@ export function BrandLockup({
       </span>
       {!markOnly && (
         <span className="flex flex-col leading-tight min-w-0">
-          <span className={cn("font-semibold tracking-tight truncate text-[#111827] dark:text-[#F5EFE0]", text, textClassName)}>
-            Otoba<span className="text-[#E73F1E]">AI</span>
+          <span className={cn("font-semibold tracking-tight truncate text-foreground", text, textClassName)}>
+            Otoba<span className="text-primary">AI</span>
           </span>
           {sublabel && (
             <span className={cn("text-[11px] text-muted-foreground font-mono truncate", sublabelClassName)}>{sublabel}</span>

@@ -38,7 +38,15 @@ export function combineLevels(
   return out;
 }
 
-/** Recorder-style bars clipped to the orb circle. Empty levels = flatline. */
+/** True when the OS asks to minimize non-essential motion. Hook form keeps the
+ *  equalizer static for those users (flatline) instead of dancing bars. */
+export function usePrefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** Recorder-style bars clipped to the orb circle. Empty levels = flatline.
+ *  Reduced-motion users always see the static flatline (no dancing bars). */
 export function VoiceWaveform({
   levels,
   live,
@@ -49,7 +57,12 @@ export function VoiceWaveform({
   /** Fewer bars for smaller orbs so they fit the circle. */
   count?: number;
 }) {
-  const full = levels.length === WAVEFORM_BARS ? levels : new Array<number>(WAVEFORM_BARS).fill(FLOOR);
+  const reduceMotion = usePrefersReducedMotion();
+  const full = reduceMotion
+    ? new Array<number>(WAVEFORM_BARS).fill(FLOOR)
+    : levels.length === WAVEFORM_BARS
+      ? levels
+      : new Array<number>(WAVEFORM_BARS).fill(FLOOR);
   const bars = full.slice(0, Math.max(1, count));
   return (
     <span
@@ -61,7 +74,7 @@ export function VoiceWaveform({
           key={index}
           style={{ height: `${Math.round(5 + level * 68)}px` }}
           className={cn(
-            "w-1 shrink-0 rounded-full transition-[height] duration-150 ease-out",
+            "w-1 shrink-0 rounded-full transition-[height] duration-150 ease-out motion-reduce:transition-none motion-reduce:transform-none",
             live ? "bg-white/90" : "bg-ember-500/30"
           )}
         />

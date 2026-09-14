@@ -81,7 +81,7 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
                     {crumb.label}
                   </span>
                 ) : (
-                  <Link href={crumb.href} className="text-muted-foreground hover:text-foreground transition-colors truncate">
+                  <Link href={crumb.href} className="text-muted-foreground hover:text-foreground transition-colors duration-200 truncate rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 motion-reduce:transition-none">
                     {crumb.label}
                   </Link>
                 )}
@@ -94,24 +94,24 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
       <div className="ml-auto flex items-center gap-2 shrink-0">
         <button
           onClick={onOpenPalette}
-          className="hidden md:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-sm transition-colors w-44 shrink-0 justify-between"
+          className="hidden md:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-sm transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none w-44 shrink-0 justify-between"
           aria-label="Open command palette"
         >
           <span className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
+            <Search className="w-4 h-4" aria-hidden="true" />
             <span>Search…</span>
           </span>
           <kbd className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-muted font-mono text-[10px]">
-            <Command className="w-3 h-3" />K
+            <Command className="w-3 h-3" aria-hidden="true" />K
           </kbd>
         </button>
 
         <button
           onClick={() => router.push("/billing")}
           title="Credits — open billing"
-          className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-sm hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-sm hover:bg-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
         >
-          <Wallet className="w-4 h-4 text-cyan-700 dark:text-cyan-400" />
+          <Wallet className="w-4 h-4 text-cyan-700 dark:text-cyan-400" aria-hidden="true" />
           <span className="font-semibold tabular-nums">{(wallet?.balance_credits ?? 0).toLocaleString()}</span>
         </button>
 
@@ -123,9 +123,9 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
             aria-label="Account menu"
             aria-expanded={menuOpen}
             aria-haspopup="menu"
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
           >
-            <CircleUserRound className="w-5 h-5" />
+            <CircleUserRound className="w-5 h-5" aria-hidden="true" />
           </button>
           {menuOpen && (
             <div
@@ -150,9 +150,9 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
                   href={item.href}
                   role="menuitem"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm hover:bg-muted transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm hover:bg-muted transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 motion-reduce:transition-none"
                 >
-                  <item.icon className="w-4 h-4 text-muted-foreground" />
+                  <item.icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                   {item.label}
                 </Link>
               ))}
@@ -166,10 +166,10 @@ export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
                 disabled={logout.isPending}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm",
-                  "text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  "text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 motion-reduce:transition-none disabled:opacity-50"
                 )}
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4" aria-hidden="true" />
                 Sign out
               </button>
             </div>

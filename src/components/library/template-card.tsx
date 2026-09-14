@@ -19,9 +19,10 @@ export const TemplateCard = memo(function TemplateCard({ template, importing, on
       layout="position"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative flex flex-col p-6 bg-card border border-border rounded-[2rem] overflow-hidden transition-colors hover:bg-muted/40"
+      transition={{ duration: 0.2 }}
+      className="group relative flex flex-col p-6 bg-card border border-border rounded-[2rem] overflow-hidden transition-colors duration-200 hover:bg-muted/40 motion-reduce:transition-none"
     >
-      <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 blur-[60px] rounded-full pointer-events-none motion-reduce:hidden" aria-hidden="true" />
 
       <div className="relative z-10 flex flex-wrap items-center gap-2 mb-3 min-w-0">
         <span className="px-2.5 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 truncate max-w-full" title={template.industry}>
@@ -46,9 +47,9 @@ export const TemplateCard = memo(function TemplateCard({ template, importing, on
         onClick={() => onImport(template)}
         disabled={importing || !canImport}
         title={canImport ? undefined : `Requires ${minRoleFor("library.import")} role`}
-        className="relative z-10 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+        className="relative z-10 h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
       >
-        {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+        {importing ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Download className="w-4 h-4" aria-hidden="true" />}
         {importing ? "Importing…" : "Import Agent"}
       </button>
     </motion.div>

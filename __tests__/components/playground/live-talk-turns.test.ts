@@ -1,4 +1,4 @@
-import { upsertTurn } from "@/components/playground/live-talk";
+import { micErrorMessage, upsertTurn } from "@/components/playground/live-talk";
 
 function turn(id: number, role: "agent" | "user" | "system", text: string, asrTurnId?: number | string | null) {
   return { id, role, text, ts: "00:00:00", asrTurnId };
@@ -34,5 +34,20 @@ describe("upsertTurn", () => {
     const turns = [turn(1, "user", "हां जी", 1), turn(2, "agent", "namaste", undefined)];
     const next = upsertTurn(turns, { id: 3, role: "user", text: "हां जी मेरा", ts: "00:00:02", asrTurnId: 1 });
     expect(next.length).toBe(3);
+  });
+});
+
+describe("micErrorMessage", () => {
+  it("explains blocked permissions with a fix", () => {
+    expect(micErrorMessage("NotAllowedError")).toMatch(/Allow mic access/);
+    expect(micErrorMessage("SecurityError")).toMatch(/Allow mic access/);
+  });
+
+  it("covers missing, busy, and interrupted mics", () => {
+    expect(micErrorMessage("NotFoundError")).toMatch(/No microphone/);
+    expect(micErrorMessage("OverconstrainedError")).toMatch(/No microphone/);
+    expect(micErrorMessage("NotReadableError")).toMatch(/in use/);
+    expect(micErrorMessage("AbortError")).toMatch(/interrupted/);
+    expect(micErrorMessage(undefined)).toMatch(/Couldn't access/);
   });
 });

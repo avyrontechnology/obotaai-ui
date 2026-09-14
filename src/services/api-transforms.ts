@@ -145,11 +145,14 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
 
   // Opt-in telephony providers (input/output handlers). Omitted entirely
   // when unconfigured so default engine routing is untouched.
+  // "simulated" is a batch/phone-number concept, not a valid IOModel
+  // provider (backend TelephonyProvider) — old templates seed it, so drop
+  // it here rather than forwarding a value the backend rejects.
   const telephony = data.agent_config?.telephony;
-  if (telephony?.input_provider) {
+  if (telephony?.input_provider && telephony.input_provider !== "simulated") {
     toolsConfig.input = { provider: telephony.input_provider, format: telephony.input_format || "wav" };
   }
-  if (telephony?.output_provider) {
+  if (telephony?.output_provider && telephony.output_provider !== "simulated") {
     toolsConfig.output = { provider: telephony.output_provider, format: telephony.output_format || "wav" };
   }
 
@@ -436,15 +439,20 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
       // Extract telephony handlers (input/output). The backend's "default"
       // provider means "no explicit routing", so normalize it back to
       // unset — otherwise the selects can never return to default.
+      // "simulated" is not a valid IOModel provider (old templates seed
+      // it) — normalize it to unset as well so a re-save never forwards
+      // a value the backend rejects.
       const input = tc.input as Record<string, unknown> | undefined;
       const output = tc.output as Record<string, unknown> | undefined;
       if (input?.provider || output?.provider) {
-        const nonDefault = (value: unknown) =>
-          typeof value === "string" && value !== "default" ? value : undefined;
+        const nonRouting = (value: unknown) =>
+          typeof value === "string" && value !== "default" && value !== "simulated"
+            ? value
+            : undefined;
         agentConfig.telephony = {
-          input_provider: nonDefault(input?.provider),
+          input_provider: nonRouting(input?.provider),
           input_format: (input?.format as string | undefined) ?? undefined,
-          output_provider: nonDefault(output?.provider),
+          output_provider: nonRouting(output?.provider),
           output_format: (output?.format as string | undefined) ?? undefined,
         };
       }
@@ -480,11 +488,14 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
 
       // Extract LLM config from llm_agent (SimpleLlmAgent). Extras without
       // UI controls ride along so the full-overwrite PUT cannot wipe them.
+      // Templates seed the LlmAgent shape ({ llm_config: { provider, model } }),
+      // so fall back to the nested config when the flat fields are absent.
       if (tc.llm_agent) {
         const llm = tc.llm_agent as Record<string, unknown>;
+        const nestedLlm = (llm.llm_config as Record<string, unknown> | undefined) || {};
         agentConfig.llm = {
-          provider: (llm.provider as string) || "openai",
-          model: (llm.model as string) || "gpt-4o",
+          provider: (llm.provider as string) || (nestedLlm.provider as string) || "openai",
+          model: (llm.model as string) || (nestedLlm.model as string) || "gpt-4o",
           max_tokens: llm.max_tokens as number | undefined,
           temperature: llm.temperature as number | undefined,
           top_k: llm.top_k as number | undefined,

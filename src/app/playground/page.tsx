@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { LiveTalk } from "@/components/playground/live-talk";
 import { ChatTalk } from "@/components/playground/chat-talk";
+import { RouteLoader } from "@/components/common/route-loader";
 import { useCan } from "@/lib/rbac";
 import { useSearchParams } from "next/navigation";
 import { useAgents } from "@/services/api";
@@ -33,7 +34,7 @@ function greetingFor(hour: number): string {
 
 export default function PlaygroundPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<RouteLoader label="Loading playground..." />}>
       <PlaygroundContent />
     </Suspense>
   );
@@ -118,9 +119,9 @@ function PlaygroundContent() {
         </div>
         <Link
           href="/calls"
-          className="h-11 px-4 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground font-medium text-sm transition-all hover:bg-accent inline-flex items-center gap-2"
+          className="h-11 px-4 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground font-medium text-sm transition-all duration-200 motion-reduce:transition-none hover:bg-accent inline-flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <AudioLines className="w-4 h-4" />
+          <AudioLines className="w-4 h-4" aria-hidden="true" />
           <span>Call History</span>
         </Link>
       </div>
@@ -141,16 +142,16 @@ function PlaygroundContent() {
                   onClick={() => resume(recent)}
                   aria-pressed={isActive}
                   className={cn(
-                    "flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full border text-sm transition-all",
+                    "flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full border text-sm transition-all duration-200 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background min-w-0",
                     isActive
                       ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                      : "bg-card text-foreground border-border hover:border-primary/40"
+                      : "bg-card text-foreground border-border hover:border-primary/40 hover:bg-accent"
                   )}
                 >
                   <span
                     className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0",
-                      isActive ? "bg-primary-foreground/20" : "bg-gradient-to-br from-ember-600 to-ember-400 text-white"
+                      isActive ? "bg-primary-foreground/20" : "bg-ember-700 text-white"
                     )}
                     aria-hidden="true"
                   >
@@ -177,15 +178,15 @@ function PlaygroundContent() {
         </div>
       ) : (
         <>
-          {/* Two-step session setup */}
-          <div className="grid lg:grid-cols-2 gap-4 mb-8 lg:mb-5 shrink-0">
-            <div className="rounded-[1.5rem] border border-border bg-card p-5 lg:p-4">
+          {/* Two-step session setup — stacks at 375px, side-by-side from sm up */}
+          <div className="grid sm:grid-cols-2 gap-4 mb-8 lg:mb-5 shrink-0">
+            <div className="rounded-[1.5rem] border border-border bg-card p-5 lg:p-4 min-w-0">
               <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
-                <span className="text-ember-600 dark:text-ember-400 font-semibold">1 ·</span> Pick an agent
+                <span className="text-ember-700 dark:text-ember-300 font-semibold">1 ·</span> Pick an agent
               </p>
               <div className="relative flex items-center gap-3">
                 <span
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-ember-600 to-ember-400 text-white flex items-center justify-center text-lg font-semibold shrink-0"
+                  className="w-11 h-11 rounded-2xl bg-ember-700 text-white flex items-center justify-center text-lg font-semibold shrink-0"
                   aria-hidden="true"
                 >
                   {(effectiveAgent?.agent_name ?? "?").charAt(0).toUpperCase()}
@@ -195,7 +196,7 @@ function PlaygroundContent() {
                   onChange={(event) => selectAgent(event.target.value)}
                   disabled={agentsLoading}
                   aria-label="Agent to test with"
-                  className="flex-1 min-w-0 h-12 appearance-none bg-transparent text-base font-medium text-foreground focus:outline-none disabled:opacity-50 cursor-pointer pr-8"
+                  className="flex-1 min-w-0 h-12 appearance-none bg-transparent text-base font-medium text-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer pr-8 transition-all duration-200 motion-reduce:transition-none"
                 >
                   {(agents ?? []).map((agent) => (
                     <option key={agent.agent_id} value={agent.agent_id}>
@@ -203,15 +204,16 @@ function PlaygroundContent() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-1 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-1 pointer-events-none" aria-hidden="true" />
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-border bg-card p-5 lg:p-4">
+            <div className="rounded-[1.5rem] border border-border bg-card p-5 lg:p-4 min-w-0">
               <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3 lg:mb-2">
-                <span className="text-ember-600 dark:text-ember-400 font-semibold">2 ·</span> Choose a mode
+                <span className="text-ember-700 dark:text-ember-300 font-semibold">2 ·</span> Choose a mode
               </p>
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Playground mode">
+              {/* Single column at 375px so Talk/Chat labels never squeeze; two-up from 480px */}
+              <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-2" role="radiogroup" aria-label="Playground mode">
                 {(
                   [
                     { id: "talk", label: "Talk", hint: "Real mic conversation", icon: Mic, enabled: talkSupported },
@@ -226,14 +228,14 @@ function PlaygroundContent() {
                     disabled={!option.enabled}
                     title={option.enabled ? option.hint : "Text agents have no audio pipeline"}
                     className={cn(
-                      "flex items-center gap-3 px-4 min-h-14 h-auto py-2.5 rounded-2xl text-sm font-medium border transition-all text-left",
+                      "flex items-center gap-3 px-4 min-h-14 h-auto py-2.5 rounded-2xl text-sm font-medium border transition-all duration-200 motion-reduce:transition-none text-left min-w-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
                       activeMode === option.id
                         ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
                         : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-accent",
-                      !option.enabled && "opacity-40 cursor-not-allowed"
+                      !option.enabled && "opacity-40 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground"
                     )}
                   >
-                    <option.icon className="w-4 h-4 shrink-0" />
+                    <option.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>
                       <span className="block">{option.label}</span>
                       <span className={cn("block text-[11px] font-normal", activeMode === option.id ? "opacity-80" : "text-muted-foreground")}>

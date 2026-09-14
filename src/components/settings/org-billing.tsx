@@ -21,6 +21,7 @@ import {
   useUpdateOrganization,
 } from "@/services/platform/organization";
 import type { NotificationPrefs } from "@/lib/schemas/platform";
+import { minRoleFor, useCan } from "@/lib/rbac";
 import { Toggle } from "@/components/common/toggle";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
@@ -101,6 +102,8 @@ export function OrgBilling() {
     filter === "all" ? undefined : filter
   );
   const topUp = useTopUpWallet();
+  // Wallet endpoints require admin (backend require_role("admin")). UI-only gate.
+  const canManageBilling = useCan("billing.manage");
 
   const { data: org, isLoading: orgLoading } = useOrganization();
   const updateOrg = useUpdateOrganization();
@@ -230,15 +233,20 @@ export function OrgBilling() {
 
         <div className="space-y-3 mt-6 min-w-0">
           <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Top up</p>
+          {!canManageBilling && (
+            <p className="text-xs text-muted-foreground rounded-2xl border border-dashed border-border px-4 py-3">
+              Read-only for your role — top-ups need an {minRoleFor("billing.manage")} role.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 min-w-0">
             {PRESETS.map((amount) => (
               <button
                 key={amount}
                 onClick={() => void handleTopUp(amount).catch(() => undefined)}
-                disabled={topUp.isPending}
-                title={`Top up ${amount} credits`}
+                disabled={topUp.isPending || !canManageBilling}
+                title={canManageBilling ? `Top up ${amount} credits` : `Requires ${minRoleFor("billing.manage")} role`}
                 aria-label={`Top up ${amount} credits`}
-                className="h-11 px-5 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="h-11 px-5 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 flex items-center gap-2 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 {topUp.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                 +{amount}
@@ -258,13 +266,14 @@ export function OrgBilling() {
               placeholder="Custom amount"
               inputMode="decimal"
               aria-label="Custom top-up amount"
-              className={cn(fieldStyles.field, "sm:max-w-[180px] font-mono tabular-nums min-w-0")}
+              disabled={!canManageBilling}
+              className={cn(fieldStyles.field, "sm:max-w-[180px] font-mono tabular-nums min-w-0 disabled:opacity-60")}
             />
             <button
               onClick={() => void handleTopUp(Number(customAmount)).catch(() => undefined)}
-              disabled={topUp.isPending}
-              title="Add custom amount"
-              className="h-11 px-6 rounded-2xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none w-full sm:w-auto shrink-0"
+              disabled={topUp.isPending || !canManageBilling}
+              title={canManageBilling ? "Add custom amount" : `Requires ${minRoleFor("billing.manage")} role`}
+              className="h-11 px-6 rounded-2xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none w-full sm:w-auto shrink-0"
             >
               Add
             </button>
@@ -288,7 +297,7 @@ export function OrgBilling() {
       >
         <SectionHeader
           title="Low-balance Alert"
-          description="Warn when credits run low. Saved to the organization."
+          description={canManageBilling ? "Warn when credits run low. Saved to the organization." : `Read-only — requires ${minRoleFor("billing.manage")} role.`}
           className="mb-6"
         />
         {orgLoading || !prefs ? (
@@ -312,7 +321,7 @@ export function OrgBilling() {
               </div>
               <Toggle
                 checked={prefs.low_balance_enabled}
-                onChange={(value) => patchThreshold({ low_balance_enabled: value })}
+                onChange={(value) => { if (canManageBilling) patchThreshold({ low_balance_enabled: value }); }}
                 label="Low balance alert"
               />
             </div>
@@ -327,7 +336,8 @@ export function OrgBilling() {
                   }}
                   inputMode="decimal"
                   aria-label="Low balance threshold"
-                  className={cn(fieldStyles.fieldMuted, "max-w-[140px] font-mono tabular-nums")}
+                  disabled={!canManageBilling}
+                  className={cn(fieldStyles.fieldMuted, "max-w-[140px] font-mono tabular-nums disabled:opacity-60")}
                 />
                 <span className="text-sm text-muted-foreground">credits</span>
               </div>
@@ -335,8 +345,9 @@ export function OrgBilling() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={() => void handleSaveThreshold().catch(() => undefined)}
-                disabled={!thresholdDirty || updateOrg.isPending}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                disabled={!thresholdDirty || updateOrg.isPending || !canManageBilling}
+                title={canManageBilling ? undefined : `Requires ${minRoleFor("billing.manage")} role`}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 {updateOrg.isPending && (
                   <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -350,6 +361,7 @@ export function OrgBilling() {
               )}
               {thresholdError && (
                 <span
+                  role="alert"
                   className="flex items-center gap-1.5 text-sm text-destructive min-w-0"
                   title={thresholdError}
                 >
@@ -379,7 +391,7 @@ export function OrgBilling() {
                 aria-pressed={filter === option}
                 title={option === "topup" ? "Show top-ups" : option === "debit" ? "Show spend" : "Show all entries"}
                 className={cn(
-                  "px-3 h-8 rounded-full text-xs font-mono border transition-colors capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
+                  "px-3 h-8 rounded-full text-xs font-mono border cursor-pointer transition-colors duration-200 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
                   filter === option
                     ? "border-primary/40 bg-primary/10 text-foreground"
                     : "border-border text-muted-foreground hover:text-foreground"
@@ -407,7 +419,7 @@ export function OrgBilling() {
               </p>
               <button
                 onClick={() => setFilter("all")}
-                className="px-4 h-9 rounded-xl text-xs font-mono border border-border text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                className="px-4 h-9 rounded-xl text-xs font-mono border border-border text-muted-foreground hover:text-foreground cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 Clear filter
               </button>

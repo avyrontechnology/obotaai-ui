@@ -103,7 +103,7 @@ function SettingsContent() {
                 aria-selected={isActive}
                 aria-controls={`tab-panel-${tab.id}`}
                 className={cn(
-                  "relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors duration-200 shrink-0 whitespace-nowrap lg:whitespace-normal lg:w-full min-w-0",
+                  "relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-left cursor-pointer transition-colors duration-200 shrink-0 whitespace-nowrap lg:whitespace-normal lg:w-full min-w-0 motion-reduce:transition-none",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50",
                   isActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
                 )}

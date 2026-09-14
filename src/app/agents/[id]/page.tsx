@@ -80,17 +80,17 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 max-w-7xl mx-auto w-full pt-12 px-4">
         <AlertCircle className="w-10 h-10 text-red-400" aria-hidden="true" />
-        <p className="font-mono text-sm text-muted-foreground">Agent not found or backend unreachable.</p>
-        <div className="flex gap-3">
+        <p className="font-mono text-sm text-muted-foreground text-center">Agent not found or backend unreachable.</p>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
           <button
             onClick={() => refetch()}
-            className="px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold hover:bg-accent transition-colors"
+            className="px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold cursor-pointer hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             Retry
           </button>
           <Link
             href="/agents"
-            className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold cursor-pointer hover:bg-primary/90 transition-colors duration-200 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             Back to OboFleet
           </Link>
@@ -155,7 +155,7 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
     <div className="flex flex-col flex-1 min-h-[100dvh] max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 md:px-8">
       <Link
         href="/agents"
-        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground cursor-pointer hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
       >
         <ArrowLeft className="w-4 h-4" aria-hidden="true" /> OboFleet
       </Link>
@@ -184,31 +184,31 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/playground?agent=${agent.agent_id}&mode=talk`}
-            className="h-11 px-5 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="h-11 px-5 rounded-2xl bg-primary text-primary-foreground font-medium text-sm shadow-lg shadow-primary/20 cursor-pointer hover:bg-primary/90 transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <Mic className="w-4 h-4" aria-hidden="true" /> Talk
           </Link>
           <Link
             href={`/playground?agent=${agent.agent_id}&mode=chat`}
-            className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm hover:bg-accent transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm cursor-pointer hover:bg-accent transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <MessageSquareText className="w-4 h-4" aria-hidden="true" /> Chat
           </Link>
           <Link
             href={`/agents/${agent.agent_id}/configure`}
-            className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm hover:bg-accent transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="h-11 px-5 rounded-2xl bg-card border border-border text-foreground font-medium text-sm cursor-pointer hover:bg-accent transition-colors duration-200 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <Settings2 className="w-4 h-4" aria-hidden="true" /> Configure
           </Link>
           <Link
             href={`/calls?agent=${agent.agent_id}`}
-            className="h-11 px-5 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground font-medium text-sm hover:bg-accent transition-colors duration-200 hidden sm:flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="h-11 px-5 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground font-medium text-sm cursor-pointer hover:bg-accent transition-colors duration-200 hidden sm:flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             Calls <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
           <Link
             href={`/batches?agent=${agent.agent_id}&new=1`}
-            className="h-11 px-5 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground font-medium text-sm hover:bg-accent transition-colors duration-200 hidden sm:flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="h-11 px-5 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground font-medium text-sm cursor-pointer hover:bg-accent transition-colors duration-200 hidden sm:flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             Campaign <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -329,7 +329,7 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
           ) : !confirmingDelete ? (
             <button
               onClick={() => setConfirmingDelete(true)}
-              className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 text-sm font-semibold hover:bg-red-500/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+              className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 text-sm font-semibold cursor-pointer hover:bg-red-500/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" /> Delete agent
             </button>
@@ -338,14 +338,14 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
               <button
                 onClick={handleDelete}
                 disabled={deleteMutation.isPending}
-                className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-red-600 text-white text-sm font-semibold cursor-pointer hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
               >
-                {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Check className="w-4 h-4" aria-hidden="true" />}
+                {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Check className="w-4 h-4" aria-hidden="true" />}
                 Confirm delete
               </button>
               <button
                 onClick={() => setConfirmingDelete(false)}
-                className="h-11 w-11 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                className="h-11 w-11 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground cursor-pointer hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
                 aria-label="Cancel delete"
               >
                 <X className="w-4 h-4" aria-hidden="true" />

@@ -72,7 +72,7 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
             className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3"
           >
             <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              <AudioLines className="w-4 h-4 text-ember-700 dark:text-ember-300" />
+              <AudioLines className="w-4 h-4 text-ember-700 dark:text-ember-300" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{voice.name}</p>
@@ -93,9 +93,9 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
             <button
               onClick={() => void deleteVoice.mutateAsync(voice.voice_id)}
               aria-label={`Delete ${voice.name}`}
-              className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="p-2 rounded-xl text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         ))
@@ -106,7 +106,7 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
           onClick={() => setShowForm(true)}
           className="w-full h-11 rounded-2xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-2"
         >
-          <Plus className="w-4 h-4" /> Add voice
+          <Plus className="w-4 h-4" aria-hidden="true" /> Add voice
         </button>
       ) : (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
@@ -134,7 +134,7 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
               disabled={createVoice.isPending}
               className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              {createVoice.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {createVoice.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
               Save voice
             </button>
             <button

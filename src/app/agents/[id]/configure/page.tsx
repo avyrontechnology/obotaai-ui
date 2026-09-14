@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { firstErrorMessage } from "@/components/settings/form-controls";
+import { FormErrorSummary } from "@/components/settings/error-summary";
 import { ErrorState } from "@/components/common/error-state";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
@@ -112,8 +113,8 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground gap-4 max-w-7xl mx-auto w-full pt-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="font-mono text-sm animate-pulse">Loading agent configuration…</p>
+        <Loader2 className="w-8 h-8 animate-spin motion-reduce:animate-none text-primary" aria-hidden="true" />
+        <p className="font-mono text-sm animate-pulse motion-reduce:animate-none">Loading agent configuration…</p>
       </div>
     );
   }
@@ -124,7 +125,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
         <ErrorState message="Failed to retrieve agent configuration" onRetry={() => refetch()}>
           <Link
             href="/agents"
-            className="px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 inline-flex items-center justify-center"
+            className="px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold cursor-pointer hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 inline-flex items-center justify-center"
           >
             Back to OboFleet
           </Link>
@@ -171,7 +172,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
     <div className="flex flex-col flex-1 min-h-full max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 sm:px-6">
       <Link
         href={`/agents/${id}`}
-        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+        className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground cursor-pointer hover:text-foreground transition-colors duration-200 mb-6 w-fit rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
       >
         <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {agent.agent_name} overview
       </Link>
@@ -189,7 +190,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/playground?agent=${id}`}
-            className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-card border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-card border border-border text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <PhoneCall className="w-4 h-4" aria-hidden="true" /> Test
           </Link>
@@ -201,9 +202,9 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
             )}
             disabled={updateMutation.isPending || !canWrite}
             title={canWrite ? undefined : `Requires ${minRoleFor("agents.write")} role`}
-            className="flex items-center gap-2 px-6 h-11 rounded-2xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+            className="flex items-center gap-2 px-6 h-11 rounded-2xl bg-primary text-primary-foreground font-semibold cursor-pointer hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
-            {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}
+            {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}
             Save Configuration
           </button>
         </div>
@@ -218,18 +219,18 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
                 {group.label}
               </p>
               <div className="flex flex-row lg:flex-col gap-1">
-                {group.sections.map((section) => {
-                  const isActive = effectiveSection === section.id;
-                  const Icon = section.icon;
-                  return (
-                    <button
-                      key={section.id}
-                      onClick={() => setActiveSection(section.id)}
-                      role="tab"
-                      aria-selected={isActive}
-                      aria-controls={`tab-panel-${section.id}`}
-                      className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors duration-200 group shrink-0 whitespace-nowrap w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
-                    >
+                  {group.sections.map((section) => {
+                    const isActive = effectiveSection === section.id;
+                    const Icon = section.icon;
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        role="tab"
+                        aria-selected={isActive}
+                        aria-controls={`tab-panel-${section.id}`}
+                        className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-left cursor-pointer transition-colors duration-200 group shrink-0 whitespace-nowrap w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                      >
                       {isActive && (
                         <motion.div
                           layoutId="active-nav-indicator"
@@ -262,6 +263,9 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
 
           <div className="relative z-10">
             <FormProvider {...methods}>
+              {/* Accessible error summary: role=alert + auto-focus + links.
+                  Inline field errors stay rendered; this is additive. */}
+              <FormErrorSummary />
               <AnimatePresence mode="wait">
                 <motion.div
                   key={effectiveSection}

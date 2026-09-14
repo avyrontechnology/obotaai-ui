@@ -60,7 +60,7 @@ export function RecentCalls({ executions }: { executions: Execution[] }) {
           />
           <Link
             href="/calls"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
           >
             View full logs <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -110,7 +110,7 @@ export function RecentCalls({ executions }: { executions: Execution[] }) {
               <span className="col-span-2 lg:col-span-1 lg:text-right min-w-0">
                 <button
                   onClick={() => setInspectedId(execution.execution_id)}
-                  className="text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
+                  className="text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4 rounded cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                 >
                   Inspect
                 </button>
