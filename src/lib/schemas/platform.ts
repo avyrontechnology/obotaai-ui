@@ -78,6 +78,17 @@ export const simulateCallSchema = z.object({
   delay_scale: z.number().min(0).default(0.5),
 });
 
+export const placeCallSchema = z.object({
+  agent_id: z.string().min(1),
+  to_number: z.string().min(1),
+  from_number: z.string().optional(),
+  variables: z.record(z.string(), z.unknown()).default({}),
+  provider: z.enum(["simulated", "talko"]).default("simulated"),
+  talko_api_key: z.string().optional(),
+  partner_id: z.string().optional(),
+  delay_scale: z.number().min(0).default(0.5),
+});
+
 export const batchEntrySchema = z.object({
   to_number: z.string().min(1),
   variables: z.record(z.string(), z.unknown()).default({}),
@@ -118,6 +129,54 @@ export const createBatchSchema = z.object({
   provider: z.enum(["simulated", "talko"]).default("simulated"),
   from_number: z.string().optional(),
   talko_api_key: z.string().optional(),
+  partner_id: z.string().optional(),
+});
+
+export const talkoPartnerViewSchema = z.object({
+  partner_id: z.string(),
+  display_name: z.string(),
+  talko_api_base_url: z.string().nullable().optional(),
+  default_did: z.string().nullable().optional(),
+  dids: z.array(z.string()).default([]),
+  vendor_config_id: z.string().nullable().optional(),
+  key_configured: z.boolean(),
+  key_hint: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const talkoPartnerListSchema = z.object({ partners: z.array(talkoPartnerViewSchema) });
+
+export const talkoPartnerPreviewSchema = z.object({
+  partner_id: z.string().nullable(),
+  dids: z.array(z.string()).default([]),
+  display_name: z.string().default(""),
+});
+
+export const connectTalkoPartnerSchema = z.object({
+  talko_api_key: z.string().min(1),
+  display_name: z.string().default(""),
+  partner_id: z.string().optional(),
+  talko_api_base_url: z.string().optional(),
+});
+
+export const createTalkoPartnerSchema = z.object({
+  partner_id: z.string().min(1),
+  display_name: z.string().default(""),
+  talko_api_base_url: z.string().optional(),
+  talko_api_key: z.string().min(1),
+  default_did: z.string().optional(),
+  dids: z.array(z.string()).default([]),
+  vendor_config_id: z.string().optional(),
+});
+
+export const updateTalkoPartnerSchema = z.object({
+  display_name: z.string().optional(),
+  talko_api_base_url: z.string().optional(),
+  talko_api_key: z.string().optional(),
+  default_did: z.string().optional(),
+  dids: z.array(z.string()).optional(),
+  vendor_config_id: z.string().optional(),
 });
 
 export const phoneNumberSchema = z.object({
@@ -420,6 +479,12 @@ export type ExecutionStats = z.infer<typeof executionStatsSchema>;
 export type TranscriptTurn = z.infer<typeof transcriptTurnSchema>;
 export type LatencyBreakdown = z.infer<typeof latencyBreakdownSchema>;
 export type SimulateCallInput = z.input<typeof simulateCallSchema>;
+export type PlaceCallInput = z.input<typeof placeCallSchema>;
+export type TalkoPartner = z.infer<typeof talkoPartnerViewSchema>;
+export type TalkoPartnerPreview = z.infer<typeof talkoPartnerPreviewSchema>;
+export type ConnectTalkoPartnerInput = z.input<typeof connectTalkoPartnerSchema>;
+export type CreateTalkoPartnerInput = z.input<typeof createTalkoPartnerSchema>;
+export type UpdateTalkoPartnerInput = z.input<typeof updateTalkoPartnerSchema>;
 export type Batch = z.infer<typeof batchSchema>;
 export type BatchEntry = z.infer<typeof batchEntrySchema>;
 export type CreateBatchInput = z.input<typeof createBatchSchema>;

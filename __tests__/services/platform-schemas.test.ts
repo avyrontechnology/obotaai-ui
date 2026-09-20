@@ -2,15 +2,20 @@ import {
   addMemberSchema,
   apiKeySchema,
   batchSchema,
+  connectTalkoPartnerSchema,
   createApiKeyResponseSchema,
   createBatchSchema,
+  createTalkoPartnerSchema,
   executionSchema,
   inboundConfigSchema,
   integrationSchema,
   knowledgeBaseSchema,
   organizationSchema,
   phoneNumberSchema,
+  placeCallSchema,
   subAccountSchema,
+  talkoPartnerPreviewSchema,
+  talkoPartnerViewSchema,
   templateSummarySchema,
   toolSchema,
   topUpSchema,
@@ -75,6 +80,65 @@ describe("platform-schemas", () => {
     expect(() =>
       createBatchSchema.parse({ agent_id: "agent-1", name: "empty", entries: [] })
     ).toThrow();
+  });
+
+  it("parses a place-call payload with provider default", () => {
+    expect(
+      placeCallSchema.parse({ agent_id: "agent-1", to_number: "+919800000001" }).provider
+    ).toBe("simulated");
+  });
+
+  it("rejects a place-call payload without a number", () => {
+    expect(() => placeCallSchema.parse({ agent_id: "agent-1", to_number: "" })).toThrow();
+  });
+
+  it("parses talko partner payloads and masks the key", () => {
+    const view = talkoPartnerViewSchema.parse({
+      partner_id: "2",
+      display_name: "Acme",
+      talko_api_base_url: null,
+      default_did: "917965263087",
+      vendor_config_id: null,
+      key_configured: true,
+      key_hint: "1234",
+      created_at: "2026-09-18T00:00:00+00:00",
+      updated_at: "2026-09-18T00:00:00+00:00",
+    });
+    expect(view.partner_id).toBe("2");
+    expect("talko_api_key" in view).toBe(false);
+    expect(() =>
+      createTalkoPartnerSchema.parse({ partner_id: "2", talko_api_key: "" })
+    ).toThrow();
+    expect(
+      placeCallSchema.parse({ agent_id: "a", to_number: "+91", provider: "talko", partner_id: "2" }).partner_id
+    ).toBe("2");
+  });
+
+  it("parses connect preview payloads with DID lists", () => {
+    const preview = talkoPartnerPreviewSchema.parse({
+      partner_id: "2",
+      dids: ["917965263087", "917965807203"],
+      display_name: "",
+    });
+    expect(preview.dids).toHaveLength(2);
+    expect(() => connectTalkoPartnerSchema.parse({ talko_api_key: "" })).toThrow();
+    expect(
+      connectTalkoPartnerSchema.parse({ talko_api_key: "tkp_live_x" }).display_name
+    ).toBe("");
+    const withDids = talkoPartnerViewSchema.parse({
+      partner_id: "2",
+      display_name: "Acme",
+      talko_api_base_url: null,
+      default_did: "917965263087",
+      dids: ["917965263087", "917965807203"],
+      vendor_config_id: null,
+      key_configured: true,
+      key_hint: "1234",
+      created_at: "2026-09-18T00:00:00+00:00",
+      updated_at: "2026-09-18T00:00:00+00:00",
+    });
+    expect(withDids.dids).toHaveLength(2);
+    expect(withDids.default_did).toBe("917965263087");
   });
 
   it("parses phone number, knowledge base, tool and webhook payloads", () => {

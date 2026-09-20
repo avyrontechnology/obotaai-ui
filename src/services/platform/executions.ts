@@ -4,8 +4,10 @@ import {
   executionListSchema,
   executionSchema,
   executionStatsSchema,
+  placeCallSchema,
   simulateCallSchema,
   type Execution,
+  type PlaceCallInput,
   type SimulateCallInput,
 } from "@/lib/schemas/platform";
 import { latencyStatsSchema } from "@/lib/schemas/builders";
@@ -93,6 +95,22 @@ export function useLatencyStats(
     },
     staleTime: options?.staleTime,
     refetchInterval: options?.refetchInterval,
+  });
+}
+
+export function usePlaceCall() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: PlaceCallInput) => {
+      const raw = await apiClient<unknown>("/calls/place", {
+        method: "POST",
+        body: JSON.stringify(placeCallSchema.parse(input)),
+      });
+      return executionSchema.parse(raw) as Execution;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: executionKeys.all });
+    },
   });
 }
 

@@ -9,6 +9,7 @@ import { CallsKpiStrip } from "@/components/calls/calls-kpi-strip";
 import { CallsTable } from "@/components/calls/calls-table";
 import { CallsToolbar } from "@/components/calls/calls-toolbar";
 import { ExecutionDrawer } from "@/components/calls/execution-drawer";
+import { PlaceCallDialog } from "@/components/calls/place-call-dialog";
 import { LatencyInsights } from "@/components/calls/latency-insights";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
@@ -105,6 +106,7 @@ function CallsContent() {
   // Both are local UI state with no URL contract.
   const [days, setDays] = useState(30);
   const [liveIngest, setLiveIngest] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
 
   const selectedId = searchParams.get("execution_id");
   const setSelectedId = useCallback(
@@ -292,6 +294,14 @@ function CallsContent() {
         description="Every voice execution with raw transcripts, latency breakdowns and stage timings."
         actions={
           <>
+            <button
+              type="button"
+              onClick={() => setPlaceOpen(true)}
+              className="h-11 px-5 rounded-2xl bg-primary text-primary-foreground font-medium text-sm transition-all hover:bg-primary/90 flex items-center gap-2 shrink-0"
+            >
+              <PhoneCall className="w-4 h-4" aria-hidden="true" />
+              <span>Place call</span>
+            </button>
             <select
               value={String(days)}
               onChange={(event) => setDays(Number(event.target.value))}
@@ -546,6 +556,13 @@ function CallsContent() {
       </p>
 
       <ExecutionDrawer executionId={selectedId} onClose={() => setSelectedId(null)} />
+      {placeOpen && (
+        <PlaceCallDialog
+          open={placeOpen}
+          onClose={() => setPlaceOpen(false)}
+          initialAgentId={agentFilter === "all" ? "" : agentFilter}
+        />
+      )}
     </div>
   );
 }

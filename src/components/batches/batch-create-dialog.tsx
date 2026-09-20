@@ -9,6 +9,7 @@ import { Toggle } from "@/components/common/toggle";
 import { fieldStyles } from "@/lib/field-styles";
 import { useAgents } from "@/services/api";
 import { useCreateBatch } from "@/services/platform/batches";
+import { useTalkoPartners } from "@/services/platform/talko-partners";
 import { minRoleFor, useCan } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ function guessPhoneColumn(headers: string[]): string {
 export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchCreateDialogProps) {
   const router = useRouter();
   const { data: agents } = useAgents();
+  const { data: partners } = useTalkoPartners();
   const createBatch = useCreateBatch();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +48,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
   const [provider, setProvider] = useState<"simulated" | "talko">("simulated");
   const [fromNumber, setFromNumber] = useState("");
   const [talkoApiKey, setTalkoApiKey] = useState("");
+  const [partnerId, setPartnerId] = useState("");
   const [hoursEnabled, setHoursEnabled] = useState(false);
   const [hoursStart, setHoursStart] = useState("09:00");
   const [hoursEnd, setHoursEnd] = useState("18:00");
@@ -117,6 +120,7 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
         provider,
         from_number: fromNumber.trim() || undefined,
         talko_api_key: talkoApiKey.trim() || undefined,
+        partner_id: partnerId || undefined,
       });
       onClose();
       router.push(`/batches/${batch.batch_id}`);
@@ -198,17 +202,68 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
                   {provider === "talko" && (
                     <label className="flex flex-col gap-1.5">
                       <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-                        Caller DID (optional)
+                        Talko partner (credentials from DB)
                       </span>
-                      <input
-                        value={fromNumber}
-                        onChange={(event) => setFromNumber(event.target.value)}
-                        placeholder="Default from trunk"
+                      <select
+                        value={partnerId}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setPartnerId(value);
+                          const partner = (partners ?? []).find((p) => p.partner_id === value);
+                          if (partner) {
+                            setFromNumber(partner.default_did ?? partner.dids?.[0] ?? "");
+                            setTalkoApiKey("");
+                          } else {
+                            setFromNumber("");
+                          }
+                        }}
+                        aria-label="Talko partner"
                         className={fieldStyles.field}
-                      />
+                      >
+                        <option value="">Manual — per-batch key/DID below</option>
+                        {(partners ?? []).map((partner) => (
+                          <option key={partner.partner_id} value={partner.partner_id}>
+                            {partner.display_name || `Partner ${partner.partner_id}`} ({partner.partner_id})
+                            {partner.key_configured ? "" : " — no key"}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   )}
-                  {provider === "talko" && (
+                  {provider === "talko" && (() => {
+                    const selected = (partners ?? []).find((p) => p.partner_id === partnerId) ?? null;
+                    const dids = selected?.dids ?? [];
+                    return (
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                          Caller DID {selected && dids.length > 0 ? "(from partner)" : "(optional)"}
+                        </span>
+                        {selected && dids.length > 0 ? (
+                          <select
+                            value={fromNumber}
+                            onChange={(event) => setFromNumber(event.target.value)}
+                            aria-label="Caller DID"
+                            className={fieldStyles.field}
+                          >
+                            {dids.map((did) => (
+                              <option key={did} value={did}>
+                                {did}
+                                {did === selected.default_did ? " — default" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            value={fromNumber}
+                            onChange={(event) => setFromNumber(event.target.value)}
+                            placeholder={selected ? "Partner default" : "Default from trunk"}
+                            className={fieldStyles.field}
+                          />
+                        )}
+                      </label>
+                    );
+                  })()}
+                  {provider === "talko" && !partnerId && (
                     <label className="flex flex-col gap-1.5 sm:col-span-2">
                       <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
                         Talko API key (optional — defaults to trunk key)
@@ -350,7 +405,10 @@ export function BatchCreateDialog({ open, onClose, initialAgentId = "" }: BatchC
 
                 {createBatch.isError && (
                   <p role="alert" className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
-                    <AlertCircle className="w-4 h-4 shrink-0" /> Failed to create the batch. Check the backend and retry.
+                    <AlertCircle className="w-4 h-4 shrink-0" />{" "}
+                    {createBatch.error instanceof Error && createBatch.error.message
+                      ? createBatch.error.message
+                      : "Failed to create the batch. Check the backend and retry."}
                   </p>
                 )}
 

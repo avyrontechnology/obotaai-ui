@@ -9,6 +9,10 @@ jest.mock("@/services/platform/executions", () => ({
   useLatencyStats: () => ({ data: null, isLoading: false }),
   useExecution: jest.fn(() => ({ data: null, isLoading: false })),
   useExecutionStats: () => ({ data: null, isLoading: false }),
+  usePlaceCall: () => ({ mutateAsync: jest.fn(), isPending: false, isError: false }),
+}));
+jest.mock("@/services/platform/talko-partners", () => ({
+  useTalkoPartners: () => ({ data: [], isLoading: false }),
 }));
 jest.mock("@/services/api", () => ({
   useAgents: () => ({ data: [{ agent_id: "agent-1", agent_name: "Clinic" }] }),
