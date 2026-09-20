@@ -62,5 +62,13 @@ export async function apiClient<T>(
     return {} as T;
   }
 
-  return response.json();
+  const json = await response.json();
+
+  // Unwrap the new standard backend envelope ({ ok, data, message, meta }) if present
+  if (json && typeof json === "object" && "ok" in json && "data" in json) {
+    return json.data;
+  }
+
+  // Fallback for legacy endpoints returning flat structures
+  return json;
 }
