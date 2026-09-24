@@ -1,4 +1,13 @@
-import { toCreateAgentPayload, toFrontendAgent, templatePayloadToAgentData, stripNulls } from "@/services/api-transforms";
+import {
+  toCreateAgentPayload,
+  toFrontendAgent,
+  templatePayloadToAgentData,
+  stripNulls,
+  defaultAsrModel,
+  defaultTtsConfig,
+  defaultLlmModel,
+  defaultS2sModel,
+} from "@/services/api-transforms";
 import { agentConfigSchema } from "@/lib/schemas/agent";
 import type { AgentData } from "@/lib/schemas/agent";
 
@@ -703,6 +712,101 @@ describe("api-transforms", () => {
         e: false,
         f: [null, 1],
       });
+    });
+  });
+
+  describe("catalog-valid create defaults (spec 0022)", () => {
+    // Closed catalog rows must match exactly; these defaults mirror
+    // voiceai/modules/catalog/seed.py so provider-only picks (the wizard
+    // toolchain step) produce payloads that pass write-time validation.
+    // Explicit form values always win — see the last test.
+    it.each([
+      ["deepgram", "nova-2"],
+      ["sarvam", "saaras:v4"],
+      ["pixa", "pixa-1"],
+      ["assembly", "nova-2"],
+      ["openai", "nova-2"],
+    ])("defaults the ASR model for %s", (provider, model) => {
+      expect(defaultAsrModel(provider)).toBe(model);
+    });
+
+    it.each([
+      ["elevenlabs", "eleven_turbo_v2_5", "Rachel"],
+      ["sarvam", "bulbul:v2", "anushka"],
+      ["maya", "Maya 2 Native", "Ananya"],
+      ["kalpa", "kalpa-tts-multilingual-beta-v0.1", "Kiara"],
+      ["polly", "neural", "Rachel"],
+      ["deepgram", "aura-zeus-en", "Rachel"],
+      ["pixa", "luna-tts", "Rachel"],
+    ])("defaults the TTS model/voice for %s", (provider, model, voice) => {
+      expect(defaultTtsConfig(provider)).toEqual({ model, voice });
+    });
+
+    it.each([
+      ["openai", "gpt-4o"],
+      ["google", "gemini-3.6-flash"],
+      ["groq", "gpt-4o"],
+    ])("defaults the LLM model for %s", (provider, model) => {
+      expect(defaultLlmModel(provider)).toBe(model);
+    });
+
+    it.each([
+      ["openai_realtime", "gpt-realtime-2.1"],
+      ["gemini_live", "gemini-3.1-flash-live-preview"],
+    ])("defaults the S2S model for %s", (provider, model) => {
+      expect(defaultS2sModel(provider)).toBe(model);
+    });
+
+    it("fills a sarvam-only wizard pick with a validating payload", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Sarvam Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: { llm_provider: "openai", asr_provider: "sarvam", tts_provider: "sarvam" },
+      });
+      const tools = payload.agent_config.tasks[0].tools_config;
+      expect(tools.transcriber).toEqual(expect.objectContaining({ provider: "sarvam", model: "saaras:v4" }));
+      expect(tools.synthesizer).toEqual(
+        expect.objectContaining({
+          provider: "sarvam",
+          provider_config: expect.objectContaining({ model: "bulbul:v2", voice: "anushka" }),
+        })
+      );
+    });
+
+    it("fills a missing S2S model per provider instead of 400ing", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Realtime Agent",
+        agent_type: "s2s",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: { s2s: { provider: "openai_realtime" } },
+      });
+      expect(payload.agent_config.tasks[0].tools_config.s2s).toEqual(
+        expect.objectContaining({
+          provider: "openai_realtime",
+          provider_config: expect.objectContaining({ model: "gpt-realtime-2.1" }),
+        })
+      );
+    });
+
+    it("never overrides explicit model/voice values", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Custom Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: {
+          transcriber: { provider: "sarvam", model: "saaras:v3" },
+          synthesizer: { provider: "sarvam", voice: "vidya", model: "bulbul:v3" },
+          llm: { provider: "openai", model: "gpt-4o-mini" },
+        },
+      });
+      const tools = payload.agent_config.tasks[0].tools_config;
+      expect(tools.transcriber).toEqual(expect.objectContaining({ model: "saaras:v3" }));
+      expect(tools.synthesizer).toEqual(
+        expect.objectContaining({
+          provider_config: expect.objectContaining({ model: "bulbul:v3", voice: "vidya" }),
+        })
+      );
     });
   });
 });

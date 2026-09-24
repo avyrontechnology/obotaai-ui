@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ChatTalk } from "@/components/playground/chat-talk";
+import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
 
 jest.mock("@/services/platform/tools", () => ({
   useAgentTools: () => ({ data: [], isLoading: false }),
@@ -61,7 +62,8 @@ describe("ChatTalk socket protocol", () => {
 
   it("connects to the agent voice socket and sends init", async () => {
     const socket = await renderChat();
-    expect(socket.url).toBe("ws://localhost:5001/chat/v1/agent-1");
+    // leg=browser keeps telephony-configured agents on default handlers.
+    expect(socket.url).toBe(buildTalkSocketUrl(WS_BASE_URL, "agent-1"));
     act(() => socket.open());
     expect(socket.sent).toEqual([
       JSON.stringify({ type: "init", meta_data: { agent_id: "agent-1", source: "ui-chat" } }),
@@ -81,7 +83,11 @@ describe("ChatTalk socket protocol", () => {
     });
     render(<ChatTalk agentId="agent-9" agentName="Test Agent" />);
     await act(async () => {});
-    expect(MockSocket.instances[0].url).toBe("ws://localhost:5001/chat/v1/agent-9?token=t-123");
+    // Dual-param compat (spec 0021): legacy quickstart reads ?token=, the
+    // new-arch gate reads ?ticket= — one URL serves both.
+    expect(MockSocket.instances[0].url).toBe(buildTalkSocketUrl(WS_BASE_URL, "agent-9", "t-123"));
+    expect(MockSocket.instances[0].url).toContain("ticket=t-123");
+    expect(MockSocket.instances[0].url).toContain("token=t-123");
   });
 
   it("sends typed turns and renders both transcript roles", async () => {
@@ -118,5 +124,15 @@ describe("ChatTalk socket protocol", () => {
       socket.onerror?.({});
     });
     expect(screen.getByText(/Couldn't reach the voice backend/)).toBeInTheDocument();
+  });
+
+  it("surfaces channel-owned close codes instead of a silent end", async () => {
+    const socket = await renderChat();
+    act(() => socket.open());
+    // Spec 0021: 4401 denied answers dedicated copy (never the ticket).
+    act(() => {
+      socket.onclose?.({ code: 4401 });
+    });
+    expect(screen.getByText(/denied/i)).toBeInTheDocument();
   });
 });

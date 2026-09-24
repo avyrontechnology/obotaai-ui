@@ -3,6 +3,7 @@
 import { use, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useAgent, useAgentPrompts, useUpdateAgent } from "@/services/api";
+import { agentValidationProblems } from "@/lib/api-client";
 import {
   Loader2,
   Save,
@@ -55,6 +56,11 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   const updateMutation = useUpdateAgent();
 
   const [activeSection, setActiveSection] = useState<SectionId>("persona");
+  // Catalog write-time validation (spec 0022): backend 400s carry
+  // error.details.problems[] with valid values — render beside the
+  // offending select instead of a dead form. Never cleared implicitly;
+  // the form keeps every valid input on failure (RHF preserves values).
+  const [validationProblems, setValidationProblems] = useState<string[]>([]);
   const canWrite = useCan("agents.write");
 
   // Merge the prompts file into persona so every field loads populated.
@@ -138,6 +144,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   // Platform panels (tools/voices/KB/vector/inbound/webhooks) save to
   // their own endpoints via their own buttons inside each form.
   const onSubmit = async (data: ConfigureFormData) => {
+    setValidationProblems([]);
     try {
       const config: AgentConfigData = data.agent_config;
       const persona = config.persona;
@@ -163,6 +170,9 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
       await updateMutation.mutateAsync({ id, data: fullData });
       notify.success("Configuration saved", { description: agent.agent_name });
     } catch (e) {
+      // Surface catalog problems verbatim beside their select; the toast
+      // keeps the human-readable summary.
+      setValidationProblems(agentValidationProblems(e));
       notify.error("Update failed", e);
     }
   };
@@ -271,9 +281,9 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
                   transition={{ duration: 0.18 }}
                 >
                   {effectiveSection === "persona" && <PersonaConfigForm />}
-                  {effectiveSection === "transcriber" && <TranscriberConfigForm />}
-                  {effectiveSection === "synthesizer" && <SynthesizerConfigForm agentId={id} agentType={agent.agent_type} />}
-                  {effectiveSection === "llm" && <LLMConfigForm />}
+                  {effectiveSection === "transcriber" && <TranscriberConfigForm problems={validationProblems} />}
+                  {effectiveSection === "synthesizer" && <SynthesizerConfigForm agentId={id} agentType={agent.agent_type} problems={validationProblems} />}
+                  {effectiveSection === "llm" && <LLMConfigForm problems={validationProblems} />}
                   {effectiveSection === "rag" && <RAGConfigForm agentId={id} />}
                   {effectiveSection === "behavior" && <CallBehaviorConfigForm />}
                   {effectiveSection === "tools" && <ToolsConfigForm agentId={id} />}

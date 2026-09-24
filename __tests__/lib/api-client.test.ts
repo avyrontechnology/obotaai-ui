@@ -1,4 +1,10 @@
-import { ApiError, apiClient } from "@/lib/api-client";
+import {
+  ApiError,
+  agentValidationProblems,
+  apiClient,
+  buildTalkSocketUrl,
+  wsCloseReason,
+} from "@/lib/api-client";
 
 function mockFetch(status: number, body: unknown, statusText = "Error") {
   global.fetch = jest.fn().mockResolvedValue({
@@ -44,5 +50,59 @@ describe("apiClient errors", () => {
   it("returns parsed JSON on success", async () => {
     mockFetch(200, { ok: true });
     await expect(apiClient("/x")).resolves.toEqual({ ok: true });
+  });
+
+  it("preserves catalog 400 problems[] on the thrown error", async () => {
+    // Backend spec 0022 envelope: { ok:false, detail, error:{ details:{ problems } } }.
+    const problems = ["tasks[0].transcriber: unknown asr provider 'deepgrm' (valid: deepgram, openai)"];
+    mockFetch(
+      400,
+      {
+        ok: false,
+        detail: problems.join("; "),
+        error: { code: "invalid_request", error_id: "err_1", details: { problems } },
+      },
+      "Bad Request"
+    );
+    const failure = await apiClient("/agent/x").catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).details?.problems).toEqual(problems);
+    expect(agentValidationProblems(failure)).toEqual(problems);
+  });
+
+  it("returns no problems for legacy errors without a details block", () => {
+    expect(agentValidationProblems(new ApiError("nope", 500))).toEqual([]);
+    expect(agentValidationProblems(new Error("nope"))).toEqual([]);
+  });
+});
+
+describe("buildTalkSocketUrl", () => {
+  it("sends both ticket and token params for cross-backend compat", () => {
+    // Legacy quickstart reads ?token=, new-arch gate reads ?ticket= (spec 0021).
+    const url = new URL(buildTalkSocketUrl("ws://localhost:5001", "agent-1", "tick_123"));
+    expect(url.searchParams.get("ticket")).toBe("tick_123");
+    expect(url.searchParams.get("token")).toBe("tick_123");
+    expect(url.searchParams.get("leg")).toBe("browser");
+    expect(url.pathname).toBe("/chat/v1/agent-1");
+  });
+
+  it("omits auth params without a ticket (cookie fallback)", () => {
+    const url = new URL(buildTalkSocketUrl("ws://localhost:5001", "agent-1"));
+    expect(url.searchParams.get("ticket")).toBeNull();
+    expect(url.searchParams.get("token")).toBeNull();
+    expect(url.searchParams.get("leg")).toBe("browser");
+  });
+});
+
+describe("wsCloseReason", () => {
+  it("maps channel-owned close codes to dedicated copy", () => {
+    expect(wsCloseReason(4401)).toMatch(/denied/i);
+    expect(wsCloseReason(4403)).toMatch(/disabled/i);
+    expect(wsCloseReason(4404)).toMatch(/not found/i);
+  });
+
+  it("returns null for normal closures", () => {
+    expect(wsCloseReason(1000)).toBeNull();
+    expect(wsCloseReason(1006)).toBeNull();
   });
 });

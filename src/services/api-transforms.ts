@@ -107,6 +107,61 @@ export function stripNulls<T>(value: T): T {
 }
 
 /**
+ * Catalog-valid defaults for provider picks that carry no model/voice of
+ * their own (the wizard toolchain step picks providers only). Values mirror
+ * voiceai/modules/catalog/seed.py: closed rows must match exactly, open rows
+ * accept anything so the shared fallback ("nova-2", "gpt-4o", …) validates.
+ * Explicit form values always win — these fill only absent fields, so the
+ * Configure PUT path (full-overwrite) never clobbers user edits.
+ */
+const ASR_MODEL_DEFAULTS: Record<string, string> = {
+  sarvam: "saaras:v4",
+  pixa: "pixa-1",
+};
+const DEFAULT_ASR_MODEL = "nova-2";
+
+const TTS_DEFAULTS: Record<string, { model: string; voice: string }> = {
+  sarvam: { model: "bulbul:v2", voice: "anushka" },
+  maya: { model: "Maya 2 Native", voice: "Ananya" },
+  kalpa: { model: "kalpa-tts-multilingual-beta-v0.1", voice: "Kiara" },
+  polly: { model: "neural", voice: "Rachel" },
+  deepgram: { model: "aura-zeus-en", voice: "Rachel" },
+  openai: { model: "tts-1", voice: "Rachel" },
+  azuretts: { model: "neural", voice: "Rachel" },
+  cartesia: { model: "sonic-english", voice: "Rachel" },
+  smallest: { model: "lightning_v3.1", voice: "Rachel" },
+  rime: { model: "arcana", voice: "Rachel" },
+  pixa: { model: "luna-tts", voice: "Rachel" },
+};
+const DEFAULT_TTS = { model: "eleven_turbo_v2_5", voice: "Rachel" };
+
+const LLM_MODEL_DEFAULTS: Record<string, string> = {
+  google: "gemini-3.6-flash",
+};
+const DEFAULT_LLM_MODEL = "gpt-4o";
+
+const S2S_MODEL_DEFAULTS: Record<string, string> = {
+  openai_realtime: "gpt-realtime-2.1",
+  gemini_live: "gemini-3.1-flash-live-preview",
+};
+
+export function defaultAsrModel(provider: string): string {
+  return ASR_MODEL_DEFAULTS[provider] ?? DEFAULT_ASR_MODEL;
+}
+
+export function defaultTtsConfig(provider: string): { model: string; voice: string } {
+  return TTS_DEFAULTS[provider] ?? DEFAULT_TTS;
+}
+
+export function defaultLlmModel(provider: string): string {
+  return LLM_MODEL_DEFAULTS[provider] ?? DEFAULT_LLM_MODEL;
+}
+
+export function defaultS2sModel(provider: string): string | undefined {
+  return S2S_MODEL_DEFAULTS[provider];
+}
+
+/**
  * Transform wizard form data into the backend's CreateAgentPayload.
  */
 export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
@@ -114,10 +169,11 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
   const isS2S = data.agent_type === "s2s";
 
   // Build the LLM agent config (SimpleLlmAgent shape)
+  const llmProvider = data.agent_config?.llm?.provider || data.agent_config?.llm_provider || "openai";
   const llmAgent: Record<string, unknown> = {
-    model: data.agent_config?.llm?.model || "gpt-4o",
-    provider: data.agent_config?.llm?.provider || data.agent_config?.llm_provider || "openai",
-    family: data.agent_config?.llm?.provider || data.agent_config?.llm_provider || "openai",
+    model: data.agent_config?.llm?.model || defaultLlmModel(llmProvider),
+    provider: llmProvider,
+    family: llmProvider,
     max_tokens: data.agent_config?.llm?.max_tokens || 150,
     temperature: data.agent_config?.llm?.temperature ?? 0.2,
   };
@@ -163,7 +219,10 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     const s2sProvider = data.agent_config?.s2s?.provider || "openai_realtime";
     const s2sProviderConfig: Record<string, unknown> = {};
     const s2s = data.agent_config?.s2s;
-    if (s2s?.model) s2sProviderConfig.model = s2s.model;
+    // A missing model 400s under catalog validation — default per provider
+    // (the wizard model input is optional and pre-filled from this).
+    const s2sModel = s2s?.model || defaultS2sModel(s2sProvider);
+    if (s2sModel) s2sProviderConfig.model = s2sModel;
     if (s2s?.voice) s2sProviderConfig.voice = s2s.voice;
     if (s2s?.language) s2sProviderConfig.language = s2s.language;
     if (s2s?.vad_silence_duration_ms != null) s2sProviderConfig.vad_silence_duration_ms = s2s.vad_silence_duration_ms;
@@ -196,7 +255,7 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     const transcriberProvider = data.agent_config?.transcriber?.provider || data.agent_config?.asr_provider || "deepgram";
     toolsConfig.transcriber = {
       provider: transcriberProvider,
-      model: data.agent_config?.transcriber?.model || "nova-2",
+      model: data.agent_config?.transcriber?.model || defaultAsrModel(transcriberProvider),
       stream: data.agent_config?.transcriber?.stream ?? false,
       encoding: data.agent_config?.transcriber?.encoding || "linear16",
       sampling_rate: data.agent_config?.transcriber?.sampling_rate || 16000,
@@ -213,10 +272,11 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
 
     // Synthesizer
     const synthProvider = data.agent_config?.synthesizer?.provider || data.agent_config?.tts_provider || "elevenlabs";
+    const synthDefaults = defaultTtsConfig(synthProvider);
     const providerConfig: Record<string, unknown> = {
-      voice: data.agent_config?.synthesizer?.voice || "Rachel",
+      voice: data.agent_config?.synthesizer?.voice || synthDefaults.voice,
       voice_id: data.agent_config?.synthesizer?.voice_id || "21m00Tcm4TlvDq8ikWAM",
-      model: data.agent_config?.synthesizer?.model || "eleven_multilingual_v2",
+      model: data.agent_config?.synthesizer?.model || synthDefaults.model,
     };
     if (data.agent_config?.synthesizer?.temperature != null) providerConfig.temperature = data.agent_config.synthesizer.temperature;
     if (data.agent_config?.synthesizer?.similarity_boost != null) providerConfig.similarity_boost = data.agent_config.synthesizer.similarity_boost;

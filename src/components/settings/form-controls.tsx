@@ -113,7 +113,7 @@ export const TextInput = memo(function TextInput({ name, label, description, cla
   );
 });
 
-export const SelectInput = memo(function SelectInput({ name, label, description, className, options }: FormFieldProps & { options: { label: string, value: string }[] }) {
+export const SelectInput = memo(function SelectInput({ name, label, description, className, options, onChange }: FormFieldProps & { options: { label: string, value: string }[], onChange?: (value: string) => void }) {
   const { register, formState: { errors } } = useFormContext();
   const error = getFieldError(errors as Record<string, unknown>, name);
 
@@ -134,7 +134,12 @@ export const SelectInput = memo(function SelectInput({ name, label, description,
             writing phantom values. Required selects still fail on
             undefined via min(1)/enum as before. */}
         <select
-          {...register(name, { setValueAs: (value) => (value === "" ? undefined : value) })}
+          {...register(name, {
+            setValueAs: (value) => (value === "" ? undefined : value),
+            // Cascade hook (catalog provider→model→voice): RHF still owns the
+            // value; the callback observes discrete selection changes only.
+            onChange: (event) => onChange?.((event.target as HTMLSelectElement).value),
+          })}
           id={name}
           className="w-full appearance-none bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 focus:border-ember-400/50 transition-all shadow-inner"
         >

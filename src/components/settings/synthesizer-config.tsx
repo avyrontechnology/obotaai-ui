@@ -2,6 +2,13 @@ import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { AudioLines, Loader2, Plus, Trash2 } from "lucide-react";
 import { FormSection, TextInput, SelectInput, SwitchInput } from "./form-controls";
+import {
+  CatalogLanguageField,
+  CatalogModelField,
+  CatalogProblems,
+  CatalogProviderField,
+  CatalogVoiceField,
+} from "./catalog-fields";
 import { useCreateVoice, useDeleteVoice, useVoices } from "@/services/platform/voices";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
@@ -52,8 +59,11 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
       setName("");
       setProviderVoiceId("");
       setShowForm(false);
-    } catch {
-      setFormError("Could not save the voice. Is the backend running?");
+    } catch (e) {
+      // Spec 0025 validates provider (catalog) + language (BCP-47) server-side:
+      // surface the backend message (it carries the valid values) instead of
+      // the generic connectivity hint.
+      setFormError(e instanceof Error ? e.message : "Could not save the voice. Is the backend running?");
     }
   };
 
@@ -156,10 +166,12 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
 export function SynthesizerConfigForm({
   agentId,
   agentType = "voice",
+  problems = [],
 }: {
   agentId?: string;
   /** Voice agents use discrete TTS; s2s agents use the realtime block only. */
   agentType?: string;
+  problems?: string[];
 }) {
   const { watch } = useFormContext();
   const s2sProvider = watch("agent_config.s2s.provider") as string | undefined;
@@ -173,22 +185,45 @@ export function SynthesizerConfigForm({
         title="Core Settings"
         description="Configure the text-to-speech provider and primary voice settings."
       >
-        <SelectInput
+        <CatalogProblems problems={problems} prefix=".synthesizer" />
+        <CatalogProviderField
           name="agent_config.synthesizer.provider"
           label="Provider"
-          options={TTS_PROVIDERS}
+          modality="tts"
+          fallbackOptions={TTS_PROVIDERS}
+          resetFields={[
+            "agent_config.synthesizer.model",
+            "agent_config.synthesizer.voice",
+            "agent_config.synthesizer.voice_id",
+          ]}
         />
-        <TextInput
+        <CatalogModelField
           name="agent_config.synthesizer.model"
           label="Model"
+          modality="tts"
+          providerField="agent_config.synthesizer.provider"
           placeholder="e.g., eleven_multilingual_v2"
-          description="Specific model version"
+          description="Specific model version (Polly resolves its engine instead)"
+          resetFields={["agent_config.synthesizer.voice"]}
         />
-        <TextInput
+        <CatalogVoiceField
           name="agent_config.synthesizer.voice"
           label="Voice Name"
+          modality="tts"
+          providerField="agent_config.synthesizer.provider"
+          modelField="agent_config.synthesizer.model"
+          agentId={agentId}
+          providerIdField="agent_config.synthesizer.provider"
+          voiceIdTargetField="agent_config.synthesizer.voice_id"
           placeholder="e.g., Rachel"
           description="Friendly name for the voice"
+        />
+        <CatalogLanguageField
+          name="agent_config.synthesizer.language"
+          label="Language"
+          modality="tts"
+          providerField="agent_config.synthesizer.provider"
+          placeholder="e.g., en"
         />
         <TextInput
           name="agent_config.synthesizer.voice_id"
@@ -285,22 +320,32 @@ export function SynthesizerConfigForm({
         title="Realtime (S2S)"
         description="Realtime speech-to-speech settings. Only used by Realtime agents — the separate voice and language steps are skipped."
       >
-        <SelectInput
+        <CatalogProblems problems={problems} prefix=".s2s" />
+        <CatalogProviderField
           name="agent_config.s2s.provider"
           label="S2S Provider"
-          options={[
+          modality="s2s"
+          fallbackOptions={[
             { label: "OpenAI Realtime", value: "openai_realtime" },
             { label: "Gemini Live", value: "gemini_live" },
           ]}
+          resetFields={["agent_config.s2s.model", "agent_config.s2s.voice"]}
         />
-        <TextInput
+        <CatalogModelField
           name="agent_config.s2s.model"
           label="Model"
+          modality="s2s"
+          providerField="agent_config.s2s.provider"
           placeholder="e.g., gpt-realtime-2.1"
+          resetFields={["agent_config.s2s.voice"]}
         />
-        <TextInput
+        <CatalogVoiceField
           name="agent_config.s2s.voice"
           label="Voice"
+          modality="s2s"
+          providerField="agent_config.s2s.provider"
+          modelField="agent_config.s2s.model"
+          agentId={agentId}
           placeholder="e.g., marin, Kore"
         />
         <TextInput

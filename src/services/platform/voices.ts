@@ -13,7 +13,7 @@ export const voiceKeys = {
   filtered: (agent_id?: string) => ["voices", { agent_id }] as const,
 };
 
-export function useVoices(agent_id?: string) {
+export function useVoices(agent_id?: string, enabled = true) {
   return useQuery({
     queryKey: voiceKeys.filtered(agent_id),
     queryFn: async () => {
@@ -21,6 +21,7 @@ export function useVoices(agent_id?: string) {
       const raw = await apiClient<unknown>(`/voices${query}`);
       return voiceListSchema.parse(raw).voices;
     },
+    enabled,
   });
 }
 

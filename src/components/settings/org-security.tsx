@@ -162,7 +162,9 @@ function AuditSection() {
         <ScrollText className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
         <h4 className="font-medium text-foreground truncate">Audit trail</h4>
       </div>
-      <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Auth events</p>
+      {/* Channel lifecycle events (spec 0021: ws_connect/ws_denied/call_placed/call_recorded)
+          flow through the same audit trail — the type badge renders them verbatim. */}
+      <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Auth + channel events</p>
       {isLoading ? (
         <div className="h-20 rounded-2xl bg-muted/50 animate-pulse motion-reduce:animate-none" />
       ) : (events ?? []).length === 0 ? (

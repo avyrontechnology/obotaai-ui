@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { useCreateAgent, useUpdateAgent, Agent } from "@/services/api";
 import { ArrowRight, ArrowLeft, Loader2, Save, Lightbulb, Cpu, Sparkles, Mic, Terminal } from "lucide-react";
 import { firstErrorMessage } from "@/components/settings/form-controls";
+import { WizardCatalogProviderSelect } from "@/components/settings/catalog-fields";
+import { agentValidationProblems } from "@/lib/api-client";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +58,9 @@ const TYPE_CARDS = [
 export function AgentWizard({ initialData }: AgentWizardProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  // Catalog write-time validation (spec 0022): backend 400 problems[] render
+  // verbatim in the toolchain step instead of a dead form.
+  const [validationProblems, setValidationProblems] = useState<string[]>([]);
 
   const createMutation = useCreateAgent();
   const updateMutation = useUpdateAgent();
@@ -97,6 +102,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
   const agentType = form.watch("agent_type");
 
   const onSubmit = async (data: WizardData) => {
+    setValidationProblems([]);
     try {
       if (isEditing && initialData) {
         await updateMutation.mutateAsync({ id: initialData.agent_id, data });
@@ -108,6 +114,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
         router.push(`/agents/${created.agent_id}/configure`);
       }
     } catch (error) {
+      setValidationProblems(agentValidationProblems(error));
       notify.error("Failed to save agent", error);
     }
   };
@@ -311,19 +318,37 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                     </span>
                   </div>
                   
+                  {validationProblems.length > 0 && (
+                    <div
+                      role="alert"
+                      className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-700 dark:text-red-400 space-y-1"
+                    >
+                      {validationProblems.map((problem) => (
+                        <p key={problem}>{problem}</p>
+                      ))}
+                    </div>
+                  )}
                   <div className="space-y-4">
                     {agentType === "s2s" ? (
                       <>
-                        <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Realtime Provider</label>
-                          <select
-                            {...form.register("agent_config.s2s.provider")}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
-                          >
-                            <option value="openai_realtime">OpenAI Realtime</option>
-                            <option value="gemini_live">Gemini Live</option>
-                          </select>
-                        </div>
+                        <WizardCatalogProviderSelect
+                          control={form.control}
+                          register={form.register}
+                          name="agent_config.s2s.provider"
+                          modality="s2s"
+                          label="Realtime Provider"
+                          fallbackOptions={[
+                            { label: "OpenAI Realtime", value: "openai_realtime" },
+                            { label: "Gemini Live", value: "gemini_live" },
+                          ]}
+                          selectClassName="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                          labelClassName="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest"
+                          // Cascade: a stale cross-provider model 400s at
+                          // create — clear it so the per-provider default applies.
+                          onSelect={() =>
+                            form.setValue("agent_config.s2s.model", undefined, { shouldDirty: true })
+                          }
+                        />
                         <div>
                           <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">Model</label>
                           <input
@@ -343,46 +368,55 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                       </>
                     ) : (
                       <>
-                    <div>
-                      <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">LLM Provider</label>
-                      <select
-                        {...form.register("agent_config.llm_provider")}
-                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
-                      >
-                        <option value="openai">OpenAI (GPT-4o)</option>
-                        <option value="anthropic">Anthropic (Claude 3.5)</option>
-                        <option value="meta">Meta (Llama 3)</option>
-                      </select>
-                    </div>
+                    <WizardCatalogProviderSelect
+                      control={form.control}
+                      register={form.register}
+                      name="agent_config.llm_provider"
+                      modality="llm"
+                      label="LLM Provider"
+                      fallbackOptions={[
+                        { label: "OpenAI (GPT-4o)", value: "openai" },
+                        { label: "Anthropic (Claude 3.5)", value: "anthropic" },
+                        { label: "Meta (Llama 3)", value: "meta" },
+                      ]}
+                      selectClassName="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                      labelClassName="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest"
+                    />
 
                     {agentType === "voice" && (
                       <>
-                        <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">ASR Provider (Speech-to-Text)</label>
-                          <select
-                            {...form.register("agent_config.asr_provider")}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
-                          >
-                            <option value="deepgram">Deepgram</option>
-                            <option value="assembly">AssemblyAI</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="sarvam">Sarvam</option>
-                            <option value="gladia">Gladia</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest">TTS Provider (Text-to-Speech)</label>
-                          <select
-                            {...form.register("agent_config.tts_provider")}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
-                          >
-                            <option value="elevenlabs">ElevenLabs</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="cartesia">Cartesia</option>
-                            <option value="sarvam">Sarvam</option>
-                            <option value="smallest">Smallest</option>
-                          </select>
-                        </div>
+                        <WizardCatalogProviderSelect
+                          control={form.control}
+                          register={form.register}
+                          name="agent_config.asr_provider"
+                          modality="asr"
+                          label="ASR Provider (Speech-to-Text)"
+                          fallbackOptions={[
+                            { label: "Deepgram", value: "deepgram" },
+                            { label: "AssemblyAI", value: "assembly" },
+                            { label: "OpenAI", value: "openai" },
+                            { label: "Sarvam", value: "sarvam" },
+                            { label: "Gladia", value: "gladia" },
+                          ]}
+                          selectClassName="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                          labelClassName="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest"
+                        />
+                        <WizardCatalogProviderSelect
+                          control={form.control}
+                          register={form.register}
+                          name="agent_config.tts_provider"
+                          modality="tts"
+                          label="TTS Provider (Text-to-Speech)"
+                          fallbackOptions={[
+                            { label: "ElevenLabs", value: "elevenlabs" },
+                            { label: "OpenAI", value: "openai" },
+                            { label: "Cartesia", value: "cartesia" },
+                            { label: "Sarvam", value: "sarvam" },
+                            { label: "Smallest", value: "smallest" },
+                          ]}
+                          selectClassName="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ember-400/50 appearance-none"
+                          labelClassName="block text-xs font-mono text-muted-foreground mb-2 uppercase tracking-widest"
+                        />
                       </>
                     )}
                       </>

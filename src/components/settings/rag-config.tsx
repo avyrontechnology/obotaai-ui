@@ -36,6 +36,7 @@ interface VectorDraft {
   reranker_model_type: string;
   candidate_count: string;
   final_count: string;
+  cache_ttl_s: string;
 }
 
 function fromStored(config: VectorStoreConfig): VectorDraft {
@@ -54,6 +55,7 @@ function fromStored(config: VectorStoreConfig): VectorDraft {
     reranker_model_type: config.reranker_model_type,
     candidate_count: String(config.candidate_count),
     final_count: String(config.final_count),
+    cache_ttl_s: String(config.cache_ttl_s ?? 0),
   };
 }
 
@@ -126,6 +128,7 @@ export function RAGConfigForm({ agentId }: { agentId?: string }) {
       reranker_model_type: editable.reranker_model_type.trim() || "minilm-l6-v2",
       candidate_count: numberOr(editable.candidate_count, 20),
       final_count: numberOr(editable.final_count, 5),
+      cache_ttl_s: numberOr(editable.cache_ttl_s, 0),
     });
     setSavedSnapshot(JSON.stringify(editable));
     setSavedFlash(true);
@@ -300,6 +303,16 @@ export function RAGConfigForm({ agentId }: { agentId?: string }) {
             className={fieldStyles.field}
           />
         </Field>
+        <Field label="Retrieval Cache TTL (seconds)">
+          <input
+            value={editable.cache_ttl_s}
+            onChange={(event) => patch({ cache_ttl_s: event.target.value })}
+            inputMode="numeric"
+            placeholder="0 = off"
+            aria-label="Retrieval cache TTL in seconds, 0 disables caching"
+            className={fieldStyles.field}
+          />
+        </Field>
         <div className="col-span-1 md:col-span-2 flex items-start justify-between gap-4 p-4 rounded-xl bg-muted/50 border border-border">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-foreground">Reranker</span>
@@ -388,5 +401,6 @@ function fromStoredFallback(): VectorDraft {
     reranker_model_type: "minilm-l6-v2",
     candidate_count: "20",
     final_count: "5",
+    cache_ttl_s: "0",
   };
 }

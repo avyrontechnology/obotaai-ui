@@ -1,27 +1,50 @@
 import { FormSection, TextInput, SelectInput, SwitchInput } from "./form-controls";
+import { CatalogModelField, CatalogProblems, CatalogProviderField } from "./catalog-fields";
 
-export function LLMConfigForm() {
+/** Fallback when the catalog is unreachable (old backend): mirrors the seeded
+ *  LLM providers in voiceai/modules/catalog/seed.py. Live backends serve the
+ *  catalog instead — this list is never shown alongside it. */
+const LLM_FALLBACK = [
+  { label: "OpenAI", value: "openai" },
+  { label: "Google (Gemini)", value: "google" },
+  { label: "Groq", value: "groq" },
+  { label: "Anthropic", value: "anthropic" },
+  { label: "Cohere", value: "cohere" },
+  { label: "DeepInfra", value: "deepinfra" },
+  { label: "Together AI", value: "together" },
+  { label: "Fireworks", value: "fireworks" },
+  { label: "Azure OpenAI", value: "azure-openai" },
+  { label: "Perplexity", value: "perplexity" },
+  { label: "vLLM", value: "vllm" },
+  { label: "Anyscale", value: "anyscale" },
+  { label: "Custom", value: "custom" },
+  { label: "Ola", value: "ola" },
+  { label: "DeepSeek", value: "deepseek" },
+  { label: "OpenRouter", value: "openrouter" },
+  { label: "Azure", value: "azure" },
+  { label: "Ollama", value: "ollama" },
+];
+
+export function LLMConfigForm({ problems = [] }: { problems?: string[] }) {
   return (
     <div className="space-y-10">
       <FormSection
         title="Model Settings"
         description="Configure the primary language model powering the agent."
       >
-        <SelectInput
+        <CatalogProblems problems={problems} prefix=".llm_agent" />
+        <CatalogProviderField
           name="agent_config.llm.provider"
           label="Provider"
-          options={[
-            { label: "OpenAI", value: "openai" },
-            { label: "Anthropic", value: "anthropic" },
-            { label: "Google (Gemini)", value: "google" },
-            { label: "Groq", value: "groq" },
-            { label: "Together AI", value: "together" },
-            { label: "Anyscale", value: "anyscale" },
-          ]}
+          modality="llm"
+          fallbackOptions={LLM_FALLBACK}
+          resetFields={["agent_config.llm.model"]}
         />
-        <TextInput
+        <CatalogModelField
           name="agent_config.llm.model"
           label="Model"
+          modality="llm"
+          providerField="agent_config.llm.provider"
           placeholder="e.g., gpt-4o"
           description="Specific model identifier"
         />

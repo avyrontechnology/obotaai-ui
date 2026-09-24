@@ -289,6 +289,36 @@ describe("platform-schemas", () => {
     expect(() => vectorStoreConfigSchema.parse({ ...parsed, provider: "pinecone" })).toThrow();
   });
 
+  it("round-trips the retrieval-cache TTL and defaults it off", () => {
+    const withTtl = vectorStoreConfigSchema.parse({
+      provider: "lancedb",
+      vector_id: "support-docs",
+      similarity_top_k: 8,
+      score_threshold: 0.1,
+      reranker_enabled: false,
+      reranker_model_type: "minilm-l6-v2",
+      candidate_count: 20,
+      final_count: 5,
+      cache_ttl_s: 60,
+      updated_at: "2026-09-03T00:00:00+00:00",
+    });
+    expect(withTtl.cache_ttl_s).toBe(60);
+    // Absent on older backends/seeds: parses, off, and never fails validation.
+    const legacy = vectorStoreConfigSchema.parse({
+      provider: "lancedb",
+      vector_id: "support-docs",
+      similarity_top_k: 8,
+      score_threshold: 0.1,
+      reranker_enabled: false,
+      reranker_model_type: "minilm-l6-v2",
+      candidate_count: 20,
+      final_count: 5,
+      updated_at: "2026-09-03T00:00:00+00:00",
+    });
+    expect(legacy.cache_ttl_s).toBeUndefined();
+    expect(() => vectorStoreConfigSchema.parse({ ...legacy, cache_ttl_s: -1 })).toThrow();
+  });
+
   it("parses sub-accounts with members and rejects bad email", () => {
     const parsed = subAccountSchema.parse({
       sub_id: "sub_1",

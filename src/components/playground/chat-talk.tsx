@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, Loader2, PhoneOff, RadioReceiver, SendHorizonal } from "lucide-react";
-import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
+import { WS_BASE_URL, buildTalkSocketUrl, wsCloseReason } from "@/lib/api-client";
 import { fetchWsTicket } from "@/services/auth";
 import { subscribePlaygroundBus } from "@/lib/playground-bus";
 import { StatusBadge } from "@/components/calls/status-badge";
@@ -126,12 +126,21 @@ export function ChatTalk({
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event?: CloseEvent) => {
         if (endedRef.current) return;
         endedRef.current = true;
         liveRef.current = false;
-        setPhase("ended");
-        pushTurn("system", "Chat ended.");
+        // Channel-owned close codes (spec 0021): surface denied/dark/unknown
+        // with dedicated copy instead of a silent "ended".
+        const gated = typeof event?.code === "number" ? wsCloseReason(event.code) : null;
+        if (gated) {
+          setPhase("error");
+          setError(gated);
+          pushTurn("system", "Chat ended.");
+        } else {
+          setPhase("ended");
+          pushTurn("system", "Chat ended.");
+        }
       };
     };
 

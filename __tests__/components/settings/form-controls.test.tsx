@@ -95,4 +95,32 @@ describe("optional field submission", () => {
     });
     expect(onSubmit).toHaveBeenCalledWith({ reasoning_effort: "low", hangup_after_silence: 20 });
   });
+
+  it("notifies discrete select changes without disturbing the value", async () => {
+    const onChange = jest.fn();
+    const onSubmit = jest.fn();
+    function Host() {
+      const methods = useForm({ defaultValues: { reasoning_effort: undefined } });
+      return (
+        <FormProvider {...methods}>
+          <form onSubmit={methods.handleSubmit((data) => onSubmit(data))}>
+            <SelectInput
+              name="reasoning_effort"
+              label="Reasoning Effort"
+              options={[{ label: "Low", value: "low" }]}
+              onChange={onChange}
+            />
+            <button type="submit">Save</button>
+          </form>
+        </FormProvider>
+      );
+    }
+    render(<Host />);
+    fireEvent.change(screen.getByLabelText("Reasoning Effort"), { target: { value: "low" } });
+    expect(onChange).toHaveBeenCalledWith("low");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(onSubmit).toHaveBeenCalledWith({ reasoning_effort: "low" });
+  });
 });

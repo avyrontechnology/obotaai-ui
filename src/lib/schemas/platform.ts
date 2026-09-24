@@ -341,6 +341,10 @@ export const vectorStoreConfigSchema = z.object({
   reranker_model_type: z.string(),
   candidate_count: z.number(),
   final_count: z.number(),
+  // Retrieval-cache TTL (seconds) for the knowledge brain (backend spec 0012):
+  // 0/absent keeps retrieval uncached. Optional so older backends and seeds
+  // without the field keep parsing, and PUT round-trips it instead of wiping it.
+  cache_ttl_s: z.number().min(0).nullable().optional(),
   updated_at: z.string(),
 });
 

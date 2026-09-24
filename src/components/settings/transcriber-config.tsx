@@ -1,41 +1,50 @@
 import { FormSection, TextInput, SelectInput, SwitchInput } from "./form-controls";
+import { CatalogLanguageField, CatalogModelField, CatalogProblems, CatalogProviderField } from "./catalog-fields";
 
-export function TranscriberConfigForm() {
+const ASR_FALLBACK = [
+  { label: "Deepgram", value: "deepgram" },
+  { label: "OpenAI", value: "openai" },
+  { label: "Azure", value: "azure" },
+  { label: "Sarvam", value: "sarvam" },
+  { label: "AssemblyAI", value: "assembly" },
+  { label: "Google Cloud", value: "google" },
+  { label: "Pixa", value: "pixa" },
+  { label: "Gladia", value: "gladia" },
+  { label: "ElevenLabs", value: "elevenlabs" },
+  { label: "Smallest", value: "smallest" },
+  { label: "Soniox", value: "soniox" },
+  { label: "Gemini", value: "gemini" },
+];
+
+export function TranscriberConfigForm({ problems = [] }: { problems?: string[] }) {
   return (
     <div className="space-y-10">
       <FormSection
         title="Core Settings"
         description="Select the speech-to-text provider and primary language."
       >
-        <SelectInput
+        <CatalogProblems problems={problems} prefix=".transcriber" />
+        <CatalogProviderField
           name="agent_config.transcriber.provider"
           label="Provider"
-          options={[
-            { label: "Deepgram", value: "deepgram" },
-            { label: "OpenAI", value: "openai" },
-            { label: "Azure", value: "azure" },
-            { label: "Sarvam", value: "sarvam" },
-            { label: "AssemblyAI", value: "assembly" },
-            { label: "Google Cloud", value: "google" },
-            { label: "Pixa", value: "pixa" },
-            { label: "Gladia", value: "gladia" },
-            { label: "ElevenLabs", value: "elevenlabs" },
-            { label: "Smallest", value: "smallest" },
-            { label: "Soniox", value: "soniox" },
-            { label: "Gemini", value: "gemini" },
-          ]}
+          modality="asr"
+          fallbackOptions={ASR_FALLBACK}
+          resetFields={["agent_config.transcriber.model"]}
         />
-        <TextInput
+        <CatalogModelField
           name="agent_config.transcriber.model"
           label="Model"
+          modality="asr"
+          providerField="agent_config.transcriber.provider"
           placeholder="e.g., nova-2"
           description="Specific model to use (provider dependent)"
         />
-        <TextInput
+        <CatalogLanguageField
           name="agent_config.transcriber.language"
           label="Language"
+          modality="asr"
+          providerField="agent_config.transcriber.provider"
           placeholder="e.g., en, es, fr"
-          description="ISO 639-1 language code"
         />
         <SelectInput
           name="agent_config.transcriber.encoding"

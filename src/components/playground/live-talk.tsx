@@ -12,7 +12,7 @@ import {
   SendHorizonal,
 } from "lucide-react";
 import { StatusBadge } from "@/components/calls/status-badge";
-import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
+import { WS_BASE_URL, buildTalkSocketUrl, wsCloseReason } from "@/lib/api-client";
 import { fetchWsTicket } from "@/services/auth";
 import { emitPlaygroundBus, subscribePlaygroundBus } from "@/lib/playground-bus";
 import { VoiceWaveform, combineLevels } from "./voice-waveform";
@@ -556,13 +556,20 @@ export function LiveTalk({
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event?: CloseEvent) => {
       if (endedRef.current) return;
       endedRef.current = true;
       liveRef.current = false;
+      // Channel-owned close codes (spec 0021): branch on the code, never on
+      // messages. Identifiers only — the ticket itself is never logged here.
+      const gated = typeof event?.code === "number" ? wsCloseReason(event.code) : null;
       const quickDeath = Date.now() - openedAtRef.current < 4000;
       teardown();
-      if (quickDeath && !audioHeardRef.current) {
+      if (gated) {
+        setPhase("error");
+        setError(gated);
+        pushTurn("system", "Call ended.");
+      } else if (quickDeath && !audioHeardRef.current) {
         setPhase("error");
         setError(
           "The voice backend hung up before any audio — the model session failed to open. " +

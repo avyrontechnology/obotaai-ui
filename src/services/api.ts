@@ -59,9 +59,9 @@ export function useAgent(id: string, enabled = true) {
     queryKey: queryKeys.agents.detail(id),
     queryFn: async () => {
       const raw = await apiClient<Record<string, unknown>>(`/agent/${id}`);
-      // GET /agent/:id returns the raw Redis record, which carries neither
-      // agent_id nor agent_prompts (prompts live in a separate prompts file
-      // with no read endpoint). Inject the id we requested.
+      // GET /agent/:id returns the raw stored config, which carries neither
+      // agent_id nor agent_prompts (prompts live in the prompt store, read via
+      // GET /agent/:id/prompts below). Inject the id we requested.
       return toFrontendAgent({ ...raw, agent_id: (raw.agent_id as string) || id });
     },
     enabled: enabled && id.length > 0,
@@ -155,7 +155,8 @@ export function useDeleteAgent() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiClient<{ success: boolean }>(`/agent/${id}`, {
+      // Backend answers { agent_id, state: "deleted" } (inside the envelope).
+      return apiClient<{ agent_id: string; state: string }>(`/agent/${id}`, {
         method: "DELETE",
       });
     },
