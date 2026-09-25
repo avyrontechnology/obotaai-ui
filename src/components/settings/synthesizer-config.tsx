@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { AudioLines, Loader2, Plus, Trash2 } from "lucide-react";
 import { FormSection, TextInput, SelectInput, SwitchInput } from "./form-controls";
 import {
@@ -10,6 +10,9 @@ import {
   CatalogVoiceField,
 } from "./catalog-fields";
 import { useCreateVoice, useDeleteVoice, useVoices } from "@/services/platform/voices";
+import { usePatchAgent } from "@/services/api";
+import { agentValidationProblems } from "@/lib/api-client";
+import { notify } from "@/lib/notify";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
@@ -163,6 +166,108 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
   );
 }
 
+/**
+ * Phase A engine toggle (spec 0028): flips the per-task `pipeline` pointer
+ * between the coexisting ASR (transcriber/LLM/TTS) and realtime (S2S) blocks
+ * via PATCH `tasks_patch` — no full-form resend, no extraction regen beyond
+ * changed tasks. The parked side is kept, never wiped — both blocks persist
+ * and validate. Untouched toggle (undefined) preserves legacy inference.
+ *
+ * Data-loss guard: flipping refetches the record and resets the form, so the
+ * toggle stays disabled while the form holds unsaved edits. Without an
+ * agentId (unsaved record) it falls back to form state, saved via PUT.
+ */
+export function PipelineToggle({ agentId, agentType }: { agentId?: string; agentType: string }) {
+  const { control, setValue, formState } = useFormContext();
+  const stored = useWatch({ control, name: "agent_config.pipeline" }) as "asr" | "s2s" | undefined;
+  const s2sPresent = useWatch({ control, name: "agent_config.s2s" }) as unknown;
+  const patch = usePatchAgent();
+  const [flipError, setFlipError] = useState<unknown>(null);
+  if (agentType !== "voice" && agentType !== "s2s") return null;
+  // Effective routing mirrors backend inference (resolve_pipeline_for_task):
+  // explicit pointer wins, else an s2s block means realtime, else ASR.
+  const effective = stored ?? (s2sPresent ? "s2s" : "asr");
+  // UI invariant: the transform emits a single task, so index 0 addresses it.
+  const flipping = patch.isPending;
+  // The guard only matters for PATCH flips (refetch resets the form). The
+  // form-state fallback rewrites nothing else, so it stays always available.
+  const blocked = !!agentId && formState.isDirty;
+
+  const flip = async (value: "asr" | "s2s") => {
+    if (value === effective) return;
+    setFlipError(null);
+    if (!agentId) {
+      setValue("agent_config.pipeline", value, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+    // Optimistic form sync first (refetch converges on the same value after
+    // invalidation); other dirty fields are protected by the guard above.
+    setValue("agent_config.pipeline", value, { shouldDirty: false, shouldValidate: true });
+    try {
+      await patch.mutateAsync({ id: agentId, patch: { tasks_patch: [{ task_index: 0, pipeline: value }] } });
+    } catch (e) {
+      setFlipError(e);
+      notify.error("Pipeline flip failed", e);
+    }
+  };
+
+  const flipProblems = agentValidationProblems(flipError);
+
+  const option = (value: "asr" | "s2s", title: string, hint: string) => {
+    const active = effective === value;
+    return (
+      <button
+        type="button"
+        onClick={() => void flip(value)}
+        disabled={flipping || blocked}
+        aria-pressed={active}
+        aria-label={`${title} pipeline${active ? " (active)" : ""}`}
+        title={blocked ? "Save or discard form edits before flipping the engine" : undefined}
+        className={cn(
+          "flex-1 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 disabled:opacity-50",
+          active
+            ? "bg-primary/10 border-primary/40 text-foreground"
+            : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+        )}
+      >
+        <span className="block text-sm font-semibold">
+          {title} {flipping && !active ? "…" : ""}
+        </span>
+        <span className="block text-xs mt-0.5 opacity-80">{hint}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="col-span-1 md:col-span-2 flex flex-col gap-2 mb-2">
+      <span className="text-sm font-medium text-foreground">Engine pipeline</span>
+      <div className="flex gap-2" role="group" aria-label="Engine pipeline">
+        {option("asr", "ASR pipeline", "Transcriber → LLM → TTS")}
+        {option("s2s", "Realtime (S2S)", "Direct speech-to-speech")}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Active: {effective === "asr" ? "ASR pipeline" : "Realtime (S2S)"}
+        {stored ? " (explicit)" : " (inferred)"} — the other side stays saved as parked config.
+        {blocked ? " Save or discard edits to flip." : ""}
+      </p>
+      {flipError ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-700 dark:text-red-400 space-y-1"
+        >
+          {(flipProblems.length > 0
+            ? flipProblems
+            : [flipError instanceof Error ? flipError.message : "Pipeline flip failed."]).map(
+            (line) => (
+              <p key={line}>{line}</p>
+            )
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function SynthesizerConfigForm({
   agentId,
   agentType = "voice",
@@ -179,6 +284,13 @@ export function SynthesizerConfigForm({
   const isS2S = agentType === "s2s";
   return (
     <div className="space-y-10">
+      <FormSection
+        title="Engine"
+        description="Which pipeline runs live calls. Both sides stay saved; the parked side keeps validating."
+      >
+        <CatalogProblems problems={problems} prefix=".pipeline" />
+        <PipelineToggle agentId={agentId} agentType={agentType} />
+      </FormSection>
       {!isS2S && (
         <>
       <FormSection

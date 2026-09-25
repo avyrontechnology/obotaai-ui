@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FormProvider, useForm, useFormContext, useWatch } from "react-hook-form";
-import { CatalogProviderField, CatalogVoiceField } from "@/components/settings/catalog-fields";
-import { apiClient } from "@/lib/api-client";
+import { AgentSaveBanner, CatalogProviderField, CatalogVoiceField } from "@/components/settings/catalog-fields";
+import { ApiError, apiClient } from "@/lib/api-client";
 
 jest.mock("@/lib/api-client", () => {
   const actual = jest.requireActual("@/lib/api-client");
@@ -119,6 +119,46 @@ describe("CatalogProviderField cascade", () => {
   });
 });
 
+describe("AgentSaveBanner", () => {
+  it("stays silent when field banners cover the failure", () => {
+    const error = new ApiError("Bad", 400, { problems: ["tasks[0].transcriber: nope"] });
+    const { container } = render(
+      <AgentSaveBanner error={error} problems={["tasks[0].transcriber: nope"]} />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders channel rejections verbatim", () => {
+    render(
+      <AgentSaveBanner
+        error={new ApiError("Channels not servable yet: chat (valid: voice).", 400, {
+          channels: ["chat"],
+          valid: ["voice"],
+        })}
+        problems={[]}
+      />
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/Channels not servable yet/);
+  });
+
+  it("renders 422 per-field failures and structural messages", () => {
+    const { rerender } = render(
+      <AgentSaveBanner
+        error={
+          new ApiError("Request validation failed", 422, {
+            errors: [{ loc: ["body", "channels"], msg: "List should have at least 1 item" }],
+          })
+        }
+        problems={[]}
+      />
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("channels: List should have at least 1 item");
+
+    rerender(<AgentSaveBanner error={new ApiError("Agent lookup failed", 500)} problems={[]} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Agent lookup failed");
+  });
+});
+
 describe("CatalogVoiceField", () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -195,6 +235,25 @@ describe("CatalogVoiceField", () => {
     expect(values).toContain("abhilash");
     // Deduplicated across rows (placeholder + 2 unique voices).
     expect(values).toHaveLength(3);
+  });
+
+  it("labels curated voices with documented genders, never guessed ones", async () => {
+    mockedApiClient.mockImplementation((endpoint: string) => {
+      if (endpoint.startsWith("/catalog/voices")) {
+        return Promise.resolve([
+          { name: "Kore", gender: "feminine", language: "en", sample_url: null },
+          { name: "anushka", gender: null, language: "hi", sample_url: null },
+        ]);
+      }
+      if (endpoint.startsWith("/voices")) return Promise.resolve({ voices: [] });
+      return Promise.reject(new Error(`unexpected ${endpoint}`));
+    });
+    renderVoiceField({});
+
+    const select = (await screen.findByRole("combobox", { name: "Voice Name" })) as HTMLSelectElement;
+    const labels = Array.from(select.options).map((o) => o.text);
+    expect(labels).toContain("Kore · feminine");
+    expect(labels).toContain("anushka");
   });
 
   it("falls back to free text when neither source knows a voice", async () => {

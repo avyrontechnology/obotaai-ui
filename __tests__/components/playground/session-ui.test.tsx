@@ -10,12 +10,14 @@ import {
 import { emitPlaygroundBus, subscribePlaygroundBus } from "@/lib/playground-bus";
 
 jest.mock("@/services/platform/tools", () => ({
-  useAgentTools: () => ({
-    data: [
-      { tool_id: "t1", name: "book_appointment", kind: "function", enabled: true },
-      { tool_id: "t2", name: "legacy_lookup", kind: "function", enabled: false },
+  useAttachedTools: () => ({
+    attached: [
+      { ref: "function:book", name: "book_appointment", kind: "function", description: "", deprecated: false, missing: false, embedded: false },
+      { ref: "function:ghost", name: "function:ghost", kind: "unknown", description: "", deprecated: false, missing: true, embedded: false },
     ],
+    refs: ["function:book", "function:ghost"],
     isLoading: false,
+    isError: false,
   }),
 }));
 
@@ -105,11 +107,11 @@ describe("TranscriptList", () => {
 });
 
 describe("ToolsPanel", () => {
-  it("lists tools with an off badge for disabled ones", () => {
+  it("lists attached tools with a missing badge for unresolvable refs", () => {
     renderWithClient(<ToolsPanel agentId="agent-1" />);
     expect(screen.getByText("book_appointment")).toBeInTheDocument();
-    expect(screen.getByText("legacy_lookup")).toBeInTheDocument();
-    expect(screen.getByText("off")).toBeInTheDocument();
+    expect(screen.getByText("function:ghost")).toBeInTheDocument();
+    expect(screen.getByText("missing")).toBeInTheDocument();
   });
 });
 

@@ -3,7 +3,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { useFormContext, useWatch, type Control, type UseFormRegister } from "react-hook-form";
 import { SelectInput, TextInput, getFieldError } from "./form-controls";
-import { apiClient } from "@/lib/api-client";
+import { agentChannelRejection, agentRequestErrors, apiClient } from "@/lib/api-client";
 import { catalogKeys, useCatalogModels, useCatalogProviders, useCatalogVoices } from "@/services/platform/catalog";
 import { catalogVoicesSchema, type CatalogModality, type CatalogVoice } from "@/lib/schemas/catalog";
 import { useVoices } from "@/services/platform/voices";
@@ -44,6 +44,38 @@ export function CatalogProblems({
     >
       {relevant.map((problem) => (
         <p key={problem}>{problem}</p>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Top-level save-failure banner for agent create/update/PATCH (specs 0022+0028).
+ * Field-specific `problems[]` render beside their inputs via CatalogProblems;
+ * this covers everything else: channel allowlist rejections, 422 per-field
+ * failures, and structural errors that carry no problems[] at all. Renders
+ * nothing when field banners already cover the failure.
+ */
+export function AgentSaveBanner({ error, problems }: { error: unknown; problems: string[] }) {
+  const channel = agentChannelRejection(error);
+  const requestErrors = agentRequestErrors(error);
+  let lines: string[] = [];
+  if (channel && error instanceof Error) {
+    // Message already names rejected + valid channels; keep it verbatim.
+    lines = [error.message];
+  } else if (requestErrors.length > 0) {
+    lines = requestErrors;
+  } else if (problems.length === 0 && error instanceof Error) {
+    lines = [error.message];
+  }
+  if (lines.length === 0) return null;
+  return (
+    <div
+      role="alert"
+      className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-700 dark:text-red-400 space-y-1"
+    >
+      {lines.map((line) => (
+        <p key={line}>{line}</p>
       ))}
     </div>
   );
@@ -338,7 +370,12 @@ export function CatalogVoiceField({
   const libraryOnly = (library ?? []).filter((entry) => !seen.has(entry.name));
   const options = withCurrent(
     [
-      ...catalogVoices.map((v) => ({ label: v.name, value: v.name })),
+      // Gender comes from the curated seed (Gemini rows carry documented
+      // genders; others stay name-only rather than guessed).
+      ...catalogVoices.map((v) => ({
+        label: v.gender ? `${v.name} · ${v.gender}` : v.name,
+        value: v.name,
+      })),
       ...libraryOnly.map((entry) => ({ label: `${entry.name} · library`, value: entry.name })),
     ],
     typeof current === "string" ? current : undefined,

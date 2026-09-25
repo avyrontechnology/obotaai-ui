@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { firstErrorMessage } from "@/components/settings/form-controls";
+import { AgentSaveBanner } from "@/components/settings/catalog-fields";
 import { ErrorState } from "@/components/common/error-state";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   // offending select instead of a dead form. Never cleared implicitly;
   // the form keeps every valid input on failure (RHF preserves values).
   const [validationProblems, setValidationProblems] = useState<string[]>([]);
+  const [saveError, setSaveError] = useState<unknown>(null);
   const canWrite = useCan("agents.write");
 
   // Merge the prompts file into persona so every field loads populated.
@@ -145,6 +147,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
   // their own endpoints via their own buttons inside each form.
   const onSubmit = async (data: ConfigureFormData) => {
     setValidationProblems([]);
+    setSaveError(null);
     try {
       const config: AgentConfigData = data.agent_config;
       const persona = config.persona;
@@ -166,12 +169,17 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
           welcome_message,
         },
         agent_config: config,
+        // Phase A round-trip: PUT fully overwrites, so re-emit stored
+        // channels instead of falling back to the type default.
+        ...(agent.channels ? { channels: agent.channels } : {}),
       };
       await updateMutation.mutateAsync({ id, data: fullData });
       notify.success("Configuration saved", { description: agent.agent_name });
     } catch (e) {
       // Surface catalog problems verbatim beside their select; the toast
-      // keeps the human-readable summary.
+      // keeps the human-readable summary. The raw error is kept for the
+      // top-level banner (channel/422/structural shapes carry no problems[]).
+      setSaveError(e);
       setValidationProblems(agentValidationProblems(e));
       notify.error("Update failed", e);
     }
@@ -218,6 +226,8 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
           </button>
         </div>
       </div>
+
+      <AgentSaveBanner error={saveError} problems={validationProblems} />
 
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         {/* Grouped sidebar */}
@@ -286,7 +296,7 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
                   {effectiveSection === "llm" && <LLMConfigForm problems={validationProblems} />}
                   {effectiveSection === "rag" && <RAGConfigForm agentId={id} />}
                   {effectiveSection === "behavior" && <CallBehaviorConfigForm />}
-                  {effectiveSection === "tools" && <ToolsConfigForm agentId={id} />}
+                  {effectiveSection === "tools" && <ToolsConfigForm agentId={id} problems={validationProblems} />}
                   {effectiveSection === "analytics" && <AnalyticsConfigForm agentId={id} />}
                   {effectiveSection === "inbound" && <InboundConfigForm agentId={id} />}
                 </motion.div>

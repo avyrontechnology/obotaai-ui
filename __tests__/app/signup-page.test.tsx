@@ -64,6 +64,12 @@ describe("Signup page", () => {
       fireEvent.click(screen.getByRole("button", { name: /create owner account/i }));
     });
     expect(await screen.findByText("This workspace already has an owner.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    // The closed-workspace notice renders twice (inline + footer) — every
+    // sign-in link must land on /login.
+    const signInLinks = screen.getAllByRole("link", { name: "Sign in" });
+    expect(signInLinks.length).toBeGreaterThanOrEqual(1);
+    for (const link of signInLinks) {
+      expect(link).toHaveAttribute("href", "/login");
+    }
   });
 });

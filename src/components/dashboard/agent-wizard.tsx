@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCreateAgent, useUpdateAgent, Agent } from "@/services/api";
 import { ArrowRight, ArrowLeft, Loader2, Save, Lightbulb, Cpu, Sparkles, Mic, Terminal } from "lucide-react";
 import { firstErrorMessage } from "@/components/settings/form-controls";
+import { AgentSaveBanner } from "@/components/settings/catalog-fields";
 import { WizardCatalogProviderSelect } from "@/components/settings/catalog-fields";
 import { agentValidationProblems } from "@/lib/api-client";
 import { notify } from "@/lib/notify";
@@ -59,8 +60,10 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   // Catalog write-time validation (spec 0022): backend 400 problems[] render
-  // verbatim in the toolchain step instead of a dead form.
+  // verbatim in the toolchain step instead of a dead form. The raw error is
+  // kept for non-problems shapes (channel/422/structural, specs 0022+0028).
   const [validationProblems, setValidationProblems] = useState<string[]>([]);
+  const [saveError, setSaveError] = useState<unknown>(null);
 
   const createMutation = useCreateAgent();
   const updateMutation = useUpdateAgent();
@@ -103,6 +106,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
 
   const onSubmit = async (data: WizardData) => {
     setValidationProblems([]);
+    setSaveError(null);
     try {
       if (isEditing && initialData) {
         await updateMutation.mutateAsync({ id: initialData.agent_id, data });
@@ -114,6 +118,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
         router.push(`/agents/${created.agent_id}/configure`);
       }
     } catch (error) {
+      setSaveError(error);
       setValidationProblems(agentValidationProblems(error));
       notify.error("Failed to save agent", error);
     }
@@ -318,6 +323,7 @@ export function AgentWizard({ initialData }: AgentWizardProps) {
                     </span>
                   </div>
                   
+                  <AgentSaveBanner error={saveError} problems={validationProblems} />
                   {validationProblems.length > 0 && (
                     <div
                       role="alert"

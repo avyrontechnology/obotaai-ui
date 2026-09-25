@@ -3,7 +3,7 @@ import { ChatTalk } from "@/components/playground/chat-talk";
 import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
 
 jest.mock("@/services/platform/tools", () => ({
-  useAgentTools: () => ({ data: [], isLoading: false }),
+  useAttachedTools: () => ({ attached: [], refs: [], isLoading: false, isError: false }),
 }));
 
 type Handler = (event: unknown) => void;

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowDown, AudioLines, Gauge, Wrench } from "lucide-react";
-import { useAgentTools } from "@/services/platform/tools";
+import { useAttachedTools } from "@/services/platform/tools";
 import { formatLatency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -217,11 +217,11 @@ export function TranscriptList({
 }
 
 export function ToolsPanel({ agentId }: { agentId: string }) {
-  const { data: tools, isLoading } = useAgentTools(agentId);
+  const { attached, isLoading } = useAttachedTools(agentId);
   if (isLoading) {
     return <div className="h-24 rounded-2xl bg-muted/50 animate-pulse" aria-label="Loading tools" />;
   }
-  if (!tools || tools.length === 0) {
+  if (!attached || attached.length === 0) {
     return (
       <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border p-6 text-center">
         No function tools attached to this agent yet.
@@ -230,9 +230,9 @@ export function ToolsPanel({ agentId }: { agentId: string }) {
   }
   return (
     <ul className="space-y-2">
-      {tools.map((tool) => (
+      {attached.map((tool) => (
         <li
-          key={tool.tool_id}
+          key={tool.ref ?? `embedded:${tool.name}`}
           className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3"
         >
           <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 shrink-0">
@@ -242,9 +242,19 @@ export function ToolsPanel({ agentId }: { agentId: string }) {
             <span className="block text-sm font-medium text-foreground truncate">{tool.name}</span>
             <span className="block text-[11px] font-mono text-muted-foreground truncate">{tool.kind}</span>
           </span>
-          {!tool.enabled && (
+          {tool.missing && (
+            <span className="text-[10px] font-mono uppercase tracking-widest text-red-700 dark:text-red-400 shrink-0">
+              missing
+            </span>
+          )}
+          {tool.deprecated && !tool.missing && (
             <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
-              off
+              deprecated
+            </span>
+          )}
+          {tool.embedded && (
+            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
+              embedded
             </span>
           )}
         </li>

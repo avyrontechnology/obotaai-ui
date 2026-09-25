@@ -1,5 +1,7 @@
 import {
   ApiError,
+  agentChannelRejection,
+  agentRequestErrors,
   agentValidationProblems,
   apiClient,
   buildTalkSocketUrl,
@@ -73,6 +75,55 @@ describe("apiClient errors", () => {
   it("returns no problems for legacy errors without a details block", () => {
     expect(agentValidationProblems(new ApiError("nope", 500))).toEqual([]);
     expect(agentValidationProblems(new Error("nope"))).toEqual([]);
+  });
+
+  it("surfaces Phase A channel rejections outside problems[] (spec 0028)", async () => {
+    mockFetch(
+      400,
+      {
+        ok: false,
+        detail: "Channels not servable yet: chat (valid: voice; chat arrives in Phase C).",
+        error: {
+          code: "invalid_request",
+          error_id: "err_2",
+          details: { channels: ["chat"], valid: ["voice"] },
+        },
+      },
+      "Bad Request"
+    );
+    const failure = await apiClient("/agent/x").catch((e: unknown) => e);
+    expect(agentValidationProblems(failure)).toEqual([]);
+    expect(agentChannelRejection(failure)).toEqual({ channels: ["chat"], valid: ["voice"] });
+    expect(agentChannelRejection(new ApiError("nope", 500))).toBeNull();
+  });
+
+  it("formats FastAPI 422 per-field failures as path messages", async () => {
+    mockFetch(
+      422,
+      {
+        ok: false,
+        detail: "Request validation failed",
+        error: {
+          code: "invalid_request",
+          error_id: "err_3",
+          details: {
+            errors: [
+              { loc: ["body", "channels"], msg: "List should have at least 1 item", type: "too_short" },
+              { loc: ["body", "tasks", 0, "pipeline"], msg: "Input should be 'asr' or 's2s'", type: "literal_error" },
+              { msg: "Stray failure" },
+            ],
+          },
+        },
+      },
+      "Unprocessable Entity"
+    );
+    const failure = await apiClient("/agent").catch((e: unknown) => e);
+    expect(agentRequestErrors(failure)).toEqual([
+      "channels: List should have at least 1 item",
+      "tasks.0.pipeline: Input should be 'asr' or 's2s'",
+      "Stray failure",
+    ]);
+    expect(agentRequestErrors(new ApiError("nope", 500))).toEqual([]);
   });
 });
 

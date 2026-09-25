@@ -60,6 +60,9 @@ export interface BackendTask {
   toolchain: BackendToolchain;
   task_type?: string | null;
   task_config?: BackendConversationConfig;
+  /** Phase A engine pointer (spec 0028): "asr" | "s2s". Omitted when the
+   *  toggle is untouched — backend inference reproduces legacy routing. */
+  pipeline?: string | null;
 }
 
 export interface BackendAgentModel {
@@ -67,6 +70,23 @@ export interface BackendAgentModel {
   agent_type?: string;
   tasks: BackendTask[];
   agent_welcome_message?: string | null;
+  /** Phase A runtimes (spec 0028). Omitted when unset — the backend defaults
+   *  to ["voice"]. Never emit [] (backend min_length=1 rejects it). */
+  channels?: string[];
+}
+
+/**
+ * Derive the Phase A `channels` for a create/PUT payload (spec 0028).
+ *
+ * Explicit non-empty form channels win. Otherwise voice/s2s forms emit
+ * ["voice"]; text/other forms omit the key so the backend default applies
+ * (chat rejects loudly until Phase C — never emit it from the UI).
+ */
+export function defaultChannels(data: AgentData): string[] | undefined {
+  const explicit = (data.channels ?? []).filter((c) => c.length > 0);
+  if (explicit.length > 0) return [...new Set(explicit)];
+  if (data.agent_type === "voice" || data.agent_type === "s2s") return ["voice"];
+  return undefined;
 }
 
 export interface CreateAgentPayload {
@@ -161,6 +181,37 @@ export function defaultS2sModel(provider: string): string | undefined {
   return S2S_MODEL_DEFAULTS[provider];
 }
 
+export interface ApiToolsFormValue {
+  tool_refs?: string[];
+  webhooks?: Record<string, { ref: string; param?: unknown }>;
+  embedded_tools?: unknown[];
+  embedded_params?: Record<string, unknown>;
+}
+
+/**
+ * Build the `api_tools` task block from form attachments (spec 0029 slice 2).
+ * Returns undefined when the form carries nothing — untouched agents keep
+ * legacy payloads byte-identical. `tools: []` is load-bearing when present:
+ * the backend materializes ref definitions into the list, and an absent
+ * list would leave refs invisible to the engine.
+ */
+export function buildApiToolsPayload(
+  value: ApiToolsFormValue | undefined
+): Record<string, unknown> | undefined {
+  const toolRefs = [...(value?.tool_refs ?? [])];
+  const webhookParams: Record<string, unknown> = { ...(value?.embedded_params ?? {}) };
+  for (const [attachName, attach] of Object.entries(value?.webhooks ?? {})) {
+    const entry: Record<string, unknown> = { pre_call_webhook_ref: attach.ref };
+    if (attach.param !== undefined) entry.pre_call_webhook_param = attach.param;
+    webhookParams[attachName] = entry;
+  }
+  const embeddedTools = [...(value?.embedded_tools ?? [])];
+  if (toolRefs.length === 0 && Object.keys(webhookParams).length === 0 && embeddedTools.length === 0) {
+    return undefined;
+  }
+  return { tool_refs: toolRefs, tools: embeddedTools, tools_params: webhookParams };
+}
+
 /**
  * Transform wizard form data into the backend's CreateAgentPayload.
  */
@@ -209,10 +260,25 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     toolsConfig.output = { provider: telephony.output_provider, format: telephony.output_format || "wav" };
   }
 
+  // Phase A pipeline toggle (spec 0028): the form holds BOTH blocks and a
+  // `pipeline` pointer. Untouched toggle (undefined) reproduces the legacy
+  // exclusive payloads byte-for-byte — backend inference routes them.
+  // Touched toggle emits both blocks + explicit `pipeline`; BOTH sides must
+  // validate (parked is never exempt), so absent parked fields fall back to
+  // the same catalog-valid defaults as the active side.
+  const pipelineSel =
+    data.agent_config?.pipeline === "asr" || data.agent_config?.pipeline === "s2s"
+      ? data.agent_config.pipeline
+      : undefined;
+  const coexisting = pipelineSel !== undefined && (isVoice || isS2S);
+  const emitS2s = isS2S || coexisting;
+  const emitVoice = isVoice || coexisting;
+
   // Pipelines for the toolchain
   const pipelineSteps: string[] = [];
+  const parkedSteps: string[] = [];
 
-  if (isS2S) {
+  if (emitS2s) {
     // Realtime multimodal task: the s2s block replaces discrete STT/LLM/TTS.
     // Field sets are provider-conditional to match the backend
     // OpenAIRealtimeConfig / GeminiLiveConfig validators.
@@ -245,12 +311,16 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     const s2sBlock: Record<string, unknown> = { provider: s2sProvider, provider_config: s2sProviderConfig };
     if (s2s?.welcome_audio_gate_ms != null) s2sBlock.welcome_audio_gate_ms = s2s.welcome_audio_gate_ms;
     toolsConfig.s2s = s2sBlock;
-    pipelineSteps.push("s2s");
-  } else {
-    toolsConfig.llm_agent = llmAgent;
+    // Active pipeline lands first; parked second. Untouched toggle keeps the
+    // legacy single-pipeline shape.
+    (coexisting && pipelineSel === "asr" ? parkedSteps : pipelineSteps).push("s2s");
   }
 
-  if (isVoice) {
+  if (emitVoice) {
+    // The discrete pipeline needs its LLM; the parked side carries one too
+    // so flipping the pointer never lands on a missing brain.
+    toolsConfig.llm_agent = llmAgent;
+
     // Transcriber
     const transcriberProvider = data.agent_config?.transcriber?.provider || data.agent_config?.asr_provider || "deepgram";
     toolsConfig.transcriber = {
@@ -299,8 +369,10 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
       caching: data.agent_config?.synthesizer?.caching ?? true,
     };
 
-    pipelineSteps.push("transcriber", "llm", "synthesizer");
-  } else if (!isS2S) {
+    (coexisting && pipelineSel === "s2s" ? parkedSteps : pipelineSteps).push("transcriber", "llm", "synthesizer");
+  }
+
+  if (!emitS2s && !emitVoice) {
     // Text-only pipeline
     if (!toolsConfig.input) toolsConfig.input = { provider: "default", format: "wav" };
     if (!toolsConfig.output) toolsConfig.output = { provider: "default", format: "wav" };
@@ -334,14 +406,26 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     if (conv.call_cancellation_prompt != null) taskConfig.call_cancellation_prompt = conv.call_cancellation_prompt;
   }
 
+  // Shared tool attachments (spec 0029 slice 2): refs + webhook params from
+  // form state. Emitted only when the form carries attachments — untouched
+  // agents keep legacy payloads byte-identical.
+  const apiToolsPayload = buildApiToolsPayload(data.agent_config?.api_tools);
+  if (apiToolsPayload) {
+    toolsConfig.api_tools = apiToolsPayload;
+  }
+
   const task: BackendTask = {
     tools_config: toolsConfig,
     toolchain: {
       execution: "parallel",
-      pipelines: [pipelineSteps],
+      // Coexistence lists the active pipeline first, parked second; legacy
+      // single-pipeline shape is untouched when the toggle is unused.
+      pipelines: coexisting ? [pipelineSteps, parkedSteps] : [pipelineSteps],
     },
     task_type: "conversation",
     task_config: taskConfig,
+    // Explicit pointer wins on the backend; absent infers legacy routing.
+    ...(coexisting && pipelineSel ? { pipeline: pipelineSel } : {}),
   };
 
   // Build agent_prompts in backend format: { "task_1": { "system_prompt": "..." } }
@@ -357,14 +441,18 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     task_1: taskPrompts,
   };
 
+  const agentModel: BackendAgentModel = {
+    agent_name: data.agent_name,
+    agent_type: data.agent_type || "other",
+    tasks: [task],
+    agent_welcome_message:
+      persona?.welcome_message || data.agent_prompts?.welcome_message || null,
+  };
+  const channels = defaultChannels(data);
+  if (channels) agentModel.channels = channels;
+
   return {
-    agent_config: {
-      agent_name: data.agent_name,
-      agent_type: data.agent_type || "other",
-      tasks: [task],
-      agent_welcome_message:
-        persona?.welcome_message || data.agent_prompts?.welcome_message || null,
-    },
+    agent_config: agentModel,
     agent_prompts: agentPrompts,
   };
 }
@@ -383,6 +471,7 @@ export function templatePayloadToAgentData(payload: Record<string, unknown>): Ag
       agent_type: payload.agent_type,
       agent_welcome_message: prompts.welcome_message ?? "",
       tasks: payload.tasks,
+      ...(Array.isArray(payload.channels) ? { channels: payload.channels } : {}),
     },
     agent_prompts: { task_1: prompts },
   });
@@ -394,6 +483,7 @@ export function templatePayloadToAgentData(payload: Record<string, unknown>): Ag
       welcome_message: agent.agent_prompts.welcome_message,
     },
     agent_config: agent.agent_config,
+    ...(agent.channels ? { channels: agent.channels } : {}),
   };
 }
 
@@ -455,6 +545,14 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
     agentName = (nestedData.agent_name as string) || "Unnamed Agent";
     agentType = (nestedData.agent_type as string) || "other";
     welcomeMessage = (nestedData.agent_welcome_message as string) || "";
+
+    // Phase A engine pointer (spec 0028): read the first task's selector so
+    // the toggle reflects stored state; absent stays absent (legacy inference).
+    const firstTask = (nestedData.tasks as BackendTask[])[0];
+    const storedPipeline: unknown = firstTask?.pipeline;
+    if (storedPipeline === "asr" || storedPipeline === "s2s") {
+      agentConfig.pipeline = storedPipeline;
+    }
 
     const tasks = nestedData.tasks as BackendTask[];
     if (tasks.length > 0) {
@@ -569,6 +667,44 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
       if (task.task_config) {
         agentConfig.conversation = task.task_config as unknown as AgentConfig["conversation"];
       }
+
+      // Extract tool attachments (spec 0029 slice 2): shared ref ids plus
+      // webhook params. tools_params entries carrying pre_call_webhook_ref
+      // become managed attachments; everything else rides opaque so PUT
+      // cannot wipe legacy embedded entries.
+      const rawApiTools = tc.api_tools as Record<string, unknown> | undefined;
+      if (rawApiTools && typeof rawApiTools === "object") {
+        const refs = Array.isArray(rawApiTools.tool_refs)
+          ? rawApiTools.tool_refs.filter((r): r is string => typeof r === "string")
+          : [];
+        const webhooks: Record<string, { ref: string; param?: unknown }> = {};
+        const embeddedParams: Record<string, unknown> = {};
+        const rawParams = rawApiTools.tools_params;
+        if (rawParams && typeof rawParams === "object" && !Array.isArray(rawParams)) {
+          for (const [key, value] of Object.entries(rawParams as Record<string, unknown>)) {
+            if (value && typeof value === "object" && !Array.isArray(value)) {
+              const entry = value as Record<string, unknown>;
+              if (typeof entry.pre_call_webhook_ref === "string" && entry.pre_call_webhook_ref.length > 0) {
+                webhooks[key] = { ref: entry.pre_call_webhook_ref };
+                if (entry.pre_call_webhook_param !== undefined && entry.pre_call_webhook_param !== null) {
+                  webhooks[key].param = entry.pre_call_webhook_param;
+                }
+                continue;
+              }
+            }
+            embeddedParams[key] = value;
+          }
+        }
+        const embeddedTools = Array.isArray(rawApiTools.tools) ? rawApiTools.tools : [];
+        if (refs.length > 0 || Object.keys(webhooks).length > 0 || embeddedTools.length > 0 || Object.keys(embeddedParams).length > 0) {
+          agentConfig.api_tools = {
+            tool_refs: refs,
+            webhooks,
+            embedded_tools: embeddedTools,
+            embedded_params: embeddedParams,
+          };
+        }
+      }
     }
   } else {
     // Flat response — use top-level fields
@@ -600,6 +736,15 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
     }
   }
 
+  // Phase A runtimes (spec 0028): top-level list on the stored record.
+  // Read from the same nesting levels as everything else; absent stays
+  // absent so old backends/records keep working.
+  const rawChannels =
+    (nestedData?.channels as unknown) ?? (raw.channels as unknown);
+  const channels = Array.isArray(rawChannels)
+    ? rawChannels.filter((c): c is string => typeof c === "string" && c.length > 0)
+    : undefined;
+
   return {
     agent_id: agentId,
     agent_name: agentName,
@@ -609,6 +754,7 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
       system_prompt: systemPrompt || undefined,
       welcome_message: welcomeMessage || undefined,
     },
+    ...(channels && channels.length > 0 ? { channels } : {}),
   };
 }
 

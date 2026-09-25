@@ -7,6 +7,7 @@ import {
   defaultTtsConfig,
   defaultLlmModel,
   defaultS2sModel,
+  defaultChannels,
 } from "@/services/api-transforms";
 import { agentConfigSchema } from "@/lib/schemas/agent";
 import type { AgentData } from "@/lib/schemas/agent";
@@ -786,6 +787,187 @@ describe("api-transforms", () => {
           provider: "openai_realtime",
           provider_config: expect.objectContaining({ model: "gpt-realtime-2.1" }),
         })
+      );
+    });
+
+    it("emits channels per form type and never an empty array (spec 0028)", () => {
+      const base = {
+        agent_name: "Agent",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: {},
+      } as const;
+      expect(defaultChannels({ ...base, agent_type: "voice" })).toEqual(["voice"]);
+      expect(defaultChannels({ ...base, agent_type: "s2s" })).toEqual(["voice"]);
+      expect(defaultChannels({ ...base, agent_type: "text" })).toBeUndefined();
+      expect(defaultChannels({ ...base, agent_type: "other" })).toBeUndefined();
+      // Explicit non-empty channels win (deduped); empties fall back.
+      expect(
+        defaultChannels({ ...base, agent_type: "voice", channels: ["voice", "voice"] })
+      ).toEqual(["voice"]);
+      expect(defaultChannels({ ...base, agent_type: "voice", channels: [] })).toEqual(["voice"]);
+
+      const payload = toCreateAgentPayload({ ...base, agent_type: "voice" });
+      expect(payload.agent_config.channels).toEqual(["voice"]);
+      const textPayload = toCreateAgentPayload({ ...base, agent_type: "text" });
+      expect("channels" in textPayload.agent_config).toBe(false);
+    });
+
+    it("round-trips channels through toFrontendAgent (absent stays absent)", () => {
+      const withChannels = toFrontendAgent({
+        agent_id: "a1",
+        data: { agent_name: "A", agent_type: "voice", tasks: [], channels: ["voice"] },
+      });
+      expect(withChannels.channels).toEqual(["voice"]);
+      const legacy = toFrontendAgent({
+        agent_id: "a2",
+        data: { agent_name: "B", agent_type: "voice", tasks: [] },
+      });
+      expect(legacy.channels).toBeUndefined();
+    });
+
+    it("emits both blocks plus an explicit pointer when the toggle is set (spec 0028)", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Dual Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: {
+          pipeline: "s2s",
+          transcriber: { provider: "deepgram", model: "nova-2" },
+          synthesizer: { provider: "elevenlabs", voice: "Rachel", model: "eleven_turbo_v2_5" },
+          llm: { provider: "openai", model: "gpt-4o" },
+          s2s: { provider: "openai_realtime", model: "gpt-realtime-2.1" },
+        },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect(task.pipeline).toBe("s2s");
+      expect(task.tools_config.s2s).toEqual(expect.objectContaining({ provider: "openai_realtime" }));
+      expect(task.tools_config.transcriber).toEqual(expect.objectContaining({ provider: "deepgram" }));
+      expect(task.tools_config.synthesizer).toEqual(expect.objectContaining({ provider: "elevenlabs" }));
+      expect(task.tools_config.llm_agent).toEqual(expect.objectContaining({ provider: "openai" }));
+      // Active pipeline first, parked second.
+      expect(task.toolchain.pipelines).toEqual([
+        ["s2s"],
+        ["transcriber", "llm", "synthesizer"],
+      ]);
+    });
+
+    it("omits the pointer and keeps legacy single-pipeline shape when untouched", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Voice Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: {
+          transcriber: { provider: "deepgram", model: "nova-2" },
+          synthesizer: { provider: "elevenlabs", voice: "Rachel", model: "eleven_turbo_v2_5" },
+          llm: { provider: "openai", model: "gpt-4o" },
+        },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect("pipeline" in task).toBe(false);
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.toolchain.pipelines).toEqual([["transcriber", "llm", "synthesizer"]]);
+    });
+
+    it("ignores the pointer on text agents (toggle is voice/s2s only)", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Text Agent",
+        agent_type: "text",
+        agent_prompts: { system_prompt: "You are a helpful assistant." },
+        agent_config: { pipeline: "s2s", llm: { provider: "openai", model: "gpt-4o" } },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect("pipeline" in task).toBe(false);
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.tools_config.transcriber).toBeUndefined();
+    });
+
+    it("reads the stored pointer back for the toggle", () => {
+      const agent = toFrontendAgent({
+        agent_id: "a1",
+        data: {
+          agent_name: "A",
+          agent_type: "voice",
+          tasks: [{ pipeline: "s2s", tools_config: {} }],
+        },
+      });
+      expect(agent.agent_config.pipeline).toBe("s2s");
+      const legacy = toFrontendAgent({
+        agent_id: "a2",
+        data: { agent_name: "B", agent_type: "voice", tasks: [{ tools_config: {} }] },
+      });
+      expect(legacy.agent_config.pipeline).toBeUndefined();
+    });
+
+    it("emits api_tools only when the form carries attachments (spec 0029)", () => {
+      const base = {
+        agent_name: "Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: {},
+      } as const;
+      // Untouched agents keep legacy payloads byte-identical.
+      expect("api_tools" in toCreateAgentPayload({ ...base }).agent_config.tasks[0].tools_config).toBe(false);
+
+      const payload = toCreateAgentPayload({
+        ...base,
+        agent_config: {
+          api_tools: {
+            tool_refs: ["function:calendar"],
+            webhooks: { notify: { ref: "webhook:pre_call_notify", param: { event: "x" } } },
+            embedded_params: { legacy: { url: "https://old.test/x" } },
+          },
+        },
+      });
+      const apiTools = payload.agent_config.tasks[0].tools_config.api_tools as Record<string, unknown>;
+      expect(apiTools.tool_refs).toEqual(["function:calendar"]);
+      // tools: [] is load-bearing — materialization appends into the list.
+      expect(apiTools.tools).toEqual([]);
+      expect(apiTools.tools_params).toEqual({
+        legacy: { url: "https://old.test/x" },
+        notify: { pre_call_webhook_ref: "webhook:pre_call_notify", pre_call_webhook_param: { event: "x" } },
+      });
+    });
+
+    it("round-trips attachments and preserves embedded entries", () => {
+      const agent = toFrontendAgent({
+        agent_id: "a1",
+        data: {
+          agent_name: "A",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: {
+                api_tools: {
+                  tool_refs: ["function:calendar"],
+                  tools: [{ type: "function", function: { name: "legacy_fn" } }],
+                  tools_params: {
+                    notify: { pre_call_webhook_ref: "webhook:pre_call_notify", pre_call_webhook_param: { event: "y" } },
+                    legacy: { url: "https://old.test/x" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      });
+      expect(agent.agent_config.api_tools?.tool_refs).toEqual(["function:calendar"]);
+      expect(agent.agent_config.api_tools?.webhooks).toEqual({
+        notify: { ref: "webhook:pre_call_notify", param: { event: "y" } },
+      });
+      expect(agent.agent_config.api_tools?.embedded_params).toEqual({ legacy: { url: "https://old.test/x" } });
+      expect(agent.agent_config.api_tools?.embedded_tools).toHaveLength(1);
+
+      // Re-emission preserves everything (PUT round-trip safety).
+      const repayload = toCreateAgentPayload({
+        agent_name: "A",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: agent.agent_config,
+      });
+      const reemitted = repayload.agent_config.tasks[0].tools_config.api_tools as Record<string, unknown>;
+      expect(reemitted.tool_refs).toEqual(["function:calendar"]);
+      expect(reemitted.tools_params).toEqual(
+        expect.objectContaining({ legacy: { url: "https://old.test/x" } })
       );
     });
 

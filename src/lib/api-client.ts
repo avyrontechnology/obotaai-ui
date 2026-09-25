@@ -46,6 +46,11 @@ export interface ApiErrorDetails {
   code?: string;
   errorId?: string;
   problems?: string[];
+  /** Phase A channel allowlist (spec 0028): rejected + servable channels. */
+  channels?: string[];
+  valid?: string[];
+  /** FastAPI 422 per-field failures under error.details.errors. */
+  errors?: unknown;
   [key: string]: unknown;
 }
 
@@ -67,6 +72,49 @@ export function agentValidationProblems(error: unknown): string[] {
   if (error instanceof ApiError) {
     const problems = error.details?.problems;
     if (Array.isArray(problems)) return problems.filter((p): p is string => typeof p === "string");
+  }
+  return [];
+}
+
+export interface AgentChannelRejection {
+  channels: string[];
+  valid: string[];
+}
+
+/** Phase A channel allowlist rejection (spec 0028): details carries
+ *  `{ channels: rejected[], valid: servable[] }` instead of problems[]. */
+export function agentChannelRejection(error: unknown): AgentChannelRejection | null {
+  if (error instanceof ApiError) {
+    const { channels, valid } = error.details ?? {};
+    if (Array.isArray(channels) && Array.isArray(valid)) {
+      return {
+        channels: channels.filter((c): c is string => typeof c === "string"),
+        valid: valid.filter((v): v is string => typeof v === "string"),
+      };
+    }
+  }
+  return null;
+}
+
+/** FastAPI 422 per-field failures (`error.details.errors[]` of
+ *  `{ loc, msg }`) rendered as `path: message` strings. Covers create/PUT
+ *  request-schema rejections (bad `pipeline` literal, empty `channels`,
+ *  duplicate channels) that never become problems[]. */
+export function agentRequestErrors(error: unknown): string[] {
+  if (error instanceof ApiError) {
+    const { errors } = error.details ?? {};
+    if (Array.isArray(errors)) {
+      return errors.flatMap((entry): string[] => {
+        if (!entry || typeof entry !== "object") return [];
+        const record = entry as Record<string, unknown>;
+        const msg = typeof record.msg === "string" ? record.msg : null;
+        if (!msg) return [];
+        const loc = Array.isArray(record.loc)
+          ? record.loc.filter((p): p is string | number => typeof p === "string" || typeof p === "number").filter((p) => p !== "body")
+          : [];
+        return [loc.length > 0 ? `${loc.join(".")}: ${msg}` : msg];
+      });
+    }
   }
   return [];
 }

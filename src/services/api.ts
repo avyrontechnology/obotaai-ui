@@ -24,6 +24,8 @@ export interface Agent {
     system_prompt?: string;
     welcome_message?: string;
   };
+  /** Phase A runtimes (spec 0028). Absent on old backends/records. */
+  channels?: string[];
 }
 
 // --- Query Keys ---
@@ -124,6 +126,7 @@ export function useCreateAgent() {
         agent_type: data.agent_type,
         agent_config: data.agent_config,
         agent_prompts: data.agent_prompts,
+        ...(data.channels ? { channels: data.channels } : {}),
       } as Agent;
     },
     onSuccess: () => {
@@ -141,6 +144,49 @@ export function useUpdateAgent() {
       return apiClient<Record<string, unknown>>(`/agent/${id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(variables.id) });
+    },
+  });
+}
+
+/** One addressed task edit for PATCH (spec 0028): merges into
+ *  `tasks[task_index]`. Present-null is a no-op; clear via `clear`. */
+export interface TaskPatchOperation {
+  task_index: number;
+  task_type?: string;
+  pipeline?: "asr" | "s2s" | null;
+  tools_config?: Record<string, unknown>;
+  toolchain?: Record<string, unknown>;
+  task_config?: Record<string, unknown>;
+  clear?: ("pipeline")[];
+}
+
+/** Partial agent update for PATCH (spec 0028): strict partials, absent keys
+ *  invisible. `tasks` (full-array replace) and `tasks_patch` are exclusive. */
+export interface PatchAgentInput {
+  agent_name?: string;
+  agent_type?: string;
+  agent_welcome_message?: string | null;
+  channels?: string[];
+  tasks?: Record<string, unknown>[];
+  tasks_patch?: TaskPatchOperation[];
+  agent_prompts?: Record<string, Record<string, unknown>> | null;
+  clear?: ("agent_prompts")[];
+}
+
+export function usePatchAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: PatchAgentInput }) => {
+      // Same {"agent_id", "state"} response as PUT (inside the envelope).
+      return apiClient<{ agent_id: string; state: string }>(`/agent/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
       });
     },
     onSuccess: (_, variables) => {

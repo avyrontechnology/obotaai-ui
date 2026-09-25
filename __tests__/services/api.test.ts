@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
-import { parseStoredPrompts, queryKeys, useAgent, useAgentPrompts } from "@/services/api";
+import { parseStoredPrompts, queryKeys, useAgent, useAgentPrompts, usePatchAgent } from "@/services/api";
 import { apiClient } from "@/lib/api-client";
 
 jest.mock("@/lib/api-client", () => ({
@@ -65,6 +65,52 @@ describe("useAgent", () => {
     const { result } = renderHook(() => useAgent("", false), { wrapper });
     expect(result.current.fetchStatus).toBe("idle");
     expect(mockedApiClient).not.toHaveBeenCalled();
+  });
+});
+
+describe("usePatchAgent", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("sends a partial body via PATCH with the PUT-parity response", async () => {
+    mockedApiClient.mockResolvedValue({ agent_id: "a1", state: "updated" });
+    const { result } = renderHook(() => usePatchAgent(), { wrapper });
+
+    let response: unknown;
+    await React.act(async () => {
+      response = await result.current.mutateAsync({
+        id: "a1",
+        patch: { tasks_patch: [{ task_index: 0, pipeline: "s2s" }] },
+      });
+    });
+
+    expect(mockedApiClient).toHaveBeenCalledWith(
+      "/agent/a1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ tasks_patch: [{ task_index: 0, pipeline: "s2s" }] }),
+      })
+    );
+    expect(response).toEqual({ agent_id: "a1", state: "updated" });
+  });
+
+  it("supports rename and channel patches without resending tasks", async () => {
+    mockedApiClient.mockResolvedValue({ agent_id: "a1", state: "updated" });
+    const { result } = renderHook(() => usePatchAgent(), { wrapper });
+
+    await React.act(async () => {
+      await result.current.mutateAsync({
+        id: "a1",
+        patch: { agent_name: "Renamed", channels: ["voice"] },
+      });
+    });
+
+    expect(mockedApiClient).toHaveBeenCalledWith(
+      "/agent/a1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ agent_name: "Renamed", channels: ["voice"] }),
+      })
+    );
   });
 });
 

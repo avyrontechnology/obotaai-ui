@@ -157,7 +157,28 @@ export const s2sSchema = z.object({
   enable_context_compression: z.boolean().optional(),
 });
 
+/** One webhook attachment: shared row ref + optional per-agent param
+ *  override (backend stamps URL/template when absent). */
+export const webhookAttachSchema = z.object({
+  ref: z.string().min(1),
+  param: z.unknown().optional(),
+});
+
+/** Agent-tool attachments (spec 0029 slice 2): shared ids + webhook params.
+ *  `embedded_*` are opaque passthroughs for legacy embedded entries — PUT
+ *  fully overwrites, so anything the form doesn't carry would be wiped. */
+export const apiToolsSchema = z.object({
+  tool_refs: z.array(z.string()).optional(),
+  webhooks: z.record(z.string(), webhookAttachSchema).optional(),
+  embedded_tools: z.array(z.unknown()).optional(),
+  embedded_params: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const agentConfigSchema = z.object({
+  // Phase A engine pointer (spec 0028): which coexisting block runs.
+  // Absent = toggle untouched = backend legacy inference.
+  pipeline: z.enum(["asr", "s2s"]).optional(),
+  api_tools: apiToolsSchema.optional(),
   transcriber: transcriberSchema.optional(),
   synthesizer: synthesizerSchema.optional(),
   llm: llmSchema.optional(),
@@ -180,6 +201,10 @@ export const agentSchema = z.object({
     welcome_message: z.string().optional(),
   }),
   agent_config: agentConfigSchema,
+  // Phase A runtimes (spec 0028): top-level AgentModel field, NOT agent_config.
+  // Optional so older forms/backends keep working; never empty (backend
+  // min_length=1 rejects []) — the transform omits instead of emitting [].
+  channels: z.array(z.string().min(1)).optional(),
 });
 
 export type TranscriberConfig = z.infer<typeof transcriberSchema>;
@@ -190,5 +215,7 @@ export type ConversationConfig = z.infer<typeof conversationSchema>;
 export type TelephonyConfig = z.infer<typeof telephonySchema>;
 export type PersonaConfig = z.infer<typeof personaSchema>;
 export type S2SConfig = z.infer<typeof s2sSchema>;
+export type ApiToolsConfig = z.infer<typeof apiToolsSchema>;
+export type WebhookAttach = z.infer<typeof webhookAttachSchema>;
 export type AgentConfigData = z.infer<typeof agentConfigSchema>;
 export type AgentData = z.infer<typeof agentSchema>;

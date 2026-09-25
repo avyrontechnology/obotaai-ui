@@ -28,7 +28,7 @@ import {
   useExecutionStats,
   useLatencyStats,
 } from "@/services/platform/executions";
-import { useAgentTools } from "@/services/platform/tools";
+import { useAttachedTools } from "@/services/platform/tools";
 import { useKnowledgeBases } from "@/services/platform/knowledgebases";
 import { useInbound } from "@/services/platform/inbound";
 import { formatDuration, formatLatency, timeAgo } from "@/lib/format";
@@ -55,8 +55,8 @@ export default function AgentOverviewPage({ params }: { params: Promise<{ id: st
   const { data: stats } = useExecutionStats(id);
   const { data: latency } = useLatencyStats(id);
   const { data: recent } = useExecutions({ agent_id: id });
-  // Platform attachments for this agent.
-  const { data: tools } = useAgentTools(id);
+  // Attached registry tools for this agent (refs resolved, embedded listed).
+  const { attached: tools } = useAttachedTools(id);
   const { data: kbs } = useKnowledgeBases();
   const { data: inbound } = useInbound(id);
   const deleteMutation = useDeleteAgent();

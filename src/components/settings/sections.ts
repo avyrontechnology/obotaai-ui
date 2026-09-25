@@ -29,13 +29,13 @@ export interface ConfigSection {
   label: string;
   icon: LucideIcon;
   /**
-   * Agent types this section applies to. Core pipeline sections are gated
-   * because the backend record only carries the blocks for its own pipeline
-   * (e.g. s2s records have transcriber: null) and the save transform omits
-   * foreign blocks — showing them would display empty fields whose edits
-   * are silently dropped. Platform panels (tools/KB/webhooks/inbound and
-   * call behavior, which lives in task_config for every type) stay visible
-   * for all types.
+   * Agent types this section applies to. Voice + realtime sections stay open
+   * to both pipelines (spec 0028 coexistence: both blocks persist and the
+   * `pipeline` pointer selects the engine, so parked-side edits are kept,
+   * never dropped). Text agents keep the legacy gating — the transform still
+   * omits audio blocks for them. Platform panels (tools/KB/webhooks/inbound
+   * and call behavior, which lives in task_config for every type) stay
+   * visible for all types.
    */
   types: readonly AgentType[];
 }
@@ -58,7 +58,7 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
     id: "voice",
     label: "Voice Pipeline",
     sections: [
-      { id: "transcriber", label: "Transcriber (STT)", icon: Mic, types: ["voice"] },
+      { id: "transcriber", label: "Transcriber (STT)", icon: Mic, types: ["voice", "s2s"] },
       { id: "synthesizer", label: "Voice (TTS / Realtime)", icon: Volume2, types: ["voice", "s2s"] },
     ],
   },
@@ -66,7 +66,7 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
     id: "brain",
     label: "Brain & Knowledge",
     sections: [
-      { id: "llm", label: "LLM", icon: Cpu, types: ["voice", "text"] },
+      { id: "llm", label: "LLM", icon: Cpu, types: ["voice", "text", "s2s"] },
       { id: "tools", label: "Tools · /tools", icon: Wrench, types: ALL },
       { id: "rag", label: "Knowledge · /knowledgebases", icon: Database, types: ALL },
     ],

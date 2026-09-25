@@ -3,7 +3,7 @@ import { LiveTalk } from "@/components/playground/live-talk";
 import { combineLevels } from "@/components/playground/voice-waveform";
 
 jest.mock("@/services/platform/tools", () => ({
-  useAgentTools: () => ({ data: [], isLoading: false }),
+  useAttachedTools: () => ({ attached: [], refs: [], isLoading: false, isError: false }),
 }));
 
 type Handler = (event: unknown) => void;

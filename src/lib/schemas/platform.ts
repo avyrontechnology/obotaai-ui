@@ -24,7 +24,9 @@ export const batchStatusSchema = z.enum([
 
 export const phoneNumberProviderSchema = z.enum(["twilio", "plivo", "exotel", "vobiz", "talko", "simulated"]);
 
-export const toolKindSchema = z.enum(["transfer", "calendar", "custom", "datetime"]);
+/** Registry kinds (spec 0029): function + webhook are tenant-authorable;
+ *  internal rows are system-curated and read-only. */
+export const toolKindSchema = z.enum(["function", "webhook", "internal"]);
 
 export const transcriptTurnSchema = z.object({
   role: z.enum(["agent", "user"]),
@@ -212,25 +214,47 @@ export const createKBSchema = z.object({
   sources: z.array(kbSourceSchema).default([]),
 });
 
+/** Registry row mirror (voiceai/modules/tools/models.py::ToolDefinition).
+ *  Unknown keys (tenant_id, id, tools_version…) are stripped — never read. */
 export const toolSchema = z.object({
   tool_id: z.string(),
-  agent_id: z.string().nullable().optional(),
-  name: z.string(),
   kind: toolKindSchema,
-  config: z.record(z.string(), z.unknown()),
-  enabled: z.boolean(),
+  name: z.string(),
+  description: z.string().default(""),
+  parameters: z.record(z.string(), z.unknown()).default({}),
+  url: z.string().nullable().optional(),
+  method: z.string().default("POST"),
+  auth_ref: z.string().nullable().optional(),
+  timeout_s: z.number().default(10),
+  deprecated: z.boolean().default(false),
+  /** Owning tenant ("system" for curated rows) — drives read-only badges. */
+  tenant_id: z.string().nullable().optional(),
   created_at: z.string(),
 });
 
 export const toolListSchema = z.object({ tools: z.array(toolSchema) });
 
-export const createToolSchema = z.object({
-  agent_id: z.string().optional(),
-  name: z.string().min(1),
-  kind: toolKindSchema,
-  config: z.record(z.string(), z.unknown()).default({}),
-  enabled: z.boolean().default(true),
-});
+/** Tenant create/update body mirror (CreateToolPayload/UpdateToolPayload):
+ *  exact keys — the backend forbids extras. No agent_id/config/enabled
+ *  (legacy fields); kind restricted to authorable kinds in the form. */
+export const createToolSchema = z
+  .object({
+    kind: z.enum(["function", "webhook"]).default("function"),
+    name: z.string().min(1),
+    description: z.string().default(""),
+    parameters: z.record(z.string(), z.unknown()).default({}),
+    url: z.string().nullable().optional(),
+    method: z.string().default("POST"),
+    auth_ref: z.string().nullable().optional(),
+    timeout_s: z.number().int().min(1).max(120).default(10),
+    deprecated: z.boolean().default(false),
+  })
+  // The backend forbids unknown keys (422) — reject here instead of
+  // silently stripping legacy fields like agent_id/config/enabled.
+  .strict();
+
+export const updateToolSchema = createToolSchema.partial();
+export type UpdateToolInput = z.input<typeof updateToolSchema>;
 
 export const webhookSchema = z.object({
   webhook_id: z.string(),

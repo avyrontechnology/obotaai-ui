@@ -18,11 +18,12 @@ describe("configure section visibility", () => {
     );
   });
 
-  it("hides transcriber, voice and llm blocks for s2s agents", () => {
+  it("shows both pipeline sides for s2s agents (spec 0028 coexistence)", () => {
     const labels = visibleSectionLabels("s2s");
-    // Core pipeline blocks the s2s record never carries.
-    expect(labels).not.toContain("Transcriber (STT)");
-    expect(labels).not.toContain("LLM");
+    // Both blocks persist and the pipeline pointer selects the engine, so
+    // parked-side edits are kept, never dropped — no more gating.
+    expect(labels).toContain("Transcriber (STT)");
+    expect(labels).toContain("LLM");
     // S2S voice config stays; platform panels stay for every type.
     expect(labels).toContain("Voice (TTS / Realtime)");
     expect(labels).toContain("Persona & Languages");

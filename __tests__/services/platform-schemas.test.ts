@@ -6,6 +6,7 @@ import {
   createApiKeyResponseSchema,
   createBatchSchema,
   createTalkoPartnerSchema,
+  createToolSchema,
   executionSchema,
   inboundConfigSchema,
   integrationSchema,
@@ -167,15 +168,19 @@ describe("platform-schemas", () => {
 
     expect(
       toolSchema.parse({
-        tool_id: "tool_1",
-        agent_id: "agent-1",
-        name: "transfer_to_human",
-        kind: "transfer",
-        config: {},
-        enabled: true,
+        tool_id: "function:book",
+        name: "book",
+        kind: "function",
+        description: "Book.",
+        parameters: {},
+        url: "https://api.test/book",
+        method: "POST",
+        timeout_s: 10,
+        deprecated: false,
+        tenant_id: "system",
         created_at: "2026-09-03T00:00:00+00:00",
       }).kind
-    ).toBe("transfer");
+    ).toBe("function");
 
     expect(
       webhookSchema.parse({
@@ -189,14 +194,25 @@ describe("platform-schemas", () => {
     ).toEqual(["call.completed"]);
   });
 
+  it("validates tenant tool create bodies exactly (backend forbids extras)", () => {
+    // Legacy agent_id/config/enabled keys must not pass — the backend 422s them.
+    expect(() =>
+      createToolSchema.parse({ name: "x", kind: "function", agent_id: "a1", config: {}, enabled: true })
+    ).toThrow();
+    expect(() => createToolSchema.parse({ name: "x", kind: "internal" })).toThrow();
+    expect(() => createToolSchema.parse({ name: "x", kind: "function", timeout_s: 0 })).toThrow();
+    expect(() => createToolSchema.parse({ name: "x", kind: "function", timeout_s: 121 })).toThrow();
+    const parsed = createToolSchema.parse({ name: "book", kind: "webhook", url: "https://h.test/x" });
+    expect(parsed.method).toBe("POST");
+    expect(parsed.timeout_s).toBe(10);
+  });
+
   it("rejects unknown tool kind and phone provider", () => {
     expect(() =>
       toolSchema.parse({
         tool_id: "t",
         name: "x",
         kind: "teleport",
-        config: {},
-        enabled: true,
         created_at: "2026-09-03T00:00:00+00:00",
       })
     ).toThrow();
