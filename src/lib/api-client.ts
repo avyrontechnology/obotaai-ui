@@ -119,6 +119,63 @@ export function agentRequestErrors(error: unknown): string[] {
   return [];
 }
 
+/** 401 handling shared by JSON and streaming callers: bounce to login
+ *  (replace, not href — a 401 page must not stay in history). Runs outside
+ *  React components where useRouter is unavailable. */
+export function redirectToLoginOn401(response: Response): void {
+  if (response.status === 401 && typeof window !== "undefined") {
+    const path = window.location.pathname;
+    const isPublic = ["/login", "/accept-invite"].some((route) =>
+      path.startsWith(route)
+    );
+    if (!isPublic) {
+      window.location.replace(`/login?clear_session=1&next=${encodeURIComponent(path + window.location.search)}`);
+    }
+  }
+}
+
+/** Throw the backend error envelope as an `ApiError` (message + details
+ *  preserved for problems[]/channel/422 selectors). Shared by apiClient and
+ *  streaming callers that can't go through response.json()-shaped parsing. */
+export async function throwApiError(response: Response): Promise<never> {
+  const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  // New-arch envelope: { ok:false, detail, error:{ code, error_id, details } }.
+  // Agent catalog 400s carry error.details.problems[] (spec 0022) — preserve
+  // them on the thrown error instead of flattening to a string.
+  const errorBlock =
+    errorData.error && typeof errorData.error === "object"
+      ? (errorData.error as Record<string, unknown>)
+      : null;
+  const detailsBlock =
+    errorBlock?.details && typeof errorBlock.details === "object"
+      ? (errorBlock.details as Record<string, unknown>)
+      : null;
+  let details: ApiErrorDetails | null = null;
+  if (errorBlock || detailsBlock) {
+    details = {
+      ...(typeof errorBlock?.code === "string" ? { code: errorBlock.code } : {}),
+      ...(typeof errorBlock?.error_id === "string" ? { errorId: errorBlock.error_id } : {}),
+      ...(detailsBlock ? (detailsBlock as Record<string, unknown>) : {}),
+    };
+    const problems = (details as Record<string, unknown>).problems;
+    if (problems !== undefined && !Array.isArray(problems)) {
+      const { problems: _dropped, ...rest } = details as Record<string, unknown>;
+      void _dropped;
+      details = rest as ApiErrorDetails;
+    }
+  }
+  const detail = Array.isArray(errorData.detail)
+    ? errorData.detail.map((entry: { msg?: string }) => entry.msg ?? "Invalid request").join("; ")
+    : errorData.detail;
+  throw new ApiError(
+    (typeof detail === "string" && detail) ||
+      (typeof errorData.message === "string" && errorData.message) ||
+      `API Error: ${response.statusText}`,
+    response.status,
+    details
+  );
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -134,53 +191,8 @@ export async function apiClient<T>(
   const response = await fetch(url, { ...options, headers, credentials: "include" });
 
   if (!response.ok) {
-    if (response.status === 401 && typeof window !== "undefined") {
-      const path = window.location.pathname;
-      const isPublic = ["/login", "/accept-invite"].some((route) =>
-        path.startsWith(route)
-      );
-      if (!isPublic) {
-        // replace (not href): a 401 page must not stay in history, and this
-        // runs outside React components where useRouter is unavailable.
-        window.location.replace(`/login?clear_session=1&next=${encodeURIComponent(path + window.location.search)}`);
-      }
-    }
-    const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    // New-arch envelope: { ok:false, detail, error:{ code, error_id, details } }.
-    // Agent catalog 400s carry error.details.problems[] (spec 0022) — preserve
-    // them on the thrown error instead of flattening to a string.
-    const errorBlock =
-      errorData.error && typeof errorData.error === "object"
-        ? (errorData.error as Record<string, unknown>)
-        : null;
-    const detailsBlock =
-      errorBlock?.details && typeof errorBlock.details === "object"
-        ? (errorBlock.details as Record<string, unknown>)
-        : null;
-    let details: ApiErrorDetails | null = null;
-    if (errorBlock || detailsBlock) {
-      details = {
-        ...(typeof errorBlock?.code === "string" ? { code: errorBlock.code } : {}),
-        ...(typeof errorBlock?.error_id === "string" ? { errorId: errorBlock.error_id } : {}),
-        ...(detailsBlock ? (detailsBlock as Record<string, unknown>) : {}),
-      };
-      const problems = (details as Record<string, unknown>).problems;
-      if (problems !== undefined && !Array.isArray(problems)) {
-        const { problems: _dropped, ...rest } = details as Record<string, unknown>;
-        void _dropped;
-        details = rest as ApiErrorDetails;
-      }
-    }
-    const detail = Array.isArray(errorData.detail)
-      ? errorData.detail.map((entry: { msg?: string }) => entry.msg ?? "Invalid request").join("; ")
-      : errorData.detail;
-    throw new ApiError(
-      (typeof detail === "string" && detail) ||
-        (typeof errorData.message === "string" && errorData.message) ||
-        `API Error: ${response.statusText}`,
-      response.status,
-      details
-    );
+    redirectToLoginOn401(response);
+    await throwApiError(response);
   }
 
   if (response.status === 204) {

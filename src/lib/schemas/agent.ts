@@ -177,7 +177,10 @@ export const apiToolsSchema = z.object({
 export const agentConfigSchema = z.object({
   // Phase A engine pointer (spec 0028): which coexisting block runs.
   // Absent = toggle untouched = backend legacy inference.
-  pipeline: z.enum(["asr", "s2s"]).optional(),
+  // Phase C forward-compat: "chat" is accepted but never offered — the
+  // toggle and selects only deal in asr|s2s, and the transform passes a
+  // stored chat pointer through verbatim instead of dropping it.
+  pipeline: z.enum(["asr", "s2s", "chat"]).optional(),
   api_tools: apiToolsSchema.optional(),
   transcriber: transcriberSchema.optional(),
   synthesizer: synthesizerSchema.optional(),

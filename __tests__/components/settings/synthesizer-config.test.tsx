@@ -13,7 +13,7 @@ const mockedApiClient = apiClient as jest.Mock;
 
 function renderToggle(
   agentType: string,
-  opts: { pipeline?: "asr" | "s2s"; s2s?: boolean; agentId?: string } = {}
+  opts: { pipeline?: "asr" | "s2s" | "chat"; s2s?: boolean; agentId?: string } = {}
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function Probe() {
@@ -85,6 +85,21 @@ describe("PipelineToggle (spec 0028)", () => {
   it("reflects a stored explicit pointer", () => {
     renderToggle("s2s", { pipeline: "s2s", s2s: true });
     expect(screen.getByText(/Active: Realtime \(S2S\) \(explicit\)/)).toBeInTheDocument();
+  });
+
+  it("shows a stored chat pointer neutrally and flips cleanly off it", () => {
+    renderToggle("voice", { pipeline: "chat" });
+    expect(screen.getByText(/Active: chat \(explicit\)/)).toBeInTheDocument();
+    // Neither engine button claims active…
+    expect(screen.getByRole("button", { name: /ASR pipeline/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /Realtime \(S2S\) pipeline/ })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    // …but flipping off it writes an explicit asr|s2s pointer (form fallback).
+    fireEvent.click(screen.getByRole("button", { name: /ASR pipeline/ }));
+    expect(screen.getByTestId("pipeline-probe")).toHaveTextContent("asr");
+    expect(screen.getByText(/Active: ASR pipeline \(explicit\)/)).toBeInTheDocument();
   });
 
   it("disables flipping while the form holds unsaved edits", () => {

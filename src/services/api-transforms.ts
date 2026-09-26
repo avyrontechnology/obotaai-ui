@@ -76,16 +76,18 @@ export interface BackendAgentModel {
 }
 
 /**
- * Derive the Phase A `channels` for a create/PUT payload (spec 0028).
+ * Derive the `channels` for a create/PUT payload (specs 0028 + 0038).
  *
  * Explicit non-empty form channels win. Otherwise voice/s2s forms emit
- * ["voice"]; text/other forms omit the key so the backend default applies
- * (chat rejects loudly until Phase C — never emit it from the UI).
+ * ["voice"] and text forms emit ["chat"] (the HTTP chat runtime serves
+ * text agents; the allowlist accepts both since Phase C). Other types omit
+ * the key so the backend default applies.
  */
 export function defaultChannels(data: AgentData): string[] | undefined {
   const explicit = (data.channels ?? []).filter((c) => c.length > 0);
   if (explicit.length > 0) return [...new Set(explicit)];
   if (data.agent_type === "voice" || data.agent_type === "s2s") return ["voice"];
+  if (data.agent_type === "text") return ["chat"];
   return undefined;
 }
 
@@ -266,11 +268,12 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
   // Touched toggle emits both blocks + explicit `pipeline`; BOTH sides must
   // validate (parked is never exempt), so absent parked fields fall back to
   // the same catalog-valid defaults as the active side.
+  const rawPipeline = data.agent_config?.pipeline;
   const pipelineSel =
-    data.agent_config?.pipeline === "asr" || data.agent_config?.pipeline === "s2s"
-      ? data.agent_config.pipeline
-      : undefined;
-  const coexisting = pipelineSel !== undefined && (isVoice || isS2S);
+    rawPipeline === "asr" || rawPipeline === "s2s" || rawPipeline === "chat" ? rawPipeline : undefined;
+  // Coexistence (both blocks) is an asr|s2s affair; a stored "chat" pointer
+  // passes through verbatim without forcing audio blocks.
+  const coexisting = (pipelineSel === "asr" || pipelineSel === "s2s") && (isVoice || isS2S);
   const emitS2s = isS2S || coexisting;
   const emitVoice = isVoice || coexisting;
 
@@ -316,11 +319,14 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     (coexisting && pipelineSel === "asr" ? parkedSteps : pipelineSteps).push("s2s");
   }
 
-  if (emitVoice) {
-    // The discrete pipeline needs its LLM; the parked side carries one too
-    // so flipping the pointer never lands on a missing brain.
+  if (emitVoice || !emitS2s) {
+    // Every non-s2s task carries its LLM (text included — and required for
+    // chat); the parked side carries one too so flipping the pointer never
+    // lands on a missing brain. Pure s2s keeps its legacy brainless shape.
     toolsConfig.llm_agent = llmAgent;
+  }
 
+  if (emitVoice) {
     // Transcriber
     const transcriberProvider = data.agent_config?.transcriber?.provider || data.agent_config?.asr_provider || "deepgram";
     toolsConfig.transcriber = {
@@ -424,8 +430,12 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     },
     task_type: "conversation",
     task_config: taskConfig,
-    // Explicit pointer wins on the backend; absent infers legacy routing.
+    // Explicit pointer wins on the backend; absent infers legacy routing. A
+    // stored "chat" pointer re-emits verbatim (never dropped, never forcing
+    // blocks). asr|s2s escape only via coexistence — emitting one on a task
+    // without its blocks would misroute the engine past inference.
     ...(coexisting && pipelineSel ? { pipeline: pipelineSel } : {}),
+    ...(pipelineSel === "chat" ? { pipeline: "chat" } : {}),
   };
 
   // Build agent_prompts in backend format: { "task_1": { "system_prompt": "..." } }
@@ -550,7 +560,7 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
     // the toggle reflects stored state; absent stays absent (legacy inference).
     const firstTask = (nestedData.tasks as BackendTask[])[0];
     const storedPipeline: unknown = firstTask?.pipeline;
-    if (storedPipeline === "asr" || storedPipeline === "s2s") {
+    if (storedPipeline === "asr" || storedPipeline === "s2s" || storedPipeline === "chat") {
       agentConfig.pipeline = storedPipeline;
     }
 

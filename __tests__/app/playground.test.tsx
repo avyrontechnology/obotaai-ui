@@ -5,8 +5,10 @@ import PlaygroundPage from "@/app/playground/page";
 jest.mock("@/services/api", () => ({
   useAgents: () => ({
     data: [
-      { agent_id: "voice-1", agent_name: "Voice Agent", agent_type: "voice", agent_config: {}, agent_prompts: {} },
-      { agent_id: "text-1", agent_name: "Text Agent", agent_type: "text", agent_config: {}, agent_prompts: {} },
+      { agent_id: "voice-1", agent_name: "Voice Agent", agent_type: "voice", agent_config: {}, agent_prompts: {}, channels: ["voice", "chat"] },
+      { agent_id: "plain-1", agent_name: "Plain Voice", agent_type: "voice", agent_config: {}, agent_prompts: {}, channels: ["voice"] },
+      { agent_id: "text-1", agent_name: "Text Agent", agent_type: "text", agent_config: {}, agent_prompts: {}, channels: ["chat"] },
+      { agent_id: "legacy-1", agent_name: "Legacy Agent", agent_type: "text", agent_config: {}, agent_prompts: {} },
     ],
     isLoading: false,
   }),
@@ -92,6 +94,22 @@ describe("Playground page", () => {
     searchParams.set("mode", "live");
     renderPage();
     expect(screen.getByText("LiveTalk for Voice Agent")).toBeInTheDocument();
+  });
+
+  it("disables chat without a chat channel and explains why", () => {
+    searchParams.set("agent", "legacy-1");
+    renderPage();
+    expect(screen.getByRole("radio", { name: /Chat/ })).toBeDisabled();
+    expect(screen.getByText(/doesn't serve the chat channel/)).toBeInTheDocument();
+  });
+
+  it("falls back to talk when a deep-linked chat mode has no channel", () => {
+    searchParams.set("agent", "plain-1");
+    searchParams.set("mode", "chat");
+    renderPage();
+    // Voice pipeline wins over the stale deep link.
+    expect(screen.getByText("LiveTalk for Plain Voice")).toBeInTheDocument();
+    expect(screen.queryByText(/ChatTalk/)).not.toBeInTheDocument();
   });
 
   it("remembers picked agents in the Continuing strip and resumes them", () => {

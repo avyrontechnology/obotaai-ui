@@ -1,10 +1,22 @@
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ChatTalk } from "@/components/playground/chat-talk";
-import { WS_BASE_URL, buildTalkSocketUrl } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
+
+jest.mock("@/lib/api-client", () => {
+  const actual = jest.requireActual("@/lib/api-client");
+  return { ...actual, apiClient: jest.fn() };
+});
+
+jest.mock("@/services/auth", () => ({
+  fetchWsTicket: jest.fn(),
+}));
 
 jest.mock("@/services/platform/tools", () => ({
   useAttachedTools: () => ({ attached: [], refs: [], isLoading: false, isError: false }),
 }));
+
+const mockedApiClient = apiClient as jest.Mock;
 
 type Handler = (event: unknown) => void;
 
@@ -41,98 +53,174 @@ class MockSocket {
   }
 }
 
-describe("ChatTalk socket protocol", () => {
+function sseBody(chunks: string[], headers: Record<string, string> = {}) {
+  const queue = chunks.map((chunk) => ({ chunk }));
+  let index = 0;
+  const lowered: Record<string, string> = Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value])
+  );
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    headers: { get: (key: string) => lowered[key.toLowerCase()] ?? null },
+    // Frames arrive pre-split here; the component accumulates per chunk.
+    body: {
+      getReader: () => ({
+        read: async () =>
+          index < queue.length
+            ? { done: false as const, value: queue[index++].chunk }
+            : { done: true as const, value: undefined },
+        cancel: async () => undefined,
+      }),
+    },
+  };
+}
+
+// Minimal TextDecoder stand-in: values are already strings.
+class FakeDecoder {
+  decode(value: unknown) {
+    return typeof value === "string" ? value : "";
+  }
+}
+
+function errorBody(status: number, detail: string) {
+  return {
+    ok: false,
+    status,
+    statusText: "Error",
+    headers: { get: () => null },
+    json: async () => ({ ok: false, detail, error: { code: "x", error_id: "e", details: {} } }),
+  };
+}
+
+describe("ChatTalk over HTTP (specs 0038 + 0039)", () => {
   beforeEach(() => {
     MockSocket.instances = [];
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = MockSocket;
-    // No backend in jsdom: ticket fetch fails fast, socket falls back to cookies.
-    (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockRejectedValue(new Error("no backend"));
+    (globalThis as unknown as { fetch: unknown }).fetch = jest.fn();
+    (globalThis as unknown as { TextDecoder: unknown }).TextDecoder = FakeDecoder;
+    mockedApiClient.mockResolvedValue([]);
+    jest.clearAllMocks();
+    mockedApiClient.mockResolvedValue([]);
   });
 
   afterEach(() => {
     delete (globalThis as unknown as { WebSocket?: unknown }).WebSocket;
     delete (globalThis as unknown as { fetch?: unknown }).fetch;
+    delete (globalThis as unknown as { TextDecoder?: unknown }).TextDecoder;
   });
 
-  async function renderChat() {
-    render(<ChatTalk agentId="agent-1" agentName="Test Agent" />);
-    await act(async () => {});
-    return MockSocket.instances[0];
+  function renderChat(props: { chatSupported?: boolean; canChat?: boolean } = {}) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <ChatTalk agentId="agent-1" agentName="Test Agent" chatSupported canChat {...props} />
+      </QueryClientProvider>
+    );
   }
 
-  it("connects to the agent voice socket and sends init", async () => {
-    const socket = await renderChat();
-    // leg=browser keeps telephony-configured agents on default handlers.
-    expect(socket.url).toBe(buildTalkSocketUrl(WS_BASE_URL, "agent-1"));
-    act(() => socket.open());
-    expect(socket.sent).toEqual([
-      JSON.stringify({ type: "init", meta_data: { agent_id: "agent-1", source: "ui-chat" } }),
-    ]);
-    // Connected line is pushed on open (the backend sends no ack here)…
-    expect(screen.getByText(/Chatting with Test Agent/)).toBeInTheDocument();
-    // …and a stray ack must not duplicate it.
-    act(() => socket.receive({ type: "ack" }));
-    expect(screen.getAllByText(/Chatting with Test Agent/)).toHaveLength(1);
+  it("renders the voice-only notice without a composer when the agent has no chat channel", () => {
+    renderChat({ chatSupported: false });
+    expect(screen.getByRole("alert")).toHaveTextContent(/doesn't serve the chat channel/);
+    expect(screen.queryByLabelText("Chat message")).not.toBeInTheDocument();
+    expect(globalThis.fetch as jest.Mock).not.toHaveBeenCalled();
+    expect(MockSocket.instances).toHaveLength(0);
   });
 
-  it("attaches the ws ticket when the backend mints one", async () => {
-    (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ ticket: "t-123", expires_in: 60 }),
+  it("probes HTTP, loads history backlog, and sends a streaming turn", async () => {
+    const fetchMock = globalThis.fetch as jest.Mock;
+    fetchMock.mockImplementation((url: string, options: RequestInit) => {
+      const body = JSON.parse((options.body as string) ?? "{}");
+      if (body.message === " ") return Promise.resolve(errorBody(400, "Message must not be blank"));
+      return Promise.resolve(
+        sseBody(["data: Hel\n\nda", "ta: lo\n\ndata: [DONE]\n\n"], { "x-session-id": "ses_1" })
+      );
     });
-    render(<ChatTalk agentId="agent-9" agentName="Test Agent" />);
-    await act(async () => {});
-    // Dual-param compat (spec 0021): legacy quickstart reads ?token=, the
-    // new-arch gate reads ?ticket= — one URL serves both.
-    expect(MockSocket.instances[0].url).toBe(buildTalkSocketUrl(WS_BASE_URL, "agent-9", "t-123"));
-    expect(MockSocket.instances[0].url).toContain("ticket=t-123");
-    expect(MockSocket.instances[0].url).toContain("token=t-123");
-  });
+    mockedApiClient.mockResolvedValue([
+      {
+        session_id: "ses_0",
+        agent_id: "agent-1",
+        messages: [{ role: "user", content: "Earlier", ts: "2026-09-26T00:00:00" }],
+      },
+    ]);
+    renderChat();
 
-  it("sends typed turns and renders both transcript roles", async () => {
-    const socket = await renderChat();
-    act(() => socket.open());
+    // Backlog from persisted history renders above the live thread.
+    expect(await screen.findByText("Earlier")).toBeInTheDocument();
+    expect(await screen.findByText(/Chatting with Test Agent/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Chat message"), { target: { value: "Hello there" } });
     fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
-    expect(socket.sent).toContainEqual(JSON.stringify({ type: "text", data: "Hello there" }));
+    expect(await screen.findByText("Hello")).toBeInTheDocument();
     expect(screen.getByText("Hello there")).toBeInTheDocument();
-
-    act(() => {
-      socket.receive({ type: "text", role: "user", data: "Hello there (heard)" });
-      socket.receive({ type: "text", role: "agent", data: "Hi! How can I help?" });
+    // Session continuation: the surfaced id rides the next turn.
+    fireEvent.change(screen.getByLabelText("Chat message"), { target: { value: "Again" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    await waitFor(() => {
+      const posts = fetchMock.mock.calls.filter((call) => {
+        try {
+          return JSON.parse((call[1] as RequestInit).body as string).message === "Again";
+        } catch {
+          return false;
+        }
+      });
+      expect(posts.length).toBe(1);
+      expect(JSON.parse((posts[0][1] as RequestInit).body as string)).toEqual({
+        session_id: "ses_1",
+        message: "Again",
+      });
     });
-    expect(screen.getByText("Hello there (heard)")).toBeInTheDocument();
-    expect(screen.getByText("Hi! How can I help?")).toBeInTheDocument();
   });
 
-  it("echoes marks and ignores audio frames quietly", async () => {
-    const socket = await renderChat();
+  it("shows unavailable on 404 without echoing the distinction (no oracle)", async () => {
+    const fetchMock = globalThis.fetch as jest.Mock;
+    fetchMock.mockImplementation((url: string, options: RequestInit) => {
+      const body = JSON.parse((options.body as string) ?? "{}");
+      if (body.message === " ") return Promise.resolve(errorBody(400, "Message must not be blank"));
+      return Promise.resolve(errorBody(404, "Agent not found"));
+    });
+    renderChat();
+    await screen.findByText(/Chatting with Test Agent/);
+
+    fireEvent.change(screen.getByLabelText("Chat message"), { target: { value: "Hi" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(await screen.findByText(/unavailable/)).toBeInTheDocument();
+  });
+
+  it("shows the voice-only notice on 400 channel mismatch", async () => {
+    const fetchMock = globalThis.fetch as jest.Mock;
+    fetchMock.mockImplementation((url: string, options: RequestInit) => {
+      const body = JSON.parse((options.body as string) ?? "{}");
+      if (body.message === " ") return Promise.resolve(errorBody(400, "Message must not be blank"));
+      return Promise.resolve(errorBody(400, "Agent does not serve the chat channel"));
+    });
+    renderChat();
+    await screen.findByText(/Chatting with Test Agent/);
+
+    fireEvent.change(screen.getByLabelText("Chat message"), { target: { value: "Hi" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(await screen.findByText(/doesn't serve the chat channel/)).toBeInTheDocument();
+  });
+
+  it("falls back to the WS text frames when the endpoint 404s (old backend)", async () => {
+    const fetchMock = globalThis.fetch as jest.Mock;
+    fetchMock.mockResolvedValue(errorBody(404, "Not Found"));
+    const { fetchWsTicket } = jest.requireMock("@/services/auth") as { fetchWsTicket: jest.Mock };
+    fetchWsTicket.mockRejectedValue(new Error("no ticket"));
+    renderChat();
+
+    await waitFor(() => expect(MockSocket.instances).toHaveLength(1));
+    const socket = MockSocket.instances[0];
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/chat/agent-1"),
+      expect.objectContaining({ method: "POST" })
+    );
     act(() => socket.open());
-    act(() => {
-      socket.receive({ type: "mark", name: "m-1" });
-      socket.receive({ type: "audio", data: "AAAA" });
-    });
-    expect(socket.sent).toContainEqual(JSON.stringify({ type: "mark", name: "m-1" }));
-  });
-
-  it("shows a backend error when the socket dies before connect", async () => {
-    const socket = await renderChat();
-    act(() => {
-      socket.onerror?.({});
-    });
-    expect(screen.getByText(/Couldn't reach the voice backend/)).toBeInTheDocument();
-  });
-
-  it("surfaces channel-owned close codes instead of a silent end", async () => {
-    const socket = await renderChat();
-    act(() => socket.open());
-    // Spec 0021: 4401 denied answers dedicated copy (never the ticket).
-    act(() => {
-      socket.onclose?.({ code: 4401 });
-    });
-    expect(screen.getByText(/denied/i)).toBeInTheDocument();
+    expect(socket.sent).toEqual([
+      JSON.stringify({ type: "init", meta_data: { agent_id: "agent-1", source: "ui-chat" } }),
+    ]);
+    expect(screen.getByText(/Chatting with Test Agent/)).toBeInTheDocument();
   });
 });

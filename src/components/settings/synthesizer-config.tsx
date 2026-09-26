@@ -179,14 +179,20 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
  */
 export function PipelineToggle({ agentId, agentType }: { agentId?: string; agentType: string }) {
   const { control, setValue, formState } = useFormContext();
-  const stored = useWatch({ control, name: "agent_config.pipeline" }) as "asr" | "s2s" | undefined;
+  const stored = useWatch({ control, name: "agent_config.pipeline" }) as "asr" | "s2s" | "chat" | undefined;
   const s2sPresent = useWatch({ control, name: "agent_config.s2s" }) as unknown;
   const patch = usePatchAgent();
   const [flipError, setFlipError] = useState<unknown>(null);
   if (agentType !== "voice" && agentType !== "s2s") return null;
   // Effective routing mirrors backend inference (resolve_pipeline_for_task):
-  // explicit pointer wins, else an s2s block means realtime, else ASR.
-  const effective = stored ?? (s2sPresent ? "s2s" : "asr");
+  // explicit asr|s2s wins, else an s2s block means realtime, else ASR. A
+  // stored "chat" pointer (Phase C forward-compat) is shown neutrally — the
+  // toggle only deals in asr|s2s and never overwrites what it can't serve.
+  const recognized = stored === "asr" || stored === "s2s";
+  const effective = recognized ? stored : s2sPresent ? "s2s" : "asr";
+  // Pressed state follows the stored pointer verbatim when one exists —
+  // including "chat", which presses nothing (neutral) — else the inference.
+  const isActive = (value: "asr" | "s2s") => (stored === undefined ? effective === value : stored === value);
   // UI invariant: the transform emits a single task, so index 0 addresses it.
   const flipping = patch.isPending;
   // The guard only matters for PATCH flips (refetch resets the form). The
@@ -194,7 +200,7 @@ export function PipelineToggle({ agentId, agentType }: { agentId?: string; agent
   const blocked = !!agentId && formState.isDirty;
 
   const flip = async (value: "asr" | "s2s") => {
-    if (value === effective) return;
+    if (isActive(value)) return;
     setFlipError(null);
     if (!agentId) {
       setValue("agent_config.pipeline", value, { shouldDirty: true, shouldValidate: true });
@@ -214,7 +220,7 @@ export function PipelineToggle({ agentId, agentType }: { agentId?: string; agent
   const flipProblems = agentValidationProblems(flipError);
 
   const option = (value: "asr" | "s2s", title: string, hint: string) => {
-    const active = effective === value;
+    const active = isActive(value);
     return (
       <button
         type="button"
@@ -246,8 +252,16 @@ export function PipelineToggle({ agentId, agentType }: { agentId?: string; agent
         {option("s2s", "Realtime (S2S)", "Direct speech-to-speech")}
       </div>
       <p className="text-xs text-muted-foreground">
-        Active: {effective === "asr" ? "ASR pipeline" : "Realtime (S2S)"}
-        {stored ? " (explicit)" : " (inferred)"} — the other side stays saved as parked config.
+        {stored === "chat" ? (
+          <>
+            Active: chat (explicit) — managed outside this toggle; flipping sets an asr|s2s pointer.
+          </>
+        ) : (
+          <>
+            Active: {effective === "asr" ? "ASR pipeline" : "Realtime (S2S)"}
+            {stored ? " (explicit)" : " (inferred)"} — the other side stays saved as parked config.
+          </>
+        )}
         {blocked ? " Save or discard edits to flip." : ""}
       </p>
       {flipError ? (

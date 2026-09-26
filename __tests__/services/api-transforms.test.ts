@@ -790,7 +790,7 @@ describe("api-transforms", () => {
       );
     });
 
-    it("emits channels per form type and never an empty array (spec 0028)", () => {
+    it("emits channels per form type and never an empty array (specs 0028 + 0038)", () => {
       const base = {
         agent_name: "Agent",
         agent_prompts: { system_prompt: "You are a helpful voice assistant." },
@@ -798,7 +798,8 @@ describe("api-transforms", () => {
       } as const;
       expect(defaultChannels({ ...base, agent_type: "voice" })).toEqual(["voice"]);
       expect(defaultChannels({ ...base, agent_type: "s2s" })).toEqual(["voice"]);
-      expect(defaultChannels({ ...base, agent_type: "text" })).toBeUndefined();
+      // Text agents serve the HTTP chat runtime (Phase C allowlist).
+      expect(defaultChannels({ ...base, agent_type: "text" })).toEqual(["chat"]);
       expect(defaultChannels({ ...base, agent_type: "other" })).toBeUndefined();
       // Explicit non-empty channels win (deduped); empties fall back.
       expect(
@@ -809,7 +810,7 @@ describe("api-transforms", () => {
       const payload = toCreateAgentPayload({ ...base, agent_type: "voice" });
       expect(payload.agent_config.channels).toEqual(["voice"]);
       const textPayload = toCreateAgentPayload({ ...base, agent_type: "text" });
-      expect("channels" in textPayload.agent_config).toBe(false);
+      expect(textPayload.agent_config.channels).toEqual(["chat"]);
     });
 
     it("round-trips channels through toFrontendAgent (absent stays absent)", () => {
@@ -989,6 +990,57 @@ describe("api-transforms", () => {
           provider_config: expect.objectContaining({ model: "bulbul:v3", voice: "vidya" }),
         })
       );
+    });
+  });
+
+  describe("phase C forward-compat (chat pointer)", () => {
+    const baseData: AgentData = {
+      agent_name: "Chat Agent",
+      agent_type: "text",
+      agent_prompts: { system_prompt: "You are a helpful assistant." },
+      agent_config: { llm: { provider: "openai", model: "gpt-4o" } },
+    };
+
+    it("accepts a stored chat pointer in the form schema", () => {
+      expect(agentConfigSchema.safeParse({ pipeline: "chat" }).success).toBe(true);
+      expect(agentConfigSchema.safeParse({ pipeline: "smoke" }).success).toBe(false);
+    });
+
+    it("re-emits a stored chat pointer verbatim without forcing blocks", () => {
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { ...baseData.agent_config, pipeline: "chat" },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect(task.pipeline).toBe("chat");
+      // Text shape untouched: llm-only tools, single toolchain pipeline.
+      expect(task.tools_config.transcriber).toBeUndefined();
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.toolchain.pipelines).toEqual([["llm"]]);
+    });
+
+    it("passes a chat pointer through on text forms without forcing blocks", () => {
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { ...baseData.agent_config, pipeline: "chat" },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect(task.pipeline).toBe("chat");
+      expect(task.tools_config.transcriber).toBeUndefined();
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.tools_config.llm_agent).toEqual(expect.objectContaining({ model: "gpt-4o" }));
+    });
+
+    it("reads a chat pointer back for round-trip preservation", () => {
+      const agent = toFrontendAgent({
+        agent_id: "a1",
+        data: {
+          agent_name: "Chat Agent",
+          agent_type: "text",
+          tasks: [{ pipeline: "chat", tools_config: { llm_agent: { provider: "openai", model: "gpt-4o" } } }],
+        },
+      });
+      expect(agent.agent_config.pipeline).toBe("chat");
     });
   });
 });

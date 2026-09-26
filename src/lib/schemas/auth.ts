@@ -9,6 +9,10 @@ export const userSchema = z.object({
   name: z.string().nullable().optional(),
   role: roleSchema,
   org_id: z.string(),
+  // Phase D identity (spec 0040): tenant object hex, stamped at creation.
+  // Nullable + optional: pre-identity rows omit it, and the UI never writes
+  // it (server-stamped). Carried for future team scoping, never branched on.
+  tenant_id: z.string().nullable().optional(),
   disabled: z.boolean(),
   created_at: z.string(),
   last_login_at: z.string().nullable().optional(),

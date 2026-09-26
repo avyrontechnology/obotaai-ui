@@ -59,10 +59,14 @@ function PlaygroundContent() {
   const effectiveAgent = (agents ?? []).find((a) => a.agent_id === effectiveAgentId);
   const agentType = effectiveAgent?.agent_type ?? "voice";
   // Text agents carry no audio pipeline, so Talk is unavailable for them.
-  // Chat is served for every type (realtime native, pipeline via the
-  // browser-leg text queue).
   const talkSupported = agentType === "voice" || agentType === "s2s";
-  const activeMode: Mode = mode === "talk" && !talkSupported ? "chat" : mode;
+  // Chat rides the HTTP chat endpoint for agents whose channels include
+  // `chat` (specs 0038 + 0039). Records without a list predate channels and
+  // stay voice-only; the tab renders its own notice when reached anyway
+  // (e.g. a stale ?mode=chat deep link).
+  const chatSupported = (effectiveAgent?.channels ?? []).includes("chat");
+  const activeMode: Mode =
+    mode === "talk" && !talkSupported ? "chat" : mode === "chat" && !chatSupported && talkSupported ? "talk" : mode;
   // Role gates must render identically during SSR and hydration. The session
   // query mounts in the layout, so its cache can already be warm when this
   // page hydrates (server saw logged-out, client sees member) — branching on
@@ -214,8 +218,8 @@ function PlaygroundContent() {
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Playground mode">
                 {(
                   [
-                    { id: "talk", label: "Talk", hint: "Real mic conversation", icon: Mic, enabled: talkSupported },
-                    { id: "chat", label: "Chat", hint: "Text conversation", icon: MessageSquareText, enabled: true },
+                    { id: "talk", label: "Talk", hint: "Real mic conversation", icon: Mic, enabled: talkSupported, disabledHint: "Text agents have no audio pipeline" },
+                    { id: "chat", label: "Chat", hint: "Text conversation", icon: MessageSquareText, enabled: chatSupported, disabledHint: "No chat channel on this agent" },
                   ] as const
                 ).map((option) => (
                   <button
@@ -224,7 +228,7 @@ function PlaygroundContent() {
                     role="radio"
                     aria-checked={activeMode === option.id}
                     disabled={!option.enabled}
-                    title={option.enabled ? option.hint : "Text agents have no audio pipeline"}
+                    title={option.enabled ? option.hint : option.disabledHint}
                     className={cn(
                       "flex items-center gap-3 px-4 min-h-14 h-auto py-2.5 rounded-2xl text-sm font-medium border transition-all text-left",
                       activeMode === option.id
@@ -245,9 +249,14 @@ function PlaygroundContent() {
               </div>
             </div>
           </div>
-          {!talkSupported && (
+          {!talkSupported && chatSupported && (
             <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
               Text agents have no audio pipeline, so Talk is unavailable — chatting instead.
+            </div>
+          )}
+          {!chatSupported && (
+            <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+              This agent doesn&apos;t serve the chat channel — save it again to pick up chat, or choose another agent.
             </div>
           )}
 
@@ -265,6 +274,7 @@ function PlaygroundContent() {
                 agentId={effectiveAgentId}
                 agentName={effectiveAgent?.agent_name ?? "Agent"}
                 canChat={canLive}
+                chatSupported={chatSupported}
               />
             )
           )}
