@@ -6,6 +6,7 @@ import {
   workflowDefinitionSchema,
   workflowRunSchema,
 } from "@/lib/schemas/builders";
+import { conversationSchema } from "@/lib/schemas/agent";
 
 const graphDefinition = {
   agent_information: "Route support calls.",
@@ -91,5 +92,42 @@ describe("builder-schemas", () => {
       buckets: [{ date: "2026-09-03", count: 2, avg_e2e_ms: 300 }],
     });
     expect(latency.p50_e2e_ms).toBeLessThanOrEqual(latency.p95_e2e_ms ?? 0);
+  });
+
+  // NOTE: this file previously never exercised conversationSchema — this
+  // block is its first coverage, mirroring the backend ConversationConfig
+  // (ambient_noise deleted; recording + 6 promoted keys added; online/
+  // hangup messages accept string | dict).
+  it("parses conversation promoted keys (string and dict message forms)", () => {
+    const parsed = conversationSchema.parse({
+      recording: false,
+      call_hangup_message: "Thanks, bye!",
+      check_user_online_message: "Are you still there?",
+      welcome_message_delay: 1500,
+      discard_pre_welcome_utterance: true,
+      language_injection_mode: "dynamic",
+      language_instruction_template: "Speak in {language}.",
+      end_call_tool_mode: "strict",
+    });
+    expect(parsed.recording).toBe(false);
+    expect(parsed.call_hangup_message).toBe("Thanks, bye!");
+    expect(parsed.welcome_message_delay).toBe(1500);
+
+    const dicts = conversationSchema.parse({
+      call_hangup_message: { en: "Goodbye!", hi: "Alvida!" },
+      check_user_online_message: { en: "Are you there?" },
+    });
+    expect(dicts.call_hangup_message).toEqual({ en: "Goodbye!", hi: "Alvida!" });
+
+    // Open strings (backend injects nothing on unknown values) + zod strips
+    // the deleted ambient_noise instead of failing legacy rows.
+    expect(
+      conversationSchema.safeParse({
+        language_injection_mode: "legacy-custom",
+        end_call_tool_mode: "legacy-custom",
+      }).success
+    ).toBe(true);
+    const stripped = conversationSchema.parse({ ambient_noise: true });
+    expect("ambient_noise" in stripped).toBe(false);
   });
 });

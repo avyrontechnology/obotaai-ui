@@ -2,6 +2,7 @@
 
 import { useFormContext } from "react-hook-form";
 import { FormSection, TextInput, SelectInput, SwitchInput } from "./form-controls";
+import { JsonTextField } from "./json-text-field";
 import { motion, AnimatePresence } from "framer-motion";
 
 const TELEPHONY_PROVIDERS = [
@@ -17,6 +18,16 @@ const AUDIO_FORMATS = [
   { label: "WAV", value: "wav" },
   { label: "PCM (Linear16)", value: "pcm" },
   { label: "MuLaw", value: "mulaw" },
+];
+
+const LANGUAGE_INJECTION_MODES = [
+  { label: "System Only", value: "system_only" },
+  { label: "Per Turn", value: "per_turn" },
+];
+
+const END_CALL_TOOL_MODES = [
+  { label: "Primary", value: "primary" },
+  { label: "Primary with Shadow Hangup", value: "primary_with_shadow_hangup" },
 ];
 
 export function CallBehaviorConfigForm() {
@@ -58,6 +69,30 @@ export function CallBehaviorConfigForm() {
           placeholder="20"
           description="Disconnect call after this many seconds of silence"
         />
+        <TextInput
+          name="agent_config.conversation.welcome_message_delay"
+          label="Welcome Message Delay (ms)"
+          type="number"
+          placeholder="0"
+          description="Delay before the welcome message, in milliseconds"
+        />
+        <SwitchInput
+          name="agent_config.conversation.discard_pre_welcome_utterance"
+          label="Discard Pre-Welcome Utterance"
+          description="Ignore user speech that arrives before the welcome message finishes"
+        />
+        <SelectInput
+          name="agent_config.conversation.language_injection_mode"
+          label="Language Injection Mode"
+          options={LANGUAGE_INJECTION_MODES}
+          description="How language instructions are injected (backend tolerates unknown values)"
+        />
+        <TextInput
+          name="agent_config.conversation.language_instruction_template"
+          label="Language Instruction Template"
+          placeholder="e.g. Respond in {{language}}…"
+          description="Template used to build per-language instructions"
+        />
       </FormSection>
 
       <FormSection
@@ -68,11 +103,6 @@ export function CallBehaviorConfigForm() {
           name="agent_config.conversation.optimize_latency"
           label="Optimize Latency"
           description="Prioritize speed over complex processing"
-        />
-        <SwitchInput
-          name="agent_config.conversation.ambient_noise"
-          label="Ambient Noise"
-          description="Play subtle background noise during silence"
         />
         <SwitchInput
           name="agent_config.conversation.use_fillers"
@@ -114,10 +144,11 @@ export function CallBehaviorConfigForm() {
                 placeholder="10"
                 description="Seconds of silence before checking"
               />
-              <TextInput
+              <JsonTextField
                 name="agent_config.conversation.check_user_online_message"
                 label="Check Message"
                 placeholder="Are you still there?"
+                description="Plain text or a JSON object for localized variants"
               />
             </motion.div>
           )}
@@ -179,7 +210,19 @@ export function CallBehaviorConfigForm() {
           label="Max Call Duration (s)"
           type="number"
           placeholder="90"
-          description="Force-terminate calls exceeding this length"
+          description="Force-terminate calls exceeding this length — applies to voice + web calls, default 90s"
+        />
+        <JsonTextField
+          name="agent_config.conversation.call_hangup_message"
+          label="Hangup Message"
+          placeholder="Thanks for calling — goodbye!"
+          description="Spoken before hangup; plain text or a JSON object for localized variants"
+        />
+        <SelectInput
+          name="agent_config.conversation.end_call_tool_mode"
+          label="End Call Tool Mode"
+          options={END_CALL_TOOL_MODES}
+          description="Which end-call tool path hangs up the call"
         />
         <TextInput
           name="agent_config.conversation.call_cancellation_prompt"
@@ -192,6 +235,19 @@ export function CallBehaviorConfigForm() {
           label="Hang Up After Goal"
           description="Disconnect automatically once the LLM completes its primary goal"
         />
+      </FormSection>
+
+      <FormSection
+        title="Call Capture"
+        description="Control whether call audio is recorded."
+      >
+        <div className="col-span-1 md:col-span-2">
+          <SwitchInput
+            name="agent_config.conversation.recording"
+            label="Record Calls"
+            description="Record call audio; the artifact lands on the call record."
+          />
+        </div>
       </FormSection>
 
       <FormSection

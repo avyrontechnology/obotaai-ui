@@ -24,6 +24,11 @@ export const batchStatusSchema = z.enum([
 
 export const phoneNumberProviderSchema = z.enum(["twilio", "plivo", "exotel", "vobiz", "talko", "simulated"]);
 
+/** Recording state mirror (voiceai/modules/voice/models.py::RecordingStatus).
+ *  Teardown always reports recording_url + recording_status + recording_reason;
+ *  pre-recording records predate the fields so all three stay optional+nullable. */
+export const recordingStatusSchema = z.enum(["recorded", "disabled", "failed", "pending_upload"]);
+
 /** Registry kinds (spec 0029): function + webhook are tenant-authorable;
  *  internal rows are system-curated and read-only. */
 export const toolKindSchema = z.enum(["function", "webhook", "internal"]);
@@ -59,6 +64,9 @@ export const executionSchema = z.object({
   started_at: z.string(),
   ended_at: z.string().nullable(),
   duration_s: z.number(),
+  recording_status: recordingStatusSchema.nullable().optional(),
+  recording_reason: z.string().nullable().optional(),
+  recording_url: z.string().nullable().optional(),
 });
 
 export const executionListSchema = z.object({ executions: z.array(executionSchema) });
@@ -503,6 +511,7 @@ export const resetResponseSchema = z.object({
 });
 
 export type Execution = z.infer<typeof executionSchema>;
+export type RecordingStatus = z.infer<typeof recordingStatusSchema>;
 export type ExecutionStats = z.infer<typeof executionStatsSchema>;
 export type TranscriptTurn = z.infer<typeof transcriptTurnSchema>;
 export type LatencyBreakdown = z.infer<typeof latencyBreakdownSchema>;

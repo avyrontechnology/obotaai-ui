@@ -39,11 +39,10 @@ export interface BackendConversationConfig {
   backchanneling?: boolean | null;
   backchanneling_message_gap?: number | null;
   backchanneling_start_delay?: number | null;
-  ambient_noise?: boolean | null;
   use_fillers?: boolean | null;
   check_if_user_online?: boolean | null;
   trigger_user_online_message_after?: number | null;
-  check_user_online_message?: string | null;
+  check_user_online_message?: string | Record<string, string> | null;
   voicemail?: boolean | null;
   voicemail_detection_duration?: number | null;
   voicemail_check_interval?: number | null;
@@ -52,6 +51,13 @@ export interface BackendConversationConfig {
   call_terminate?: number | null;
   hangup_after_LLMCall?: boolean | null;
   call_cancellation_prompt?: string | null;
+  recording?: boolean | null;
+  call_hangup_message?: string | Record<string, string> | null;
+  welcome_message_delay?: number | null;
+  discard_pre_welcome_utterance?: boolean | null;
+  language_injection_mode?: string | null;
+  language_instruction_template?: string | null;
+  end_call_tool_mode?: string | null;
   [key: string]: unknown;
 }
 
@@ -408,7 +414,6 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     const conv = data.agent_config.conversation;
     if (conv.optimize_latency != null) taskConfig.optimize_latency = conv.optimize_latency;
     if (conv.incremental_delay != null) taskConfig.incremental_delay = conv.incremental_delay;
-    if (conv.ambient_noise != null) taskConfig.ambient_noise = conv.ambient_noise;
     if (conv.use_fillers != null) taskConfig.use_fillers = conv.use_fillers;
     if (conv.backchanneling != null) taskConfig.backchanneling = conv.backchanneling;
     if (conv.backchanneling_message_gap != null) taskConfig.backchanneling_message_gap = conv.backchanneling_message_gap;
@@ -427,6 +432,13 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     if (conv.call_terminate != null) taskConfig.call_terminate = conv.call_terminate;
     if (conv.hangup_after_LLMCall != null) taskConfig.hangup_after_LLMCall = conv.hangup_after_LLMCall;
     if (conv.call_cancellation_prompt != null) taskConfig.call_cancellation_prompt = conv.call_cancellation_prompt;
+    if (conv.recording != null) taskConfig.recording = conv.recording;
+    if (conv.call_hangup_message != null) taskConfig.call_hangup_message = conv.call_hangup_message;
+    if (conv.welcome_message_delay != null) taskConfig.welcome_message_delay = conv.welcome_message_delay;
+    if (conv.discard_pre_welcome_utterance != null) taskConfig.discard_pre_welcome_utterance = conv.discard_pre_welcome_utterance;
+    if (conv.language_injection_mode != null) taskConfig.language_injection_mode = conv.language_injection_mode;
+    if (conv.language_instruction_template != null) taskConfig.language_instruction_template = conv.language_instruction_template;
+    if (conv.end_call_tool_mode != null) taskConfig.end_call_tool_mode = conv.end_call_tool_mode;
   }
 
   // Shared tool attachments (spec 0029 slice 2): refs + webhook params from

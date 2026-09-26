@@ -129,7 +129,6 @@ function maximalVoiceData(tag: string): AgentData {
       conversation: {
         optimize_latency: true,
         incremental_delay: 120,
-        ambient_noise: true,
         use_fillers: true,
         backchanneling: true,
         backchanneling_message_gap: 7,
@@ -229,7 +228,6 @@ function expectVoiceRecordMatches(record: BackendRecord, data: AgentData) {
     expect.objectContaining({
       optimize_latency: true,
       incremental_delay: 120,
-      ambient_noise: true,
       use_fillers: true,
       backchanneling: true,
       backchanneling_message_gap: 7,

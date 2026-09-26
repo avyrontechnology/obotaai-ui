@@ -85,7 +85,6 @@ export const ragSchema = z.object({
 export const conversationSchema = z.object({
   optimize_latency: z.boolean().optional(),
   incremental_delay: z.number().int().optional(),
-  ambient_noise: z.boolean().optional(),
   use_fillers: z.boolean().optional(),
   backchanneling: z.boolean().optional(),
   backchanneling_message_gap: z.number().int().optional(),
@@ -95,7 +94,7 @@ export const conversationSchema = z.object({
   interruption_backoff_period: z.number().int().optional(),
   check_if_user_online: z.boolean().optional(),
   trigger_user_online_message_after: z.number().int().optional(),
-  check_user_online_message: z.string().optional(),
+  check_user_online_message: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
   voicemail: z.boolean().optional(),
   voicemail_detection_duration: z.number().optional(),
   voicemail_check_interval: z.number().optional(),
@@ -104,6 +103,13 @@ export const conversationSchema = z.object({
   call_terminate: z.number().int().optional(),
   hangup_after_LLMCall: z.boolean().optional(),
   call_cancellation_prompt: z.string().optional(),
+  recording: z.boolean().optional(),
+  call_hangup_message: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
+  welcome_message_delay: z.number().optional(),
+  discard_pre_welcome_utterance: z.boolean().optional(),
+  language_injection_mode: z.string().optional(),
+  language_instruction_template: z.string().optional(),
+  end_call_tool_mode: z.string().optional(),
 });
 
 export const telephonySchema = z.object({

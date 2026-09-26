@@ -49,6 +49,49 @@ function KeyValueBlock({ title, data }: { title: string; data: Record<string, un
   );
 }
 
+const RECORDING_STYLES: Record<string, { pill: string; dot: string; label: string }> = {
+  recorded: {
+    pill: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+    dot: "bg-emerald-500",
+    label: "Recorded",
+  },
+  pending_upload: {
+    pill: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    dot: "bg-amber-500",
+    label: "Pending Upload",
+  },
+  disabled: {
+    pill: "bg-muted text-muted-foreground border-border",
+    dot: "bg-muted-foreground",
+    label: "Disabled",
+  },
+  failed: {
+    pill: "bg-muted text-muted-foreground border-border",
+    dot: "bg-muted-foreground",
+    label: "Failed",
+  },
+};
+
+function RecordingBadge({ status }: { status: string }) {
+  const style = RECORDING_STYLES[status] ?? {
+    pill: "bg-muted text-muted-foreground border-border",
+    dot: "bg-muted-foreground",
+    label: status,
+  };
+  return (
+    <span
+      title={status}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+        style.pill
+      )}
+    >
+      <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", style.dot)} aria-hidden="true" />
+      {style.label}
+    </span>
+  );
+}
+
 export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) {
   const open = executionId !== null;
   const { data: execution, isLoading, isError, refetch } = useExecution(executionId ?? "", open);
@@ -76,6 +119,11 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
 
   const latency = execution?.latency;
   const maxLatency = latency ? Math.max(latency.transcriber_ms, latency.llm_ms, latency.synthesizer_ms, 1) : 1;
+
+  const recordingStatus = execution?.recording_status ?? null;
+  const recordingReason = execution?.recording_reason ?? null;
+  const recordingUrl = execution?.recording_url ?? null;
+  const hasRecording = recordingStatus != null || recordingReason != null || recordingUrl != null;
 
   const copyLink = () => {
     if (typeof window === "undefined" || !execution) return;
@@ -164,6 +212,32 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
                 </Link>
               )}
             </div>
+
+            {hasRecording && (
+              <div data-testid="recording-section" className="space-y-2">
+                <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                  Recording
+                </h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  {recordingStatus && (
+                    <RecordingBadge status={recordingStatus} />
+                  )}
+                  {recordingStatus === "recorded" && recordingUrl && (
+                    <a
+                      href={recordingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-mono text-ember-700 dark:text-ember-300 hover:underline underline-offset-4"
+                    >
+                      Recording <ExternalLink aria-hidden="true" className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                {recordingReason && (
+                  <p className="text-xs font-mono text-muted-foreground">{recordingReason}</p>
+                )}
+              </div>
+            )}
 
             {execution.summary && (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed text-foreground">

@@ -10,7 +10,7 @@ import {
   defaultS2sModel,
   defaultChannels,
 } from "@/services/api-transforms";
-import { agentConfigSchema } from "@/lib/schemas/agent";
+import { agentConfigSchema, conversationSchema } from "@/lib/schemas/agent";
 import type { AgentData } from "@/lib/schemas/agent";
 
 describe("api-transforms", () => {
@@ -1316,6 +1316,137 @@ describe("api-transforms", () => {
         },
       });
       expect(single.agent_config.pipeline).toBeUndefined();
+    });
+  });
+
+  describe("conversation promoted keys (backend mirror)", () => {
+    const baseData: AgentData = {
+      agent_name: "Promoted Agent",
+      agent_type: "voice",
+      agent_prompts: { system_prompt: "You are a helpful assistant." },
+      agent_config: {},
+    };
+
+    it("round-trips each promoted key (form → payload → form + schema parse)", () => {
+      const conversation = {
+        recording: true,
+        call_hangup_message: "Thanks, bye!",
+        check_user_online_message: "Are you still there?",
+        welcome_message_delay: 1500,
+        discard_pre_welcome_utterance: true,
+        language_injection_mode: "dynamic",
+        language_instruction_template: "Speak in {language}.",
+        end_call_tool_mode: "strict",
+      };
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { conversation },
+      });
+      const taskConfig = payload.agent_config.tasks[0].task_config ?? {};
+      expect(taskConfig).toEqual(expect.objectContaining(conversation));
+
+      // toFrontendAgent passes task_config through opaquely; the loaded
+      // conversation must parse under the widened schema.
+      const agent = toFrontendAgent({
+        agent_id: "promoted-1",
+        data: {
+          agent_name: "Promoted Agent",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: {},
+              toolchain: { execution: "parallel", pipelines: [["llm"]] },
+              task_config: taskConfig,
+            },
+          ],
+        },
+        agent_prompts: { task_1: { system_prompt: "You are a helpful assistant." } },
+      });
+      expect(agent.agent_config.conversation).toEqual(expect.objectContaining(conversation));
+      expect(conversationSchema.safeParse(agent.agent_config.conversation).success).toBe(true);
+    });
+
+    it("emits explicit recording:false (backend default is False)", () => {
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { conversation: { recording: false } },
+      });
+      expect(payload.agent_config.tasks[0].task_config).toEqual(
+        expect.objectContaining({ recording: false })
+      );
+      const agent = toFrontendAgent({
+        agent_id: "promoted-false",
+        data: {
+          agent_name: "Promoted Agent",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: {},
+              toolchain: { execution: "parallel", pipelines: [["llm"]] },
+              task_config: { recording: false },
+            },
+          ],
+        },
+      });
+      expect(agent.agent_config.conversation?.recording).toBe(false);
+      expect(conversationSchema.safeParse(agent.agent_config.conversation).success).toBe(true);
+    });
+
+    it("parses and emits dict-form hangup/online messages verbatim", () => {
+      const dictHangup = { en: "Goodbye!", hi: "Alvida!" };
+      const dictOnline = { en: "Are you there?", hi: "Kya aap hain?" };
+      expect(conversationSchema.safeParse({ call_hangup_message: dictHangup }).success).toBe(true);
+      expect(conversationSchema.safeParse({ check_user_online_message: dictOnline }).success).toBe(true);
+
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: {
+          conversation: { call_hangup_message: dictHangup, check_user_online_message: dictOnline },
+        },
+      });
+      const taskConfig = payload.agent_config.tasks[0].task_config ?? {};
+      expect(taskConfig.call_hangup_message).toEqual(dictHangup);
+      expect(taskConfig.check_user_online_message).toEqual(dictOnline);
+
+      const agent = toFrontendAgent({
+        agent_id: "promoted-dict",
+        data: {
+          agent_name: "Promoted Agent",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: {},
+              toolchain: { execution: "parallel", pipelines: [["llm"]] },
+              task_config: taskConfig,
+            },
+          ],
+        },
+      });
+      expect(agent.agent_config.conversation?.call_hangup_message).toEqual(dictHangup);
+      expect(agent.agent_config.conversation?.check_user_online_message).toEqual(dictOnline);
+    });
+
+    it("drops ambient_noise (backend-deleted; zod strips it)", () => {
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: {
+          conversation: { ambient_noise: true } as unknown as AgentData["agent_config"]["conversation"],
+        },
+      });
+      expect("ambient_noise" in (payload.agent_config.tasks[0].task_config ?? {})).toBe(false);
+
+      const parsed = conversationSchema.parse({ ambient_noise: true, optimize_latency: true });
+      expect("ambient_noise" in parsed).toBe(false);
+      expect(parsed.optimize_latency).toBe(true);
+    });
+
+    it("tolerates unknown language_injection_mode / end_call_tool_mode values", () => {
+      expect(
+        conversationSchema.safeParse({
+          language_injection_mode: "legacy-custom-value",
+          end_call_tool_mode: "whatever-backend-adds-next",
+        }).success
+      ).toBe(true);
     });
   });
 });
