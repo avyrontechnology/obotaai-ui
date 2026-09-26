@@ -26,10 +26,11 @@ import { PersonaConfigForm } from "@/components/settings/persona-config";
 import { ToolsConfigForm } from "@/components/settings/tools-config";
 import { AnalyticsConfigForm } from "@/components/settings/analytics-config";
 import { InboundConfigForm } from "@/components/settings/inbound-config";
-import { useForm, FormProvider } from "react-hook-form";
-import { agentConfigSchema, AgentConfigData } from "@/lib/schemas/agent";
+import { useForm, FormProvider, useWatch } from "react-hook-form";
+import { agentConfigSchema, AgentConfigData, type AgentData } from "@/lib/schemas/agent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { visibleGroupsFor, type SectionId } from "@/components/settings/sections";
+import { ChannelSwitcher } from "@/components/settings/channel-config";
 import { minRoleFor, useCan } from "@/lib/rbac";
 import * as z from "zod";
 
@@ -40,7 +41,16 @@ import * as z from "zod";
 // the submit payload nests user input one level too deep, so
 // toCreateAgentPayload falls back to defaults and the backend 200s without
 // persisting anything.
-const configureFormSchema = z.object({ agent_config: agentConfigSchema });
+//
+// Form-root channel contract (Dev A writes, Dev B consumes):
+// - `agent_type`: top-level RHF enum voice/text/s2s (staged type switch).
+// - `channels`: top-level RHF string array (staged runtimes).
+// Both default from the server record and fall back to it when untouched.
+const configureFormSchema = z.object({
+  agent_config: agentConfigSchema,
+  agent_type: z.enum(["voice", "text", "s2s"]).optional(),
+  channels: z.array(z.string()).optional(),
+});
 type ConfigureFormData = z.infer<typeof configureFormSchema>;
 
 // Section metadata (grouping + per-type visibility) lives in
@@ -91,18 +101,50 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
 
   const methods = useForm<ConfigureFormData>({
     resolver: zodResolver(configureFormSchema),
-    defaultValues: { agent_config: mergedConfig ?? {} },
+    defaultValues: {
+      agent_config: mergedConfig ?? {},
+      // Server record seeds the staged fields; the reset below fills them
+      // once the record loads (first render has no agent yet).
+      agent_type:
+        agent?.agent_type === "voice" || agent?.agent_type === "text" || agent?.agent_type === "s2s"
+          ? (agent.agent_type as "voice" | "text" | "s2s")
+          : undefined,
+      channels: agent?.channels,
+    },
   });
 
-  // Reset form when agent data is loaded
-  useEffect(() => {
-    if (mergedConfig) {
-      methods.reset({ agent_config: mergedConfig });
-    }
-  }, [mergedConfig, methods]);
+  // Staged-type gating — stale-tabs-vs-teleport tradeoff (deliberate):
+  // `groups`/`visibleIds` below stay on the SERVER record type so tabs never
+  // disappear mid-edit. Teleporting the user to another tab on a staged type
+  // switch loses form focus + scroll position and strands in-flight edits in
+  // hidden sections (teleport loses). The header badge, Test deep-link, and
+  // section `agentType` props follow the STAGED form type via `effectiveType`
+  // so they preview what a save will produce. Pure derivation from useWatch
+  // (staged) + server record (fallback when untouched) — no setState in any
+  // effect (lint-forbidden cascade).
+  const stagedAgentType = useWatch({ control: methods.control, name: "agent_type" });
+  const effectiveType: string = stagedAgentType ?? agent?.agent_type ?? "";
 
-  // Sections are gated by agent type: an s2s record carries no transcriber
-  // or llm blocks, so those tabs would render empty and silently drop edits.
+  // Reset form when agent data is loaded (round-trips the top-level
+  // agent_type/channels so Dev A's ChannelSwitcher stages them as form
+  // state; submit falls back to stored values when untouched).
+  useEffect(() => {
+    if (mergedConfig && agent) {
+      const storedType =
+        agent.agent_type === "voice" || agent.agent_type === "text" || agent.agent_type === "s2s"
+          ? (agent.agent_type as "voice" | "text" | "s2s")
+          : undefined;
+      methods.reset({
+        agent_config: mergedConfig,
+        agent_type: storedType,
+        ...(agent.channels ? { channels: agent.channels } : {}),
+      });
+    }
+  }, [mergedConfig, agent, methods]);
+
+  // Sections are gated by the SERVER record type: an s2s record carries no
+  // transcriber or llm blocks, so those tabs would render empty and silently
+  // drop edits. Staged type intentionally does NOT regate tabs (see above).
   const groups = useMemo(() => visibleGroupsFor(agent?.agent_type ?? ""), [agent?.agent_type]);
   const visibleIds = useMemo(
     () => new Set(groups.flatMap((group) => group.sections.map((section) => section.id))),
@@ -161,17 +203,25 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
         persona?.welcome_message ??
         storedFilePrompts?.welcome_message ??
         storedPrompts.welcome_message;
+      // Form-root staged values win; the stored record is the fallback when
+      // the ChannelSwitcher was never touched (Dev A writes top-level
+      // `agent_type` + `channels`; Dev B consumes AgentData.agent_type /
+      // .channels in transforms). Phase A round-trip: PUT fully overwrites,
+      // so re-emit (staged-or-stored) channels instead of the type default.
+      // Cast: AgentData.agent_type is Dev A's tightened enum, but the stored
+      // record can still carry legacy values ("other") that must round-trip
+      // verbatim at runtime (Dev B's transform routes non-voice/s2s as text).
+      const submitType = (data.agent_type ?? agent.agent_type) as AgentData["agent_type"];
+      const submitChannels = data.channels ?? agent.channels;
       const fullData = {
         agent_name: agent.agent_name,
-        agent_type: agent.agent_type,
+        agent_type: submitType,
         agent_prompts: {
           system_prompt,
           welcome_message,
         },
         agent_config: config,
-        // Phase A round-trip: PUT fully overwrites, so re-emit stored
-        // channels instead of falling back to the type default.
-        ...(agent.channels ? { channels: agent.channels } : {}),
+        ...(submitChannels ? { channels: submitChannels } : {}),
       };
       await updateMutation.mutateAsync({ id, data: fullData });
       notify.success("Configuration saved", { description: agent.agent_name });
@@ -184,6 +234,14 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
       notify.error("Update failed", e);
     }
   };
+
+  // Test deep-link follows the STAGED type (not just the saved record):
+  // text stages preview chat, everything else previews talk. Pure
+  // derivation — no setState, no effect.
+  const testHref =
+    effectiveType === "text"
+      ? `/playground?agent=${id}&mode=chat`
+      : `/playground?agent=${id}&mode=talk`;
 
   return (
     <div className="flex flex-col flex-1 min-h-full max-w-7xl mx-auto w-full pt-6 md:pt-8 pb-16 px-4 sm:px-6">
@@ -198,15 +256,15 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl md:text-3xl font-medium text-foreground tracking-tight text-balance" title={agent.agent_name}>
             Configure <span className="text-muted-foreground">{agent.agent_name}</span>{" "}
-            <span className="align-middle ml-1 px-3 py-1 rounded-full bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 text-xs font-mono font-normal">
-              {agent.agent_type === "s2s" ? "Realtime" : agent.agent_type}
+            <span data-testid="agent-type-badge" className="align-middle ml-1 px-3 py-1 rounded-full bg-primary/10 text-ember-700 dark:text-ember-300 border border-primary/20 text-xs font-mono font-normal">
+              {effectiveType === "s2s" ? "Realtime" : effectiveType}
             </span>
           </h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href={`/playground?agent=${id}`}
+            href={testHref}
             className="flex items-center gap-2 px-5 h-11 rounded-2xl bg-card border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50"
           >
             <PhoneCall className="w-4 h-4" aria-hidden="true" /> Test
@@ -292,13 +350,18 @@ export default function AgentConfigurePage({ params }: { params: Promise<{ id: s
                 >
                   {effectiveSection === "persona" && <PersonaConfigForm />}
                   {effectiveSection === "transcriber" && <TranscriberConfigForm problems={validationProblems} />}
-                  {effectiveSection === "synthesizer" && <SynthesizerConfigForm agentId={id} agentType={agent.agent_type} problems={validationProblems} />}
+                  {effectiveSection === "synthesizer" && <SynthesizerConfigForm agentId={id} agentType={effectiveType} problems={validationProblems} />}
                   {effectiveSection === "llm" && <LLMConfigForm problems={validationProblems} />}
                   {effectiveSection === "rag" && <RAGConfigForm agentId={id} />}
                   {effectiveSection === "behavior" && <CallBehaviorConfigForm />}
                   {effectiveSection === "tools" && <ToolsConfigForm agentId={id} problems={validationProblems} />}
                   {effectiveSection === "analytics" && <AnalyticsConfigForm agentId={id} />}
                   {effectiveSection === "inbound" && <InboundConfigForm agentId={id} />}
+                  {/* Channel section (Dev A owns ChannelSwitcher; the
+                      sections.ts "channel" entry makes this branch live). */}
+                  {effectiveSection === "channel" && (
+                    <ChannelSwitcher agentId={id} agentType={effectiveType} />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </FormProvider>

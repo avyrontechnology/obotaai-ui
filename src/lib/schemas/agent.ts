@@ -198,6 +198,10 @@ export const agentConfigSchema = z.object({
 
 export const agentSchema = z.object({
   agent_name: z.string().min(2, "Name must be at least 2 characters"),
+  // Open string: the backend truth includes legacy "other" records, and
+  // AgentData flows backend-derived strings (wizard defaults, template
+  // imports, round-trips). The wizard radio + channel switcher constrain
+  // input to voice/text/s2s via UI literals; the backend 400s anything else.
   agent_type: z.string(),
   agent_prompts: z.object({
     system_prompt: z.string().min(10, "System prompt must be at least 10 characters"),

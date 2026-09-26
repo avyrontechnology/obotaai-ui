@@ -154,11 +154,12 @@ export function useUpdateAgent() {
 }
 
 /** One addressed task edit for PATCH (spec 0028): merges into
- *  `tasks[task_index]`. Present-null is a no-op; clear via `clear`. */
+ *  `tasks[task_index]`. Present-null is a no-op; clear via `clear`.
+ *  Phase C: "chat" passes through so a stored chat pointer is patchable. */
 export interface TaskPatchOperation {
   task_index: number;
   task_type?: string;
-  pipeline?: "asr" | "s2s" | null;
+  pipeline?: "asr" | "s2s" | "chat" | null;
   tools_config?: Record<string, unknown>;
   toolchain?: Record<string, unknown>;
   task_config?: Record<string, unknown>;

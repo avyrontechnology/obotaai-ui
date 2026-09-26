@@ -76,12 +76,16 @@ export interface BackendAgentModel {
 }
 
 /**
- * Derive the `channels` for a create/PUT payload (specs 0028 + 0038).
+ * Derive the `channels` for a create/PUT payload (specs 0028 + 0038, hybrid).
  *
- * Explicit non-empty form channels win. Otherwise voice/s2s forms emit
- * ["voice"] and text forms emit ["chat"] (the HTTP chat runtime serves
- * text agents; the allowlist accepts both since Phase C). Other types omit
- * the key so the backend default applies.
+ * Hybrid matrix:
+ *   - Explicit non-empty form channels ALWAYS win verbatim (deduped,
+ *     order-preserving) — including ["voice", "chat"]. Never emit []: empty
+ *     entries are filtered, and an all-empty/omitted list falls through.
+ *   - Fallback when the form carries no channels: voice/s2s forms emit
+ *     ["voice"], text forms emit ["chat"] (the HTTP chat runtime serves
+ *     text agents; the allowlist accepts both since Phase C).
+ *   - Other types omit the key so the backend default applies.
  */
 export function defaultChannels(data: AgentData): string[] | undefined {
   const explicit = (data.channels ?? []).filter((c) => c.length > 0);
@@ -262,8 +266,9 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     toolsConfig.output = { provider: telephony.output_provider, format: telephony.output_format || "wav" };
   }
 
-  // Phase A pipeline toggle (spec 0028): the form holds BOTH blocks and a
-  // `pipeline` pointer. Untouched toggle (undefined) reproduces the legacy
+  // Phase A pipeline toggle (spec 0028) + hybrid channels: the form holds
+  // BOTH blocks, a `pipeline` pointer, and top-level `channels`. Untouched
+  // toggle + untouched channels (both undefined) reproduce the legacy
   // exclusive payloads byte-for-byte — backend inference routes them.
   // Touched toggle emits both blocks + explicit `pipeline`; BOTH sides must
   // validate (parked is never exempt), so absent parked fields fall back to
@@ -271,11 +276,23 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
   const rawPipeline = data.agent_config?.pipeline;
   const pipelineSel =
     rawPipeline === "asr" || rawPipeline === "s2s" || rawPipeline === "chat" ? rawPipeline : undefined;
+  // Block emission is keyed off channels ∪ agent_type — never agent_type
+  // alone. Explicit (deduped, non-empty) form channels drive emission; the
+  // defaulted fallback is NOT consulted here, so legacy s2s records (which
+  // default to ["voice"]) stay s2s-only and byte-identical. A "voice"
+  // channel keeps the ASR voice blocks in the payload even after the type
+  // flips to text (PUT fully overwrites — dropping them would wipe the
+  // parked side); the form retains both blocks and so must the transform.
+  // There is no "s2s" channel (allowlist is {voice, chat}), so s2s blocks
+  // still come only from the s2s type or the asr|s2s coexistence toggle.
   // Coexistence (both blocks) is an asr|s2s affair; a stored "chat" pointer
   // passes through verbatim without forcing audio blocks.
-  const coexisting = (pipelineSel === "asr" || pipelineSel === "s2s") && (isVoice || isS2S);
+  const explicitChannels = [...new Set((data.channels ?? []).filter((c) => c.length > 0))];
+  const hasVoiceChannel = explicitChannels.includes("voice");
+  const coexisting =
+    (pipelineSel === "asr" || pipelineSel === "s2s") && (isVoice || isS2S || hasVoiceChannel);
   const emitS2s = isS2S || coexisting;
-  const emitVoice = isVoice || coexisting;
+  const emitVoice = isVoice || hasVoiceChannel;
 
   // Pipelines for the toolchain
   const pipelineSteps: string[] = [];
@@ -499,13 +516,19 @@ export function templatePayloadToAgentData(payload: Record<string, unknown>): Ag
 
 /**
  * Transform settings form data (AgentConfig) into the backend's CreateAgentPayload for PUT.
+ *
+ * `channels` lives top-level on AgentData (not inside AgentConfig), so it is
+ * threaded through as an explicit argument; omitted/empty falls back to the
+ * type-derived default via defaultChannels (voice/s2s → ["voice"],
+ * text → ["chat"]).
  */
 export function toUpdateAgentPayload(
   agentName: string,
   agentType: string,
   systemPrompt: string,
   welcomeMessage: string | undefined,
-  config: AgentConfig
+  config: AgentConfig,
+  channels?: string[]
 ): CreateAgentPayload {
   // Re-use the create transform with a synthetic AgentData
   const syntheticData: AgentData = {
@@ -516,6 +539,7 @@ export function toUpdateAgentPayload(
       welcome_message: welcomeMessage,
     },
     agent_config: config,
+    ...(channels ? { channels } : {}),
   };
   return toCreateAgentPayload(syntheticData);
 }
@@ -556,12 +580,27 @@ export function toFrontendAgent(raw: Record<string, unknown>): Agent {
     agentType = (nestedData.agent_type as string) || "other";
     welcomeMessage = (nestedData.agent_welcome_message as string) || "";
 
-    // Phase A engine pointer (spec 0028): read the first task's selector so
-    // the toggle reflects stored state; absent stays absent (legacy inference).
+    // Phase A engine pointer (spec 0028) + hybrid readback: report the
+    // effective routing for coexisting blocks. A stored asr|s2s|chat pointer
+    // is read verbatim (absent stays absent — legacy inference). A record
+    // that carries BOTH blocks but no pointer (merged single pipeline, or a
+    // pointer wiped upstream) derives the toggle from toolchain order —
+    // first pipeline wins — so a PUT round-trip re-emits both blocks instead
+    // of silently dropping the parked side (PUT fully overwrites). Single-
+    // block records never trigger the derivation, so legacy reads are
+    // untouched.
     const firstTask = (nestedData.tasks as BackendTask[])[0];
     const storedPipeline: unknown = firstTask?.pipeline;
     if (storedPipeline === "asr" || storedPipeline === "s2s" || storedPipeline === "chat") {
       agentConfig.pipeline = storedPipeline;
+    } else {
+      const firstTools = firstTask?.tools_config ?? {};
+      const hasS2sBlock = !!firstTools.s2s;
+      const hasVoiceBlock = !!(firstTools.transcriber || firstTools.synthesizer);
+      if (hasS2sBlock && hasVoiceBlock) {
+        const firstPipeline = firstTask?.toolchain?.pipelines?.[0] ?? [];
+        agentConfig.pipeline = firstPipeline.includes("s2s") ? "s2s" : "asr";
+      }
     }
 
     const tasks = nestedData.tasks as BackendTask[];

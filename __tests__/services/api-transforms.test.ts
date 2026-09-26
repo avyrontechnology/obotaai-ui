@@ -1,6 +1,7 @@
 import {
   toCreateAgentPayload,
   toFrontendAgent,
+  toUpdateAgentPayload,
   templatePayloadToAgentData,
   stripNulls,
   defaultAsrModel,
@@ -1041,6 +1042,280 @@ describe("api-transforms", () => {
         },
       });
       expect(agent.agent_config.pipeline).toBe("chat");
+    });
+  });
+
+  describe("hybrid channels ∪ agent_type emission", () => {
+    const hybridBlocks = {
+      llm: { provider: "openai", model: "gpt-4o" },
+      transcriber: { provider: "deepgram", model: "nova-2" },
+      synthesizer: { provider: "elevenlabs", voice: "Rachel", model: "eleven_turbo_v2_5" },
+      s2s: { provider: "openai_realtime", model: "gpt-realtime-2.1" },
+    } as const;
+
+    it("defaultChannels: explicit non-empty channels always win verbatim", () => {
+      const base = {
+        agent_name: "Agent",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: {},
+      } as const;
+      // Including the full hybrid pair, on every type.
+      expect(defaultChannels({ ...base, agent_type: "voice", channels: ["voice", "chat"] })).toEqual([
+        "voice",
+        "chat",
+      ]);
+      expect(defaultChannels({ ...base, agent_type: "text", channels: ["voice", "chat"] })).toEqual([
+        "voice",
+        "chat",
+      ]);
+      expect(defaultChannels({ ...base, agent_type: "s2s", channels: ["voice", "chat"] })).toEqual([
+        "voice",
+        "chat",
+      ]);
+      // Order-preserving dedup.
+      expect(
+        defaultChannels({ ...base, agent_type: "text", channels: ["chat", "voice", "chat"] })
+      ).toEqual(["chat", "voice"]);
+      // Empty entries are filtered; all-empty falls back to the type default.
+      expect(defaultChannels({ ...base, agent_type: "voice", channels: ["", "voice"] })).toEqual([
+        "voice",
+      ]);
+      expect(defaultChannels({ ...base, agent_type: "voice", channels: [""] })).toEqual(["voice"]);
+      expect(defaultChannels({ ...base, agent_type: "other", channels: [""] })).toBeUndefined();
+      // Never emits [].
+      for (const t of ["voice", "text", "s2s", "other"] as const) {
+        const out = defaultChannels({ ...base, agent_type: t, channels: [] });
+        if (out !== undefined) expect(out.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("emits voice blocks for text agents carrying a voice channel", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Hybrid Text Agent",
+        agent_type: "text",
+        agent_prompts: { system_prompt: "You are a helpful assistant." },
+        channels: ["voice", "chat"],
+        agent_config: { llm: { provider: "openai", model: "gpt-4o" } },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect(payload.agent_config.channels).toEqual(["voice", "chat"]);
+      expect(task.tools_config.transcriber).toEqual(expect.objectContaining({ provider: "deepgram" }));
+      expect(task.tools_config.synthesizer).toEqual(expect.objectContaining({ provider: "elevenlabs" }));
+      expect(task.tools_config.llm_agent).toEqual(expect.objectContaining({ model: "gpt-4o" }));
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.toolchain.pipelines).toEqual([["transcriber", "llm", "synthesizer"]]);
+      expect("pipeline" in task).toBe(false);
+    });
+
+    it("keeps voice-only shape for voice agents with both channels and no toggle", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Hybrid Voice Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        channels: ["voice", "chat"],
+        agent_config: { llm: { provider: "openai", model: "gpt-4o" } },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect(payload.agent_config.channels).toEqual(["voice", "chat"]);
+      expect(task.tools_config.transcriber).toBeDefined();
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.toolchain.pipelines).toEqual([["transcriber", "llm", "synthesizer"]]);
+      expect("pipeline" in task).toBe(false);
+    });
+
+    it("flipping voice→text keeps parked blocks while a voice channel is retained", () => {
+      const voiceForm: AgentData = {
+        agent_name: "Hybrid Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        channels: ["voice", "chat"],
+        agent_config: { pipeline: "s2s", ...hybridBlocks },
+      };
+      // Sanity: the voice form carries both blocks.
+      const before = toCreateAgentPayload(voiceForm).agent_config.tasks[0];
+      expect(before.tools_config.s2s).toBeDefined();
+      expect(before.tools_config.transcriber).toBeDefined();
+
+      // Flip the type; the form still holds both blocks and the voice channel.
+      const after = toCreateAgentPayload({ ...voiceForm, agent_type: "text" }).agent_config.tasks[0];
+      expect(after.tools_config.s2s).toEqual(
+        expect.objectContaining({ provider: "openai_realtime" })
+      );
+      expect(after.tools_config.transcriber).toEqual(expect.objectContaining({ provider: "deepgram" }));
+      expect(after.tools_config.synthesizer).toEqual(expect.objectContaining({ provider: "elevenlabs" }));
+      expect(after.tools_config.llm_agent).toEqual(expect.objectContaining({ model: "gpt-4o" }));
+      expect(after.pipeline).toBe("s2s");
+      expect(after.toolchain.pipelines).toEqual([["s2s"], ["transcriber", "llm", "synthesizer"]]);
+    });
+
+    it("passes a chat pointer through on voice forms without forcing s2s blocks", () => {
+      const payload = toCreateAgentPayload({
+        agent_name: "Voice Chat Agent",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        agent_config: { pipeline: "chat", llm: { provider: "openai", model: "gpt-4o" } },
+      });
+      const task = payload.agent_config.tasks[0];
+      expect(task.pipeline).toBe("chat");
+      expect(task.tools_config.s2s).toBeUndefined();
+      expect(task.tools_config.transcriber).toBeDefined();
+      expect(task.toolchain.pipelines).toEqual([["transcriber", "llm", "synthesizer"]]);
+    });
+
+    it("legacy untouched forms stay byte-identical (exact block key sets)", () => {
+      const keySet = (o: object) => Object.keys(o).sort();
+      const sysPrompt = "You are a helpful assistant.";
+
+      const voice = toCreateAgentPayload({
+        agent_name: "Legacy Voice",
+        agent_type: "voice",
+        agent_prompts: { system_prompt: sysPrompt },
+        agent_config: {},
+      }).agent_config.tasks[0];
+      expect(keySet(voice.tools_config)).toEqual(["llm_agent", "synthesizer", "transcriber"]);
+      expect(voice.toolchain.pipelines).toEqual([["transcriber", "llm", "synthesizer"]]);
+      expect("pipeline" in voice).toBe(false);
+
+      const text = toCreateAgentPayload({
+        agent_name: "Legacy Text",
+        agent_type: "text",
+        agent_prompts: { system_prompt: sysPrompt },
+        agent_config: {},
+      }).agent_config.tasks[0];
+      expect(keySet(text.tools_config)).toEqual(["input", "llm_agent", "output"]);
+      expect(text.toolchain.pipelines).toEqual([["llm"]]);
+      expect("pipeline" in text).toBe(false);
+
+      const s2s = toCreateAgentPayload({
+        agent_name: "Legacy S2S",
+        agent_type: "s2s",
+        agent_prompts: { system_prompt: sysPrompt },
+        agent_config: {},
+      }).agent_config.tasks[0];
+      // Pure s2s keeps its legacy brainless shape — no llm, no voice blocks.
+      expect(keySet(s2s.tools_config)).toEqual(["s2s"]);
+      expect(s2s.toolchain.pipelines).toEqual([["s2s"]]);
+      expect("pipeline" in s2s).toBe(false);
+    });
+
+    it("toUpdateAgentPayload threads channels through (fallback stays type-derived)", () => {
+      const hybrid = toUpdateAgentPayload(
+        "Hybrid Agent",
+        "text",
+        "You are a helpful assistant.",
+        undefined,
+        { llm: { provider: "openai", model: "gpt-4o" } },
+        ["voice", "chat"]
+      );
+      expect(hybrid.agent_config.channels).toEqual(["voice", "chat"]);
+      // The voice channel drives voice-block emission on the PUT payload.
+      expect(hybrid.agent_config.tasks[0].tools_config.transcriber).toBeDefined();
+
+      const fallback = toUpdateAgentPayload("Text Agent", "text", "You are a helpful assistant.", "Hi", {});
+      expect(fallback.agent_config.channels).toEqual(["chat"]);
+      expect(fallback.agent_config.agent_welcome_message).toBe("Hi");
+    });
+
+    it("round-trips a both-blocks record without misreporting routing", () => {
+      const agent = toFrontendAgent({
+        agent_id: "hybrid-1",
+        data: {
+          agent_name: "Hybrid Agent",
+          agent_type: "voice",
+          channels: ["voice", "chat"],
+          tasks: [
+            {
+              pipeline: "s2s",
+              tools_config: {
+                s2s: { provider: "openai_realtime", provider_config: { model: "gpt-realtime-2.1" } },
+                transcriber: { provider: "deepgram", model: "nova-2" },
+                synthesizer: {
+                  provider: "elevenlabs",
+                  provider_config: { voice: "Rachel", model: "eleven_turbo_v2_5" },
+                },
+                llm_agent: { provider: "openai", model: "gpt-4o" },
+              },
+              toolchain: {
+                execution: "parallel",
+                pipelines: [["s2s"], ["transcriber", "llm", "synthesizer"]],
+              },
+              task_config: {},
+            },
+          ],
+        },
+        agent_prompts: { task_1: { system_prompt: "You are a helpful voice assistant." } },
+      });
+      expect(agent.agent_config.pipeline).toBe("s2s");
+      expect(agent.agent_config.s2s?.provider).toBe("openai_realtime");
+      expect(agent.agent_config.transcriber?.provider).toBe("deepgram");
+      expect(agent.channels).toEqual(["voice", "chat"]);
+
+      const repayload = toCreateAgentPayload({
+        agent_name: agent.agent_name,
+        agent_type: agent.agent_type,
+        agent_prompts: { system_prompt: "You are a helpful voice assistant." },
+        channels: agent.channels,
+        agent_config: agent.agent_config,
+      }).agent_config.tasks[0];
+      expect(repayload.pipeline).toBe("s2s");
+      expect(repayload.tools_config.s2s).toBeDefined();
+      expect(repayload.tools_config.transcriber).toBeDefined();
+      expect(repayload.tools_config.synthesizer).toBeDefined();
+      expect(repayload.toolchain.pipelines).toEqual([["s2s"], ["transcriber", "llm", "synthesizer"]]);
+    });
+
+    it("derives the toggle from toolchain order for both-blocks records lacking a pointer", () => {
+      const bothTools = {
+        s2s: { provider: "openai_realtime", provider_config: { model: "gpt-realtime-2.1" } },
+        transcriber: { provider: "deepgram", model: "nova-2" },
+        synthesizer: { provider: "elevenlabs", provider_config: { voice: "Rachel" } },
+        llm_agent: { provider: "openai", model: "gpt-4o" },
+      };
+      const s2sFirst = toFrontendAgent({
+        agent_id: "h1",
+        data: {
+          agent_name: "H",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: bothTools,
+              toolchain: { execution: "parallel", pipelines: [["s2s"], ["transcriber", "llm", "synthesizer"]] },
+            },
+          ],
+        },
+      });
+      expect(s2sFirst.agent_config.pipeline).toBe("s2s");
+
+      const asrFirst = toFrontendAgent({
+        agent_id: "h2",
+        data: {
+          agent_name: "H",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: bothTools,
+              toolchain: { execution: "parallel", pipelines: [["transcriber", "llm", "synthesizer"], ["s2s"]] },
+            },
+          ],
+        },
+      });
+      expect(asrFirst.agent_config.pipeline).toBe("asr");
+
+      // Single-block records without a pointer stay untouched (legacy inference).
+      const single = toFrontendAgent({
+        agent_id: "h3",
+        data: {
+          agent_name: "H",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: { transcriber: { provider: "deepgram" } },
+              toolchain: { execution: "parallel", pipelines: [["transcriber", "llm", "synthesizer"]] },
+            },
+          ],
+        },
+      });
+      expect(single.agent_config.pipeline).toBeUndefined();
     });
   });
 });

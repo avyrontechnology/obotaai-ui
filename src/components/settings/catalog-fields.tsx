@@ -55,14 +55,26 @@ export function CatalogProblems({
  * this covers everything else: channel allowlist rejections, 422 per-field
  * failures, and structural errors that carry no problems[] at all. Renders
  * nothing when field banners already cover the failure.
+ *
+ * Channel + 422 shapes render ALONGSIDE problems[] (not instead of them):
+ * the banner shows the allowlist/422 lines while CatalogProblems shows any
+ * problems[] beside their inputs. The `.channels` prefix helper below
+ * (ChannelProblems) covers problems[] entries addressed at channels when a
+ * channel UI mounts it; this banner covers the rejection/422 shapes that
+ * never appear in problems[].
  */
 export function AgentSaveBanner({ error, problems }: { error: unknown; problems: string[] }) {
   const channel = agentChannelRejection(error);
   const requestErrors = agentRequestErrors(error);
   let lines: string[] = [];
   if (channel && error instanceof Error) {
-    // Message already names rejected + valid channels; keep it verbatim.
+    // Message already names rejected + valid channels; keep it verbatim and
+    // append an explicit valid list when the message doesn't already carry
+    // every valid value, so the banner reads human-complete on its own.
     lines = [error.message];
+    if (channel.valid.length > 0 && !channel.valid.every((v) => error.message.includes(v))) {
+      lines.push(`Valid channels: ${channel.valid.join(", ")}`);
+    }
   } else if (requestErrors.length > 0) {
     lines = requestErrors;
   } else if (problems.length === 0 && error instanceof Error) {
@@ -79,6 +91,17 @@ export function AgentSaveBanner({ error, problems }: { error: unknown; problems:
       ))}
     </div>
   );
+}
+
+/**
+ * Channel-field problems helper: backend problems[] entries addressed at
+ * channels (prefix ".channels") rendered beside the channel inputs.
+ * Dev A's ChannelSwitcher may mount this; when it isn't mounted the
+ * AgentSaveBanner above still covers the channel-rejection/422 shapes
+ * (which never appear in problems[]).
+ */
+export function ChannelProblems({ problems }: { problems: string[] }) {
+  return <CatalogProblems problems={problems} prefix=".channels" />;
 }
 
 function withCurrent(

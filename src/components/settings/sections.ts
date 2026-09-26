@@ -5,6 +5,7 @@ import {
   MessageSquareText,
   Mic,
   PhoneIncoming,
+  Radio,
   Settings,
   Volume2,
   Wrench,
@@ -22,7 +23,8 @@ export type SectionId =
   | "rag"
   | "behavior"
   | "inbound"
-  | "analytics";
+  | "analytics"
+  | "channel";
 
 export interface ConfigSection {
   id: SectionId;
@@ -52,7 +54,10 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
   {
     id: "identity",
     label: "Identity & Persona",
-    sections: [{ id: "persona", label: "Persona & Languages", icon: MessageSquareText, types: ALL }],
+    sections: [
+      { id: "persona", label: "Persona & Languages", icon: MessageSquareText, types: ALL },
+      { id: "channel", label: "Channel & Type", icon: Radio, types: ALL },
+    ],
   },
   {
     id: "voice",

@@ -112,6 +112,32 @@ describe("usePatchAgent", () => {
       })
     );
   });
+
+  it("patches a chat pipeline pointer and hybrid channels together", async () => {
+    mockedApiClient.mockResolvedValue({ agent_id: "a1", state: "updated" });
+    const { result } = renderHook(() => usePatchAgent(), { wrapper });
+
+    await React.act(async () => {
+      await result.current.mutateAsync({
+        id: "a1",
+        patch: {
+          channels: ["voice", "chat"],
+          tasks_patch: [{ task_index: 0, pipeline: "chat" }],
+        },
+      });
+    });
+
+    expect(mockedApiClient).toHaveBeenCalledWith(
+      "/agent/a1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          channels: ["voice", "chat"],
+          tasks_patch: [{ task_index: 0, pipeline: "chat" }],
+        }),
+      })
+    );
+  });
 });
 
 describe("parseStoredPrompts", () => {
