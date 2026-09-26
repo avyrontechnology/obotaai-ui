@@ -20,8 +20,16 @@ import {
   useUsers,
 } from "@/services/auth";
 import { minRoleFor, useCan } from "@/lib/rbac";
+import { ApiError } from "@/lib/api-client";
+import {
+  useAddTeamMember,
+  useCreateTeam,
+  useMyTeams,
+  useRemoveTeamMember,
+} from "@/services/platform/identity";
 import type { SubAccount } from "@/lib/schemas/platform";
 import type { Role } from "@/lib/schemas/auth";
+import type { TeamWithRole } from "@/lib/schemas/identity";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/common/search-input";
@@ -761,6 +769,284 @@ function SubAccountsSection() {
   );
 }
 
+function TeamCard({
+  team,
+  users,
+  isOwner,
+}: {
+  team: TeamWithRole;
+  users: { user_id: string; email: string; name?: string | null }[];
+  isOwner: boolean;
+}) {
+  const addMember = useAddTeamMember();
+  const removeMember = useRemoveTeamMember();
+  const [grantUser, setGrantUser] = useState("");
+  const [grantRole, setGrantRole] = useState<Role>("member");
+  const [revokeUser, setRevokeUser] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Mirror the invite flow: only owners grant owner/admin.
+  const grantableRoles = (isOwner ? ROLES : ROLES.filter((r) => r === "member" || r === "viewer")) as Role[];
+  const busy = addMember.isPending || removeMember.isPending;
+
+  const clearFeedback = () => {
+    setError(null);
+    setNotice(null);
+  };
+
+  const handleGrant = () => {
+    clearFeedback();
+    if (!grantUser) {
+      setError("Pick a user to grant.");
+      return;
+    }
+    addMember.mutate(
+      { teamId: team.team_id, input: { user_id: grantUser, role: grantRole } },
+      {
+        onSuccess: () => {
+          setNotice(`Granted ${grantRole} on ${team.name}.`);
+          setGrantUser("");
+        },
+        onError: (e) =>
+          setError(
+            e instanceof ApiError && e.status === 409
+              ? "Already a member of this team."
+              : e instanceof Error
+                ? e.message
+                : "Grant failed."
+          ),
+      }
+    );
+  };
+
+  const handleRevoke = () => {
+    clearFeedback();
+    if (!revokeUser) {
+      setError("Pick a user to remove.");
+      return;
+    }
+    removeMember.mutate(
+      { teamId: team.team_id, userId: revokeUser },
+      {
+        onSuccess: () => {
+          setNotice(`Removed from ${team.name}.`);
+          setRevokeUser("");
+        },
+        onError: (e) =>
+          setError(
+            e instanceof ApiError && e.status === 404
+              ? "Not a member of this team."
+              : e instanceof Error
+                ? e.message
+                : "Remove failed."
+          ),
+      }
+    );
+  };
+
+  return (
+    <div className="p-4 md:px-5 bg-muted/40 border border-border rounded-3xl min-w-0 space-y-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate" title={team.name}>
+            {team.name}
+          </p>
+          <p className="text-xs font-mono text-muted-foreground truncate" title={team.team_id}>
+            {team.team_id}
+          </p>
+        </div>
+        {team.role && (
+          <span
+            className="px-2 py-0.5 rounded-full bg-muted text-[11px] font-mono uppercase tracking-wider text-muted-foreground shrink-0"
+            title="Your grant on this team"
+          >
+            {team.role}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <select
+          value={grantUser}
+          onChange={(event) => {
+            setGrantUser(event.target.value);
+            setError(null);
+            setNotice(null);
+          }}
+          aria-label={`User to grant on ${team.name}`}
+          disabled={busy}
+          className={cn(fieldStyles.fieldSm, "min-w-0 disabled:opacity-50")}
+        >
+          <option value="">Grant a user…</option>
+          {users.map((user) => (
+            <option key={user.user_id} value={user.user_id}>
+              {user.name || user.email}
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-2 min-w-0">
+          <select
+            value={grantRole}
+            onChange={(event) => setGrantRole(event.target.value as Role)}
+            aria-label={`Role to grant on ${team.name}`}
+            disabled={busy}
+            title={!isOwner ? "Only owners grant owner or admin" : undefined}
+            className={cn(fieldStyles.fieldSm, "flex-1 min-w-0 disabled:opacity-50")}
+          >
+            {grantableRoles.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleGrant}
+            disabled={busy}
+            className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+          >
+            {addMember.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : "Grant"}
+          </button>
+        </div>
+      </div>
+      <div className="flex gap-2 min-w-0">
+        <select
+          value={revokeUser}
+          onChange={(event) => {
+            setRevokeUser(event.target.value);
+            setError(null);
+            setNotice(null);
+          }}
+          aria-label={`User to remove from ${team.name}`}
+          disabled={busy}
+          className={cn(fieldStyles.fieldSm, "flex-1 min-w-0 disabled:opacity-50")}
+        >
+          <option value="">Remove a user…</option>
+          {users.map((user) => (
+            <option key={user.user_id} value={user.user_id}>
+              {user.name || user.email}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={handleRevoke}
+          disabled={busy}
+          className="h-10 px-4 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+        >
+          {removeMember.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : "Remove"}
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive truncate" title={error}>{error}</p>}
+      {notice && (
+        <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+          <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> {notice}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TeamsSection() {
+  const canManage = useCan("team.manage");
+  const { data: session } = useSession();
+  const { data: users } = useUsers(canManage || !!session);
+  const { data: teams, isLoading, error } = useMyTeams(!!session);
+  const createTeam = useCreateTeam();
+  const isOwner = session?.user.role === "owner";
+  const [name, setName] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const backendMissing =
+    error instanceof ApiError && (error.status === 404 || error.status >= 500);
+
+  const handleCreate = () => {
+    setFormError(null);
+    if (!name.trim()) {
+      setFormError("Give the team a name.");
+      return;
+    }
+    const orgId = session?.user.org_id;
+    if (!orgId) {
+      setFormError("Sign in to create a team.");
+      return;
+    }
+    createTeam.mutate(
+      { org_id: orgId, name: name.trim() },
+      {
+        onSuccess: () => setName(""),
+        onError: (e) => setFormError(e instanceof Error ? e.message : "Create failed."),
+      }
+    );
+  };
+
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
+      <SectionHeader
+        title="Teams"
+        description={
+          <>
+            Per-team roles under your organization. Members join by invite, then get granted here.
+            {!canManage && ` Read-only — requires ${minRoleFor("team.manage")} role.`}
+          </>
+        }
+        className="mb-6"
+      />
+
+      {isLoading ? (
+        <div className="h-20 rounded-2xl bg-muted/50 animate-pulse motion-reduce:animate-none" />
+      ) : backendMissing ? (
+        <p className="text-sm text-muted-foreground rounded-3xl border border-dashed border-border p-10 text-center">
+          Team management unavailable on this backend.
+        </p>
+      ) : (teams ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground rounded-3xl border border-dashed border-border p-10 text-center">
+          No teams yet.
+          {canManage && " Create one below to grant per-team roles."}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {(teams ?? []).map((team) => (
+            <TeamCard
+              key={team.team_id}
+              team={team}
+              users={(users ?? []).map((user) => ({ user_id: user.user_id, email: user.email, name: user.name }))}
+              isOwner={!!isOwner}
+            />
+          ))}
+        </div>
+      )}
+
+      {canManage && !backendMissing && (
+        <div className="flex flex-col sm:flex-row gap-2 mt-4 min-w-0">
+          <input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              setFormError(null);
+            }}
+            placeholder="New team name, e.g. support-apac"
+            aria-label="New team name"
+            disabled={createTeam.isPending}
+            className={cn(fieldStyles.fieldSm, "flex-1 min-w-0 disabled:opacity-50")}
+          />
+          <button
+            onClick={handleCreate}
+            disabled={createTeam.isPending}
+            className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+          >
+            {createTeam.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+            Create team
+          </button>
+        </div>
+      )}
+      {formError && <p className="text-xs text-destructive mt-2 truncate" title={formError}>{formError}</p>}
+      {canManage && !backendMissing && (
+        <p className="text-xs text-muted-foreground mt-3">
+          Teams live under {session?.user.org_id ?? "your organization"} — one org today, no picker until an org list exists.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function OrgTeam() {
   return (
     <div className="space-y-6 min-w-0">
@@ -771,6 +1057,8 @@ export function OrgTeam() {
       <InviteSection />
 
       <PendingInvitesSection />
+
+      <TeamsSection />
 
       <SubAccountsSection />
 
