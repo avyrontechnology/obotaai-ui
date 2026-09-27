@@ -167,59 +167,104 @@ function VoiceLibrary({ agentId }: { agentId: string }) {
 }
 
 /**
- * Phase A engine toggle (spec 0028): flips the per-task `pipeline` pointer
- * between the coexisting ASR (transcriber/LLM/TTS) and realtime (S2S) blocks
- * via PATCH `tasks_patch` — no full-form resend, no extraction regen beyond
- * changed tasks. The parked side is kept, never wiped — both blocks persist
- * and validate. Untouched toggle (undefined) preserves legacy inference.
+ * Phase A engine toggle (spec 0028) + per-task switch (spec 0045): flips the
+ * addressed task's `pipeline` pointer between the coexisting ASR
+ * (transcriber/LLM/TTS), realtime (S2S), and chat engines via PATCH
+ * `tasks_patch` — no full-form resend, no extraction regen beyond changed
+ * tasks. The parked side is kept, never wiped — both blocks persist and
+ * validate. Untouched toggle (undefined) preserves legacy inference.
+ *
+ * `taskIndex` (default 0) addresses the PATCH (`tasks_patch: [{ task_index,
+ * pipeline }]`). The single-task form mirror (`agent_config.pipeline`) is
+ * task 0's pointer, so optimistic form sync touches it only when addressing
+ * task 0 — other tasks converge via refetch/invalidation. The chat option
+ * renders iff form-state `channels` (form-root path owned by
+ * ChannelSwitcher — never fetched here) includes `chat`; pressing it PATCHes
+ * `pipeline: "chat"`. The subtle clear action PATCHes `clear: ["pipeline"]`
+ * for the addressed task, returning the pressed state to inference display.
  *
  * Data-loss guard: flipping refetches the record and resets the form, so the
  * toggle stays disabled while the form holds unsaved edits. Without an
  * agentId (unsaved record) it falls back to form state, saved via PUT.
  */
-export function PipelineToggle({ agentId, agentType }: { agentId?: string; agentType: string }) {
+export function PipelineToggle({ agentId, agentType, taskIndex = 0 }: { agentId?: string; agentType: string; taskIndex?: number }) {
   const { control, setValue, formState } = useFormContext();
   const stored = useWatch({ control, name: "agent_config.pipeline" }) as "asr" | "s2s" | "chat" | undefined;
   const s2sPresent = useWatch({ control, name: "agent_config.s2s" }) as unknown;
+  const rawChannels = useWatch({ control, name: "channels" }) as unknown;
   const patch = usePatchAgent();
   const [flipError, setFlipError] = useState<unknown>(null);
   if (agentType !== "voice" && agentType !== "s2s") return null;
   // Effective routing mirrors backend inference (resolve_pipeline_for_task):
   // explicit asr|s2s wins, else an s2s block means realtime, else ASR. A
-  // stored "chat" pointer (Phase C forward-compat) is shown neutrally — the
-  // toggle only deals in asr|s2s and never overwrites what it can't serve.
+  // stored "chat" pointer without a chat channel (Phase C forward-compat) is
+  // shown neutrally — the toggle only deals in asr|s2s and never overwrites
+  // what it can't serve. With a chat channel the chat option is real and a
+  // stored "chat" presses it.
   const recognized = stored === "asr" || stored === "s2s";
   const effective = recognized ? stored : s2sPresent ? "s2s" : "asr";
+  // Chat is offered iff the staged channels include it — form state only,
+  // never a fetch (ChannelSwitcher owns the `channels` form-root path).
+  const chatEnabled = Array.isArray(rawChannels) && rawChannels.includes("chat");
   // Pressed state follows the stored pointer verbatim when one exists —
-  // including "chat", which presses nothing (neutral) — else the inference.
-  const isActive = (value: "asr" | "s2s") => (stored === undefined ? effective === value : stored === value);
-  // UI invariant: the transform emits a single task, so index 0 addresses it.
+  // including "chat", which presses the chat option when offered and nothing
+  // (neutral) otherwise — else the inference.
+  const isActive = (value: "asr" | "s2s" | "chat") => (stored === undefined ? effective === value : stored === value);
+  // The single-task form mirror is task 0's pointer: optimistic sync touches
+  // it only when addressing task 0. Other tasks converge via refetch.
+  const mirrorsForm = taskIndex === 0;
   const flipping = patch.isPending;
   // The guard only matters for PATCH flips (refetch resets the form). The
   // form-state fallback rewrites nothing else, so it stays always available.
   const blocked = !!agentId && formState.isDirty;
 
-  const flip = async (value: "asr" | "s2s") => {
+  const flip = async (value: "asr" | "s2s" | "chat") => {
     if (isActive(value)) return;
     setFlipError(null);
     if (!agentId) {
-      setValue("agent_config.pipeline", value, { shouldDirty: true, shouldValidate: true });
+      if (mirrorsForm) {
+        setValue("agent_config.pipeline", value, { shouldDirty: true, shouldValidate: true });
+      }
       return;
     }
     // Optimistic form sync first (refetch converges on the same value after
     // invalidation); other dirty fields are protected by the guard above.
-    setValue("agent_config.pipeline", value, { shouldDirty: false, shouldValidate: true });
+    if (mirrorsForm) {
+      setValue("agent_config.pipeline", value, { shouldDirty: false, shouldValidate: true });
+    }
     try {
-      await patch.mutateAsync({ id: agentId, patch: { tasks_patch: [{ task_index: 0, pipeline: value }] } });
+      await patch.mutateAsync({ id: agentId, patch: { tasks_patch: [{ task_index: taskIndex, pipeline: value }] } });
     } catch (e) {
       setFlipError(e);
       notify.error("Pipeline flip failed", e);
     }
   };
 
+  const clearPipeline = async () => {
+    if (stored === undefined) return;
+    setFlipError(null);
+    if (!agentId) {
+      if (mirrorsForm) {
+        setValue("agent_config.pipeline", undefined, { shouldDirty: true, shouldValidate: true });
+      }
+      return;
+    }
+    // Optimistic form sync first (refetch converges on inference after
+    // invalidation); other dirty fields are protected by the guard above.
+    if (mirrorsForm) {
+      setValue("agent_config.pipeline", undefined, { shouldDirty: false, shouldValidate: true });
+    }
+    try {
+      await patch.mutateAsync({ id: agentId, patch: { tasks_patch: [{ task_index: taskIndex, clear: ["pipeline"] }] } });
+    } catch (e) {
+      setFlipError(e);
+      notify.error("Pipeline clear failed", e);
+    }
+  };
+
   const flipProblems = agentValidationProblems(flipError);
 
-  const option = (value: "asr" | "s2s", title: string, hint: string) => {
+  const option = (value: "asr" | "s2s" | "chat", title: string, hint: string) => {
     const active = isActive(value);
     return (
       <button
@@ -244,26 +289,50 @@ export function PipelineToggle({ agentId, agentType }: { agentId?: string; agent
     );
   };
 
+  const activeLabel =
+    stored !== undefined
+      ? stored === "asr"
+        ? "ASR pipeline"
+        : stored === "s2s"
+          ? "Realtime (S2S)"
+          : "Chat"
+      : effective === "asr"
+        ? "ASR pipeline"
+        : "Realtime (S2S)";
+
   return (
     <div className="col-span-1 md:col-span-2 flex flex-col gap-2 mb-2">
       <span className="text-sm font-medium text-foreground">Engine pipeline</span>
       <div className="flex gap-2" role="group" aria-label="Engine pipeline">
         {option("asr", "ASR pipeline", "Transcriber → LLM → TTS")}
         {option("s2s", "Realtime (S2S)", "Direct speech-to-speech")}
+        {chatEnabled ? option("chat", "Chat", "HTTP chat runtime") : null}
       </div>
       <p className="text-xs text-muted-foreground">
-        {stored === "chat" ? (
+        {stored === "chat" && !chatEnabled ? (
           <>
             Active: chat (explicit) — managed outside this toggle; flipping sets an asr|s2s pointer.
           </>
         ) : (
           <>
-            Active: {effective === "asr" ? "ASR pipeline" : "Realtime (S2S)"}
+            Active: {activeLabel}
             {stored ? " (explicit)" : " (inferred)"} — the other side stays saved as parked config.
           </>
         )}
         {blocked ? " Save or discard edits to flip." : ""}
       </p>
+      {stored !== undefined ? (
+        <button
+          type="button"
+          onClick={() => void clearPipeline()}
+          disabled={flipping || blocked}
+          aria-label="Clear pipeline override, return to inferred"
+          title={blocked ? "Save or discard form edits before clearing the override" : "Clear the explicit pointer; routing falls back to inference"}
+          className="self-start text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+        >
+          Clear to inferred
+        </button>
+      ) : null}
       {flipError ? (
         <div
           role="alert"

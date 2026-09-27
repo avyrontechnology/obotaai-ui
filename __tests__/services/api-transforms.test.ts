@@ -12,6 +12,7 @@ import {
 } from "@/services/api-transforms";
 import { agentConfigSchema, conversationSchema } from "@/lib/schemas/agent";
 import type { AgentData } from "@/lib/schemas/agent";
+import type { PatchAgentInput, TaskPatchOperation } from "@/services/api";
 
 describe("api-transforms", () => {
   describe("toCreateAgentPayload", () => {
@@ -1547,6 +1548,76 @@ describe("api-transforms", () => {
       expect(payload.agent_config.tasks[0].task_config).toEqual(
         expect.objectContaining({ extensions: {} })
       );
+    });
+  });
+
+  describe("spec 0045 per-task pipeline PATCH shapes", () => {
+    // JSON round-trips of TaskPatchOperation / PatchAgentInput (src/services/api.ts):
+    // per-task index (task 2+), the chat pointer, and clear-to-inferred semantics.
+    // Present-null pipeline is a no-op per the contract — only `clear` clears.
+    function roundTrip<T>(value: T): T {
+      return JSON.parse(JSON.stringify(value)) as T;
+    }
+
+    it("addresses a non-zero task index (multi-task flip off task 1)", () => {
+      const patch: PatchAgentInput = { tasks_patch: [{ task_index: 2, pipeline: "s2s" }] };
+      expect(roundTrip(patch)).toEqual({ tasks_patch: [{ task_index: 2, pipeline: "s2s" }] });
+      expect(roundTrip(patch).tasks_patch?.[0]?.task_index).toBe(2);
+    });
+
+    it("carries several addressed tasks in one patch", () => {
+      const patch: PatchAgentInput = {
+        tasks_patch: [
+          { task_index: 0, pipeline: "asr" },
+          { task_index: 2, pipeline: "s2s" },
+        ],
+      };
+      const revived = roundTrip(patch);
+      expect(revived.tasks_patch).toHaveLength(2);
+      expect(revived.tasks_patch?.map((op) => op.task_index)).toEqual([0, 2]);
+      expect(revived.tasks_patch?.[1]?.pipeline).toBe("s2s");
+    });
+
+    it("round-trips the chat pipeline pointer", () => {
+      const op: TaskPatchOperation = { task_index: 0, pipeline: "chat" };
+      expect(roundTrip(op)).toEqual({ task_index: 0, pipeline: "chat" });
+      const patch: PatchAgentInput = { tasks_patch: [op] };
+      expect(roundTrip(patch).tasks_patch?.[0]?.pipeline).toBe("chat");
+    });
+
+    it("clears back to inference via clear, not via present-null", () => {
+      // Clear-to-inferred: the addressed task drops its explicit pointer.
+      const clearOp: TaskPatchOperation = { task_index: 1, clear: ["pipeline"] };
+      expect(roundTrip(clearOp)).toEqual({ task_index: 1, clear: ["pipeline"] });
+
+      // Present-null is a no-op per the contract: the null survives the
+      // round-trip verbatim and no `clear` key appears alongside it.
+      const nullOp: TaskPatchOperation = { task_index: 1, pipeline: null };
+      const revived = roundTrip(nullOp);
+      expect(revived.pipeline).toBeNull();
+      expect("clear" in revived).toBe(false);
+    });
+
+    it("keeps task-level clear separate from agent-level clear", () => {
+      const patch: PatchAgentInput = {
+        tasks_patch: [{ task_index: 0, clear: ["pipeline"] }],
+        clear: ["agent_prompts"],
+      };
+      expect(roundTrip(patch)).toEqual({
+        tasks_patch: [{ task_index: 0, clear: ["pipeline"] }],
+        clear: ["agent_prompts"],
+      });
+    });
+
+    it("leaves absent pipeline keys absent (strict partials)", () => {
+      const op: TaskPatchOperation = {
+        task_index: 0,
+        task_config: { dtmf_enabled: true },
+      };
+      const revived = roundTrip(op);
+      expect("pipeline" in revived).toBe(false);
+      expect("clear" in revived).toBe(false);
+      expect(revived.task_config).toEqual({ dtmf_enabled: true });
     });
   });
 });
