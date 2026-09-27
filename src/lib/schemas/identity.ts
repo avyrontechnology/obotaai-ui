@@ -62,3 +62,21 @@ export const addMembershipSchema = z.object({
   role: roleSchema.default("member"),
 });
 export type AddMembershipInput = z.input<typeof addMembershipSchema>;
+
+/** POST /auth/tenants body (spec 0041 Slice A). Mirrors backend
+ *  CreateTenantRequest: slug/name required, plan defaults server-side. */
+export const createTenantSchema = z.object({
+  slug: z.string().min(1).max(64),
+  name: z.string().min(1).max(128),
+  plan: z.string().min(1).max(64).optional(),
+});
+export type CreateTenantInput = z.input<typeof createTenantSchema>;
+
+/** POST /auth/organizations body (spec 0041 Slice A). Mirrors backend
+ *  CreateOrganizationRequest. The tenant_id rides the session — the UI
+ *  fills it from `session.user.tenant_id`, never from a picker. */
+export const createOrganizationSchema = z.object({
+  tenant_id: z.string().min(1),
+  name: z.string().min(1).max(128),
+});
+export type CreateOrganizationInput = z.input<typeof createOrganizationSchema>;

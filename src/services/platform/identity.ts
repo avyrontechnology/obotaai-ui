@@ -1,16 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import {
+  createOrganizationSchema,
+  createTenantSchema,
   membershipSchema,
   meTeamsSchema,
+  organizationSchema,
   teamSchema,
+  tenantSchema,
   createTeamSchema,
   addMembershipSchema,
   type AddMembershipInput,
+  type CreateOrganizationInput,
   type CreateTeamInput,
+  type CreateTenantInput,
   type Membership,
   type MyTeams,
+  type Organization,
   type Team,
+  type Tenant,
 } from "@/lib/schemas/identity";
 /** Team + membership management (specs 0040 + 0041, Phase D).
  *
@@ -84,6 +92,44 @@ export function useRemoveTeamMember() {
         { method: "DELETE" }
       );
       return userId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: identityKeys.all });
+    },
+  });
+}
+
+/** Create a tenant (spec 0041 Slice A, owner-only server-side).
+ *  Slugs are unique — a taken slug surfaces as 409. */
+export function useCreateTenant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateTenantInput): Promise<Tenant> => {
+      const raw = await apiClient<unknown>("/auth/tenants", {
+        method: "POST",
+        body: JSON.stringify(createTenantSchema.parse(input)),
+      });
+      return tenantSchema.parse(raw) as Tenant;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: identityKeys.all });
+    },
+  });
+}
+
+/** Create an organization under a tenant (spec 0041 Slice A, owner-only
+ *  server-side). The tenant_id rides the caller's session — callers fill
+ *  it from `session.user.tenant_id`, never from a picker. Unknown
+ *  tenants surface as 404. */
+export function useCreateOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateOrganizationInput): Promise<Organization> => {
+      const raw = await apiClient<unknown>("/auth/organizations", {
+        method: "POST",
+        body: JSON.stringify(createOrganizationSchema.parse(input)),
+      });
+      return organizationSchema.parse(raw) as Organization;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: identityKeys.all });

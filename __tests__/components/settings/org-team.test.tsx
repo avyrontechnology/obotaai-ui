@@ -95,7 +95,10 @@ describe("OrgTeam identity section (specs 0040 + 0041)", () => {
 
   it("lists my teams with the caller grant badge", () => {
     renderTeam();
-    expect(screen.getByText("support-apac")).toBeInTheDocument();
+    // Slice C adds an invite team-grant select that also lists team names,
+    // so the name now appears twice (grant option + team card). The card
+    // itself is still asserted via the grant badge below.
+    expect(screen.getAllByText("support-apac").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTitle("Your grant on this team")).toHaveTextContent("admin");
   });
 

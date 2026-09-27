@@ -78,6 +78,13 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
+  // Spec 0041 Slice B — suspended-workspace hint. A 401 is a 401: the
+  // api-client login bounce lands here with `clear_session=1`, and the
+  // shell banner signs out to `suspended=1` when logout itself 401s.
+  // Copy only — no redirect, so this can never loop.
+  const suspendedHint = searchParams.get("suspended") === "1";
+  const signedOutHint = searchParams.get("clear_session") === "1";
+  const showWorkspaceNotice = suspendedHint || signedOutHint;
   const login = useLogin();
   const [formError, setFormError] = useState<string | null>(null);
   const [showResetNote, setShowResetNote] = useState(false);
@@ -200,6 +207,18 @@ function LoginContent() {
 
             <h2 className="text-[26px] font-bold tracking-tight text-[#111827]">Welcome back</h2>
             <p className="text-[14px] text-[#6B7280] mt-1 mb-5">Sign in to your OtobaAI workspace console.</p>
+
+            {showWorkspaceNotice && (
+              <p
+                role="status"
+                data-testid="workspace-suspended-notice"
+                className="text-[13px] leading-relaxed text-[#92400E] rounded-2xl border border-[#F6E8C8] bg-[#FFFBF0] px-4 py-3 mb-5"
+              >
+                {suspendedHint
+                  ? "This workspace is suspended — contact your owner to restore access. You can sign in again once access is restored."
+                  : "You were signed out. If signing in drops you straight back here, your workspace may be suspended — contact your owner."}
+              </p>
+            )}
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
               <FormProvider {...form}>

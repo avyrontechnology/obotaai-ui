@@ -1,5 +1,6 @@
 "use client";
 
+import { OrgIdentity } from "@/components/settings/org-identity";
 import { OrgTeam } from "@/components/settings/org-team";
 import { PageHeader } from "@/components/common/page-header";
 import { useSession, useUsers } from "@/services/auth";
@@ -39,6 +40,9 @@ export default function TeamPage() {
         }
       />
       <OrgTeam />
+      <div className="mt-6 min-w-0">
+        <OrgIdentity />
+      </div>
     </div>
   );
 }

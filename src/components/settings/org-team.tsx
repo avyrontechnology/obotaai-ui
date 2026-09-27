@@ -278,17 +278,27 @@ function InviteSection() {
   const canManage = useCan("team.manage");
   const { data: session } = useSession();
   const inviteUser = useInviteUser();
+  const { data: teams, isLoading: teamsLoading } = useMyTeams(!!session);
+  const addMember = useAddTeamMember();
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("member");
+  const [teamId, setTeamId] = useState("");
   const [inviteToken, setInviteToken] = useState<{ email: string; token: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [grantError, setGrantError] = useState<string | null>(null);
+  const [grantNotice, setGrantNotice] = useState<string | null>(null);
 
   if (!canManage) return null;
 
+  const showTeamGrant = (teams ?? []).length > 0;
+  const busy = inviteUser.isPending || addMember.isPending;
+
   const handleInvite = async () => {
     setError(null);
+    setGrantError(null);
+    setGrantNotice(null);
     if (!email.trim()) {
       setError("Enter an email address.");
       return;
@@ -297,6 +307,25 @@ function InviteSection() {
       const created = await inviteUser.mutateAsync({ email: email.trim(), role });
       setInviteToken({ email: created.email, token: created.token });
       setEmail("");
+      const chosen = teamId;
+      setTeamId("");
+      // Step two (best-effort, never blocks the invite): grant the team role
+      // now that the invite exists. The invite result above always survives —
+      // a grant failure surfaces inline and can be finished from Teams after
+      // the teammate accepts.
+      if (chosen) {
+        const teamName = (teams ?? []).find((team) => team.team_id === chosen)?.name ?? chosen;
+        try {
+          await addMember.mutateAsync({ teamId: chosen, input: { user_id: created.email, role } });
+          setGrantNotice(`Granted ${role} on ${teamName} — second step done.`);
+        } catch (e) {
+          setGrantError(
+            e instanceof Error
+              ? `Invited, but the team grant failed: ${e.message} Finish it from Teams after they accept.`
+              : "Invited, but the team grant failed. Finish it from Teams after they accept."
+          );
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invite failed.");
     }
@@ -318,7 +347,7 @@ function InviteSection() {
     <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
       <SectionHeader
         title="Invite teammate"
-        description="Invite by email. The accept link shows once — share it with the teammate."
+        description="Invite by email. The accept link shows once — share it with the teammate. An optional team grant runs as a second step after the invite and never blocks it."
         className="mb-6"
       />
 
@@ -350,16 +379,49 @@ function InviteSection() {
         </select>
         <button
           onClick={() => void handleInvite()}
-          disabled={inviteUser.isPending}
+          disabled={busy}
           className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
         >
           {inviteUser.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Plus className="w-3.5 h-3.5" aria-hidden="true" />}
           Invite
         </button>
       </div>
+      {showTeamGrant && (
+        <div className="flex flex-col sm:flex-row gap-2 mt-2 min-w-0">
+          <select
+            value={teamId}
+            onChange={(event) => setTeamId(event.target.value)}
+            aria-label="Team grant (optional)"
+            disabled={busy || teamsLoading}
+            className={cn(fieldStyles.fieldSm, "flex-1 min-w-0 disabled:opacity-50")}
+          >
+            <option value="">No team grant</option>
+            {(teams ?? []).map((team) => (
+              <option key={team.team_id} value={team.team_id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {showTeamGrant && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Team grants apply post-accept via a membership add — two steps, invite first. If the grant fails, finish it from Teams after they join.
+        </p>
+      )}
       {error && (
         <p className="mt-3 flex items-center gap-2 text-xs text-destructive min-w-0">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate" title={error}>{error}</span>
+        </p>
+      )}
+      {grantError && (
+        <p className="mt-3 flex items-center gap-2 text-xs text-destructive min-w-0">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate" title={grantError}>{grantError}</span>
+        </p>
+      )}
+      {grantNotice && (
+        <p className="mt-3 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 min-w-0">
+          <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> <span className="truncate" title={grantNotice}>{grantNotice}</span>
         </p>
       )}
 
