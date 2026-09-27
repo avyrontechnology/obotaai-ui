@@ -110,6 +110,13 @@ export const conversationSchema = z.object({
   language_injection_mode: z.string().optional(),
   language_instruction_template: z.string().optional(),
   end_call_tool_mode: z.string().optional(),
+  // Backend ConversationConfig.extensions (spec 0043): dict[str, Any] with
+  // server-authoritative bounds (32 keys / 4KiB per value / 32KiB total /
+  // depth 3, key syntax ^[A-Za-z][A-Za-z0-9_]{0,63}$, forbidden names
+  // __proto__/constructor/prototype). Kept permissive client-side — full
+  // bounds validation lives on the server; the client only needs to accept
+  // and round-trip arbitrary JSON values without wiping them on PUT.
+  extensions: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const telephonySchema = z.object({

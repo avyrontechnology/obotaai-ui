@@ -1449,4 +1449,104 @@ describe("api-transforms", () => {
       ).toBe(true);
     });
   });
+
+  describe("spec 0043 extensions (create payload)", () => {
+    const baseData: AgentData = {
+      agent_name: "Extensions Agent",
+      agent_type: "voice",
+      agent_prompts: { system_prompt: "You are a helpful assistant." },
+      agent_config: {},
+    };
+
+    it("maps string/number/bool/null/nested extension values into task_config", () => {
+      const extensions = {
+        tenant_flag: "beta",
+        max_retries: 3,
+        ratio: 0.5,
+        zero: 0,
+        empty: "",
+        verbose: true,
+        disabled_thing: false,
+        nothing: null,
+        nested: { level: 2, tags: ["a", "b"], deep: { x: 1 } },
+        labels: { en: "Hello!", hi: "Namaste!" },
+      };
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { conversation: { extensions } },
+      });
+      const taskConfig = payload.agent_config.tasks[0].task_config ?? {};
+      expect(taskConfig.extensions).toEqual(extensions);
+    });
+
+    it("leaves extensions absent when the form never sets it (no phantom {})", () => {
+      const conversations: Array<AgentData["agent_config"]["conversation"]> = [
+        undefined,
+        {},
+        { optimize_latency: true },
+      ];
+      for (const conversation of conversations) {
+        const payload = toCreateAgentPayload({
+          ...baseData,
+          agent_config: conversation ? { conversation } : {},
+        });
+        expect("extensions" in (payload.agent_config.tasks[0].task_config ?? {})).toBe(false);
+      }
+    });
+
+    it("drops ambient_noise while keeping extensions (documents the 0042 removal)", () => {
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: {
+          conversation: {
+            extensions: { tenant_flag: "beta" },
+            ambient_noise: true,
+          } as unknown as AgentData["agent_config"]["conversation"],
+        },
+      });
+      const taskConfig = payload.agent_config.tasks[0].task_config ?? {};
+      expect(taskConfig.extensions).toEqual({ tenant_flag: "beta" });
+      expect("ambient_noise" in taskConfig).toBe(false);
+    });
+
+    it("round-trips extensions through toFrontendAgent and the schema", () => {
+      const extensions = {
+        tenant_flag: "beta",
+        max_retries: 3,
+        nested: { level: 2, tags: ["a"] },
+      };
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { conversation: { extensions } },
+      });
+      const taskConfig = payload.agent_config.tasks[0].task_config ?? {};
+      const agent = toFrontendAgent({
+        agent_id: "ext-1",
+        data: {
+          agent_name: "Extensions Agent",
+          agent_type: "voice",
+          tasks: [
+            {
+              tools_config: {},
+              toolchain: { execution: "parallel", pipelines: [["llm"]] },
+              task_config: taskConfig,
+            },
+          ],
+        },
+        agent_prompts: { task_1: { system_prompt: "You are a helpful assistant." } },
+      });
+      expect(agent.agent_config.conversation).toEqual(expect.objectContaining({ extensions }));
+      expect(conversationSchema.safeParse(agent.agent_config.conversation).success).toBe(true);
+    });
+
+    it("pins current behavior: an explicit {} passes through verbatim", () => {
+      const payload = toCreateAgentPayload({
+        ...baseData,
+        agent_config: { conversation: { extensions: {} } },
+      });
+      expect(payload.agent_config.tasks[0].task_config).toEqual(
+        expect.objectContaining({ extensions: {} })
+      );
+    });
+  });
 });

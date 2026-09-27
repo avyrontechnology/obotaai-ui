@@ -7,6 +7,7 @@ import {
   workflowRunSchema,
 } from "@/lib/schemas/builders";
 import { conversationSchema } from "@/lib/schemas/agent";
+import type { PatchAgentInput, TaskPatchOperation } from "@/services/api";
 
 const graphDefinition = {
   agent_information: "Route support calls.",
@@ -129,5 +130,65 @@ describe("builder-schemas", () => {
     ).toBe(true);
     const stripped = conversationSchema.parse({ ambient_noise: true });
     expect("ambient_noise" in stripped).toBe(false);
+  });
+
+  describe("spec 0043 extensions (schema)", () => {
+    it("accepts an extensions record including dict values", () => {
+      const parsed = conversationSchema.parse({
+        extensions: {
+          tenant_flag: "beta",
+          max_retries: 3,
+          ratio: 0.5,
+          verbose: true,
+          nested: { level: 2, tags: ["a", "b"] },
+          labels: { en: "Hello!", hi: "Namaste!" },
+        },
+      });
+      expect(parsed.extensions).toEqual({
+        tenant_flag: "beta",
+        max_retries: 3,
+        ratio: 0.5,
+        verbose: true,
+        nested: { level: 2, tags: ["a", "b"] },
+        labels: { en: "Hello!", hi: "Namaste!" },
+      });
+    });
+
+    it("leaves extensions absent when unset and accepts an explicit {}", () => {
+      expect("extensions" in conversationSchema.parse({})).toBe(false);
+      expect(conversationSchema.parse({ extensions: {} }).extensions).toEqual({});
+    });
+
+    it("carries clear_extensions on the PATCH wire shape (TaskPatchOperation)", () => {
+      // clear_extensions lives on the PATCH operation (src/services/api.ts),
+      // not on the zod form schema: per-key drops inside
+      // task_config.extensions, present-null a no-op (mirror of `clear`).
+      const op: TaskPatchOperation = {
+        task_index: 0,
+        task_config: { extensions: { tenant_flag: "beta" } },
+        clear_extensions: ["retired_flag"],
+      };
+      expect(op.clear_extensions).toEqual(["retired_flag"]);
+      expect(op.task_config).toEqual({ extensions: { tenant_flag: "beta" } });
+      const patch: PatchAgentInput = { tasks_patch: [op] };
+      expect(patch.tasks_patch).toHaveLength(1);
+    });
+
+    it("strips ambient_noise instead of rejecting it (matches implementation)", () => {
+      // NOTE(spec-0043): conversationSchema is a non-strict zod object, so the
+      // 0042-deleted ambient_noise key is silently stripped — never a parse
+      // failure — while sibling extensions survive.
+      const result = conversationSchema.safeParse({
+        ambient_noise: true,
+        optimize_latency: true,
+        extensions: { tenant_flag: "beta" },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect("ambient_noise" in result.data).toBe(false);
+        expect(result.data.optimize_latency).toBe(true);
+        expect(result.data.extensions).toEqual({ tenant_flag: "beta" });
+      }
+    });
   });
 });

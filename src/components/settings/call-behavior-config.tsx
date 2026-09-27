@@ -3,6 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import { FormSection, TextInput, SelectInput, SwitchInput } from "./form-controls";
 import { JsonTextField } from "./json-text-field";
+import { ExtensionsEditor } from "./extensions-editor";
 import { motion, AnimatePresence } from "framer-motion";
 
 const TELEPHONY_PROVIDERS = [
@@ -248,6 +249,23 @@ export function CallBehaviorConfigForm() {
             description="Record call audio; the artifact lands on the call record."
           />
         </div>
+      </FormSection>
+
+      {/* Custom Extensions sits AFTER Call Capture and BEFORE Keypad &
+          Telephony: extensions are conversation-scoped (task_config) while the
+          Keypad section crosses into telephony providers — grouping them with
+          the conversation sections keeps the save/transform boundary obvious.
+          DELETION CONVENTION (spec 0043 UI contract): ExtensionsEditor performs
+          plain key removals in form state (no tracking field). The PATCH save
+          layer must diff current `agent_config.conversation.extensions` keys
+          against the initially loaded keys and emit the difference as
+          `clear_extensions` (PUT needs nothing — full overwrite deletes by
+          absence). See ExtensionsEditor header for the full rationale. */}
+      <FormSection
+        title="Custom Extensions"
+        description="Tenant-scoped custom keys passed through to task_config.extensions (engine-ignored until a consumer spec claims them). Server bounds: 32 keys, 4 KiB per value — the server is authoritative. Per-key delete removes the key from the form; PATCH saves emit it via clear_extensions."
+      >
+        <ExtensionsEditor />
       </FormSection>
 
       <FormSection

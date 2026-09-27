@@ -155,7 +155,9 @@ export function useUpdateAgent() {
 
 /** One addressed task edit for PATCH (spec 0028): merges into
  *  `tasks[task_index]`. Present-null is a no-op; clear via `clear`.
- *  Phase C: "chat" passes through so a stored chat pointer is patchable. */
+ *  Phase C: "chat" passes through so a stored chat pointer is patchable.
+ *  Spec 0043: `clear_extensions` drops explicit extension keys from
+ *  `task_config.extensions`; present-null is a no-op — mirror of `clear`. */
 export interface TaskPatchOperation {
   task_index: number;
   task_type?: string;
@@ -164,6 +166,7 @@ export interface TaskPatchOperation {
   toolchain?: Record<string, unknown>;
   task_config?: Record<string, unknown>;
   clear?: ("pipeline")[];
+  clear_extensions?: string[];
 }
 
 /** Partial agent update for PATCH (spec 0028): strict partials, absent keys

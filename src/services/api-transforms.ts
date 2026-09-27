@@ -58,6 +58,9 @@ export interface BackendConversationConfig {
   language_injection_mode?: string | null;
   language_instruction_template?: string | null;
   end_call_tool_mode?: string | null;
+  /** Backend ConversationConfig.extensions (spec 0043): opaque vendor map,
+   *  server-validated (32 keys / 4KiB per value / 32KiB total / depth 3). */
+  extensions?: Record<string, unknown> | null;
   [key: string]: unknown;
 }
 
@@ -129,6 +132,13 @@ export function stripNulls<T>(value: T): T {
   if (value !== null && typeof value === "object") {
     const cleaned: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      // Spec 0043: the extensions namespace round-trips verbatim (backend stores
+      // explicit nulls as values; stripping them here would silently drop stored
+      // keys on the next PUT). Everything else keeps the null-cleaning behavior.
+      if (key === "extensions" && entry !== null && typeof entry === "object") {
+        cleaned[key] = entry;
+        continue;
+      }
       if (entry !== null && entry !== undefined) {
         cleaned[key] = stripNulls(entry);
       }
@@ -439,6 +449,7 @@ export function toCreateAgentPayload(data: AgentData): CreateAgentPayload {
     if (conv.language_injection_mode != null) taskConfig.language_injection_mode = conv.language_injection_mode;
     if (conv.language_instruction_template != null) taskConfig.language_instruction_template = conv.language_instruction_template;
     if (conv.end_call_tool_mode != null) taskConfig.end_call_tool_mode = conv.end_call_tool_mode;
+    if (conv.extensions != null) taskConfig.extensions = conv.extensions;
   }
 
   // Shared tool attachments (spec 0029 slice 2): refs + webhook params from
