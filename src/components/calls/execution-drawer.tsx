@@ -11,6 +11,7 @@ import { ProgressBar } from "@/components/common/progress-bar";
 import { StatusBadge } from "./status-badge";
 import { displayCallerNumber, formatDuration, formatLatency, timeAgo } from "@/lib/format";
 import { fieldStyles } from "@/lib/field-styles";
+import { inboundScreeningSchema } from "@/lib/schemas/platform";
 import { cn } from "@/lib/utils";
 
 interface ExecutionDrawerProps {
@@ -92,6 +93,44 @@ function RecordingBadge({ status }: { status: string }) {
   );
 }
 
+const SCREENING_STYLES: Record<string, { pill: string; dot: string; label: string }> = {
+  blocked: {
+    pill: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+    dot: "bg-red-500",
+    label: "Blocked",
+  },
+  spam: {
+    pill: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    dot: "bg-amber-500",
+    label: "Spam",
+  },
+  passed: {
+    pill: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+    dot: "bg-emerald-500",
+    label: "Passed",
+  },
+};
+
+function ScreeningBadge({ decision }: { decision: string }) {
+  const style = SCREENING_STYLES[decision] ?? {
+    pill: "bg-muted text-muted-foreground border-border",
+    dot: "bg-muted-foreground",
+    label: decision,
+  };
+  return (
+    <span
+      title={decision}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+        style.pill
+      )}
+    >
+      <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", style.dot)} aria-hidden="true" />
+      {style.label}
+    </span>
+  );
+}
+
 export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onClose }: ExecutionDrawerProps) {
   const open = executionId !== null;
   const { data: execution, isLoading, isError, refetch } = useExecution(executionId ?? "", open);
@@ -124,6 +163,12 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
   const recordingReason = execution?.recording_reason ?? null;
   const recordingUrl = execution?.recording_url ?? null;
   const hasRecording = recordingStatus != null || recordingReason != null || recordingUrl != null;
+
+  // Re-validated at render (not just trusted from the query cache): any shape
+  // mismatch degrades to a hidden section, never a crash. Pre-0047 records
+  // carry no inbound_screening field, so absent parses to null here.
+  const screeningResult = inboundScreeningSchema.safeParse(execution?.inbound_screening ?? null);
+  const screening = screeningResult.success ? screeningResult.data : null;
 
   const copyLink = () => {
     if (typeof window === "undefined" || !execution) return;
@@ -235,6 +280,20 @@ export const ExecutionDrawer = memo(function ExecutionDrawer({ executionId, onCl
                 </div>
                 {recordingReason && (
                   <p className="text-xs font-mono text-muted-foreground">{recordingReason}</p>
+                )}
+              </div>
+            )}
+
+            {screening && (
+              <div data-testid="screening-section" className="space-y-2">
+                <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                  Screening
+                </h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ScreeningBadge decision={screening.decision} />
+                </div>
+                {screening.reason && (
+                  <p className="text-xs font-mono text-muted-foreground">{screening.reason}</p>
                 )}
               </div>
             )}

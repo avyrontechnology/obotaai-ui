@@ -29,6 +29,20 @@ export const phoneNumberProviderSchema = z.enum(["twilio", "plivo", "exotel", "v
  *  pre-recording records predate the fields so all three stay optional+nullable. */
 export const recordingStatusSchema = z.enum(["recorded", "disabled", "failed", "pending_upload"]);
 
+/** Inbound screening verdict mirror (backend spec 0047, Decision 5):
+ *  `inbound_screening {decision, reason}` lands on the call record when the
+ *  screening pipeline runs; pre-0047 records predate the field so it stays
+ *  optional+nullable. PROVISIONAL: the backend slice has not landed — the
+ *  shape below follows the spec contract, and mismatches fall back to
+ *  undefined (via .catch) so the record still parses and the drawer hides
+ *  the screening section instead of failing the whole call view. */
+export const inboundScreeningDecisionSchema = z.enum(["blocked", "spam", "passed"]);
+
+export const inboundScreeningSchema = z.object({
+  decision: inboundScreeningDecisionSchema,
+  reason: z.string().nullable().optional(),
+});
+
 /** Registry kinds (spec 0029): function + webhook are tenant-authorable;
  *  internal rows are system-curated and read-only. */
 export const toolKindSchema = z.enum(["function", "webhook", "internal"]);
@@ -67,6 +81,7 @@ export const executionSchema = z.object({
   recording_status: recordingStatusSchema.nullable().optional(),
   recording_reason: z.string().nullable().optional(),
   recording_url: z.string().nullable().optional(),
+  inbound_screening: inboundScreeningSchema.nullable().optional().catch(undefined),
 });
 
 export const executionListSchema = z.object({ executions: z.array(executionSchema) });
@@ -512,6 +527,7 @@ export const resetResponseSchema = z.object({
 
 export type Execution = z.infer<typeof executionSchema>;
 export type RecordingStatus = z.infer<typeof recordingStatusSchema>;
+export type InboundScreening = z.infer<typeof inboundScreeningSchema>;
 export type ExecutionStats = z.infer<typeof executionStatsSchema>;
 export type TranscriptTurn = z.infer<typeof transcriptTurnSchema>;
 export type LatencyBreakdown = z.infer<typeof latencyBreakdownSchema>;
