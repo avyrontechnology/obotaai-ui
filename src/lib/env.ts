@@ -42,10 +42,17 @@ if (!parsedEnv.success) {
 
 if (!isProd) {
   // Dev fallbacks must be visible, never silent.
-  for (const [key, fallback] of Object.entries(FALLBACKS)) {
-    if (!process.env[key]?.trim()) {
-      console.warn(`[env] ${key} is unset — using dev fallback ${fallback}`);
-    }
+  // NOTE: Must use literal keys — Next.js only inlines NEXT_PUBLIC_* vars
+  // when accessed as process.env.NEXT_PUBLIC_FOO (not bracket notation).
+  if (!process.env.NEXT_PUBLIC_API_BASE_URL?.trim()) {
+    console.warn(
+      `[env] NEXT_PUBLIC_API_BASE_URL is unset — using dev fallback ${FALLBACKS.NEXT_PUBLIC_API_BASE_URL}`
+    );
+  }
+  if (!process.env.NEXT_PUBLIC_WS_BASE_URL?.trim()) {
+    console.warn(
+      `[env] NEXT_PUBLIC_WS_BASE_URL is unset — using dev fallback ${FALLBACKS.NEXT_PUBLIC_WS_BASE_URL}`
+    );
   }
 }
 
