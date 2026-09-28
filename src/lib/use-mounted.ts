@@ -6,6 +6,7 @@ function subscribe(): () => void {
   return () => {};
 }
 
+
 /**
  * True only after the component hydrated on the client. Server (and the
  * hydration pass itself) always see false, so role/session-gated branches
