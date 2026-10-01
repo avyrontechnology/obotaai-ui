@@ -125,6 +125,44 @@ describe("LiveTalk session orb", () => {
     expect(screen.getAllByTestId("session-wave")).toHaveLength(3);
   });
 
+  it("mints the ticket while mic setup is still pending", async () => {
+    // Overlapped startup: the mint round-trip must not wait behind getUserMedia.
+    (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: () =>
+        Promise.resolve({ ok: true, data: { ticket: "tick_123", expires_in: 60 } }),
+    });
+    let resolveMic!: (stream: unknown) => void;
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: {
+        getUserMedia: jest.fn().mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              resolveMic = resolve;
+            })
+        ),
+      },
+      configurable: true,
+    });
+    render(<LiveTalk agentId="agent-1" agentName="Test Agent" canTalk />);
+    fireEvent.click(screen.getByRole("button", { name: /Start talking/ }));
+    await act(async () => {});
+    // Mint fired while the mic is still pending; no socket opened yet.
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/ws-ticket"),
+      expect.anything()
+    );
+    expect(MockSocket.instances).toHaveLength(0);
+    // Mic resolves → the socket opens carrying the early-minted ticket.
+    await act(async () => {
+      resolveMic({ getTracks: () => [] });
+    });
+    expect(MockSocket.instances).toHaveLength(1);
+    expect(MockSocket.instances[0].url).toContain("ticket=tick_123");
+  });
+
   it("renders a recorder flatline inside the orb, lit while live", async () => {
     const idle = render(<LiveTalk agentId="agent-1" agentName="Test Agent" canTalk />);
     // Compact density for the smaller orb.

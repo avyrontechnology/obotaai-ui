@@ -365,6 +365,14 @@ export function LiveTalk({
       return;
     }
 
+    // Mint the ticket NOW, not after mic setup: the mint round-trip plus the
+    // server's model connect (~2s) then hide inside getUserMedia / AudioContext /
+    // worklet spin-up instead of stacking behind them. Single-use with a 60s
+    // TTL — if setup aborts, it just expires unused. The trailing catch keeps
+    // an un-awaited rejection out of the console; the await site below still
+    // falls back to cookie auth.
+    const ticketPromise = fetchWsTicket().catch((): undefined => undefined);
+
     setPhase("mic");
     let stream: MediaStream;
     try {
@@ -478,13 +486,10 @@ export function LiveTalk({
     // for fresh sessions) attach a single-use ticket minted for this call.
     // leg=browser is always sent: telephony-configured agents must still bind
     // default handlers on playground legs (see buildTalkSocketUrl).
-    let url = buildTalkSocketUrl(WS_BASE_URL, agentId);
-    try {
-      const ticket = await fetchWsTicket();
-      url = buildTalkSocketUrl(WS_BASE_URL, agentId, ticket);
-    } catch {
-      /* fall back to cookie auth */
-    }
+    // The ticket has been minting since before mic setup (see above) — this
+    // await usually resolves instantly.
+    const ticket = await ticketPromise;
+    const url = buildTalkSocketUrl(WS_BASE_URL, agentId, ticket);
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
