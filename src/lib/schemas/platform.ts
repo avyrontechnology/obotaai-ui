@@ -166,8 +166,11 @@ export const talkoPartnerViewSchema = z.object({
   vendor_config_id: z.string().nullable().optional(),
   key_configured: z.boolean(),
   key_hint: z.string().nullable().optional(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  // Row timestamps (ISO strings). Defaulted — not required — so the UI keeps
+  // working against a backend that predates them (deploy skew); the backend
+  // owns real values. Never displayed, display falls back to empty.
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
 });
 
 export const talkoPartnerListSchema = z.object({ partners: z.array(talkoPartnerViewSchema) });

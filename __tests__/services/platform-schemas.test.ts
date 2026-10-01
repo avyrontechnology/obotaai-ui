@@ -142,6 +142,25 @@ describe("platform-schemas", () => {
     expect(withDids.default_did).toBe("917965263087");
   });
 
+  it("tolerates partner views without timestamps (pre-field backends)", () => {
+    // Regression: the backend briefly omitted created_at/updated_at and the
+    // strict schema turned a good connect into a toast error. Missing keys
+    // default so either deploy order works.
+    const view = talkoPartnerViewSchema.parse({
+      partner_id: "2",
+      display_name: "Partner 2",
+      talko_api_base_url: null,
+      default_did: "917965807203",
+      dids: ["917965807203"],
+      vendor_config_id: null,
+      key_configured: true,
+      key_hint: "sl_c",
+    });
+    expect(view.partner_id).toBe("2");
+    expect(view.created_at).toBe("");
+    expect(view.updated_at).toBe("");
+  });
+
   it("parses phone number, knowledge base, tool and webhook payloads", () => {
     expect(
       phoneNumberSchema.parse({
