@@ -97,7 +97,8 @@ describe("apiClient errors", () => {
     expect(agentChannelRejection(new ApiError("nope", 500))).toBeNull();
   });
 
-  it("formats FastAPI 422 per-field failures as path messages", async () => {
+  it("formats single-app 422 {loc, type} failures as path messages (spec 0052)", async () => {
+    // Backend spec 0052: records carry only {loc, type} — no msg/input/ctx/url.
     mockFetch(
       422,
       {
@@ -108,9 +109,12 @@ describe("apiClient errors", () => {
           error_id: "err_3",
           details: {
             errors: [
-              { loc: ["body", "channels"], msg: "List should have at least 1 item", type: "too_short" },
-              { loc: ["body", "tasks", 0, "pipeline"], msg: "Input should be 'asr' or 's2s'", type: "literal_error" },
-              { msg: "Stray failure" },
+              { loc: ["body", "channels"], type: "too_short" },
+              { loc: ["body", "tasks", 0, "pipeline"], type: "literal_error" },
+              { loc: ["query", "limit"], type: "missing" },
+              { loc: ["body", "mystery"], type: "custom_wizard_error" },
+              { type: "missing" },
+              { loc: ["body", "note"] },
             ],
           },
         },
@@ -119,22 +123,30 @@ describe("apiClient errors", () => {
     );
     const failure = await apiClient("/agent").catch((e: unknown) => e);
     expect(agentRequestErrors(failure)).toEqual([
-      "channels: List should have at least 1 item",
-      "tasks.0.pipeline: Input should be 'asr' or 's2s'",
-      "Stray failure",
+      "channels: Too short",
+      "tasks.0.pipeline: Invalid value",
+      "limit: Required",
+      "mystery: custom_wizard_error",
+      "Required",
     ]);
     expect(agentRequestErrors(new ApiError("nope", 500))).toEqual([]);
   });
 });
 
 describe("buildTalkSocketUrl", () => {
-  it("sends both ticket and token params for cross-backend compat", () => {
-    // Legacy quickstart reads ?token=, new-arch gate reads ?ticket= (spec 0021).
+  it("targets the single-app socket with a ticket-only credential (specs 0021/0048/0054)", () => {
+    // Single app: WS /api/v1/chat/v1/{agent_id} + ?ticket=. Bare /chat/v1 and
+    // ?token= are retired — sending them gets the socket rejected pre-gate.
     const url = new URL(buildTalkSocketUrl("ws://localhost:5001", "agent-1", "tick_123"));
+    expect(url.pathname).toBe("/api/v1/chat/v1/agent-1");
     expect(url.searchParams.get("ticket")).toBe("tick_123");
-    expect(url.searchParams.get("token")).toBe("tick_123");
+    expect(url.searchParams.get("token")).toBeNull();
     expect(url.searchParams.get("leg")).toBe("browser");
-    expect(url.pathname).toBe("/chat/v1/agent-1");
+  });
+
+  it("tolerates a trailing slash on the base URL", () => {
+    const url = new URL(buildTalkSocketUrl("ws://localhost:5001/", "agent-1", "tick_123"));
+    expect(url.pathname).toBe("/api/v1/chat/v1/agent-1");
   });
 
   it("omits auth params without a ticket (cookie fallback)", () => {
@@ -142,6 +154,7 @@ describe("buildTalkSocketUrl", () => {
     expect(url.searchParams.get("ticket")).toBeNull();
     expect(url.searchParams.get("token")).toBeNull();
     expect(url.searchParams.get("leg")).toBe("browser");
+    expect(url.pathname).toBe("/api/v1/chat/v1/agent-1");
   });
 });
 

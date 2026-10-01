@@ -8,17 +8,17 @@ export const WS_BASE_URL = env.NEXT_PUBLIC_WS_BASE_URL;
  *  handlers speak Twilio-shaped events and would drop browser {type}-frames,
  *  leaving the call with no stream_sid, no greeting and no ingest).
  *
- *  Auth compat (spec 0021): the legacy quickstart gate reads `?token=` while
- *  the new-arch voice gate reads `?ticket=` (WS_TICKET_PARAM). Send both when
- *  a ticket is present so one URL works against either backend; both sides
- *  ignore unknown query keys. */
+ *  Single-app contract (specs 0021/0048/0054): the socket lives at
+ *  `WS /api/v1/chat/v1/{agent_id}` and the only credential is the single-use
+ *  `?ticket=` minted by `POST /api/v1/auth/ws-ticket`. The retired
+ *  quickstart contract (bare `/chat/v1` path, `?token=`) is gone — no alias,
+ *  no fallback. A wrong path is rejected before the gate ever runs. */
 export function buildTalkSocketUrl(baseUrl: string, agentId: string, ticket?: string): string {
   const params = new URLSearchParams({ leg: "browser" });
   if (ticket) {
     params.set("ticket", ticket);
-    params.set("token", ticket);
   }
-  return `${baseUrl}/chat/v1/${agentId}?${params.toString()}`;
+  return `${baseUrl.replace(/\/+$/, "")}/api/v1/chat/v1/${encodeURIComponent(agentId)}?${params.toString()}`;
 }
 
 /** Voice WS close codes owned by the channel (spec 0021, M2). Clients branch
@@ -96,10 +96,35 @@ export function agentChannelRejection(error: unknown): AgentChannelRejection | n
   return null;
 }
 
-/** FastAPI 422 per-field failures (`error.details.errors[]` of
- *  `{ loc, msg }`) rendered as `path: message` strings. Covers create/PUT
- *  request-schema rejections (bad `pipeline` literal, empty `channels`,
- *  duplicate channels) that never become problems[]. */
+/** Request-validation 422 per-field failures (`error.details.errors[]`) rendered
+ *  as `path: message` strings. Covers create/PUT request-schema rejections
+ *  (bad `pipeline` literal, empty `channels`, duplicate channels) that never
+ *  become problems[].
+ *
+ *  Single-app contract (backend spec 0052): each record carries only
+ *  `{ loc, type }` — `msg`/`input`/`ctx`/`url` are never sent, so there is no
+ *  server text to render. The client maps `type` to its own copy, keyed by
+ *  the `loc` path after the leading `body`/`query`/`path` segment. Unknown
+ *  types fall back to the raw type name (never blank). */
+const VALIDATION_TYPE_COPY: Record<string, string> = {
+  missing: "Required",
+  extra_forbidden: "Unknown field",
+  string_too_short: "Too short",
+  string_too_long: "Too long",
+  too_short: "Too short",
+  too_long: "Too long",
+  greater_than: "Too small",
+  greater_than_equal: "Too small",
+  less_than: "Too large",
+  less_than_equal: "Too large",
+  literal_error: "Invalid value",
+  enum: "Invalid value",
+  value_error: "Invalid value",
+  json_invalid: "Invalid JSON",
+};
+
+const LOCATION_SCOPE_SEGMENTS = new Set(["body", "query", "path", "header", "cookie"]);
+
 export function agentRequestErrors(error: unknown): string[] {
   if (error instanceof ApiError) {
     const { errors } = error.details ?? {};
@@ -107,12 +132,18 @@ export function agentRequestErrors(error: unknown): string[] {
       return errors.flatMap((entry): string[] => {
         if (!entry || typeof entry !== "object") return [];
         const record = entry as Record<string, unknown>;
-        const msg = typeof record.msg === "string" ? record.msg : null;
-        if (!msg) return [];
-        const loc = Array.isArray(record.loc)
-          ? record.loc.filter((p): p is string | number => typeof p === "string" || typeof p === "number").filter((p) => p !== "body")
+        const type = typeof record.type === "string" && record.type ? record.type : null;
+        if (!type) return [];
+        const message = VALIDATION_TYPE_COPY[type] ?? type;
+        const segments = Array.isArray(record.loc)
+          ? record.loc.filter(
+              (p): p is string | number => typeof p === "string" || typeof p === "number"
+            )
           : [];
-        return [loc.length > 0 ? `${loc.join(".")}: ${msg}` : msg];
+        if (segments.length > 0 && typeof segments[0] === "string" && LOCATION_SCOPE_SEGMENTS.has(segments[0])) {
+          segments.shift();
+        }
+        return [segments.length > 0 ? `${segments.join(".")}: ${message}` : message];
       });
     }
   }

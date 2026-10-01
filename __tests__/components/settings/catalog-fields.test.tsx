@@ -146,13 +146,13 @@ describe("AgentSaveBanner", () => {
       <AgentSaveBanner
         error={
           new ApiError("Request validation failed", 422, {
-            errors: [{ loc: ["body", "channels"], msg: "List should have at least 1 item" }],
+            errors: [{ loc: ["body", "channels"], type: "too_short" }],
           })
         }
         problems={[]}
       />
     );
-    expect(screen.getByRole("alert")).toHaveTextContent("channels: List should have at least 1 item");
+    expect(screen.getByRole("alert")).toHaveTextContent("channels: Too short");
 
     rerender(<AgentSaveBanner error={new ApiError("Agent lookup failed", 500)} problems={[]} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Agent lookup failed");

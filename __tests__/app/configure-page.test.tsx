@@ -197,8 +197,8 @@ describe("AgentConfigurePage (Dev C: staged type/channels)", () => {
     mockMutateAsync.mockRejectedValueOnce(
       new ApiError("Unprocessable", 422, {
         errors: [
-          { loc: ["body", "channels"], msg: "must not be empty" },
-          { loc: ["body", "agent_type"], msg: "invalid type" },
+          { loc: ["body", "channels"], type: "too_short" },
+          { loc: ["body", "agent_type"], type: "literal_error" },
         ],
       })
     );
@@ -206,7 +206,7 @@ describe("AgentConfigurePage (Dev C: staged type/channels)", () => {
     await screen.findByTestId("agent-type-badge");
 
     fireEvent.click(screen.getByRole("button", { name: /save configuration/i }));
-    expect(await screen.findByText("channels: must not be empty")).toBeInTheDocument();
-    expect(screen.getByText("agent_type: invalid type")).toBeInTheDocument();
+    expect(await screen.findByText("channels: Too short")).toBeInTheDocument();
+    expect(screen.getByText("agent_type: Invalid value")).toBeInTheDocument();
   });
 });
