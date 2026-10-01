@@ -5,6 +5,7 @@ import {
   executionSchema,
   executionStatsSchema,
   placeCallSchema,
+  placedCallSchema,
   simulateCallSchema,
   type Execution,
   type PlaceCallInput,
@@ -106,7 +107,8 @@ export function usePlaceCall() {
         method: "POST",
         body: JSON.stringify(placeCallSchema.parse(input)),
       });
-      return executionSchema.parse(raw) as Execution;
+      // The endpoint returns a PlacedCall row, not a full Execution.
+      return placedCallSchema.parse(raw);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: executionKeys.all });

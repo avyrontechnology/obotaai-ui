@@ -119,6 +119,21 @@ export const batchEntrySchema = z.object({
   variables: z.record(z.string(), z.unknown()).default({}),
 });
 
+/** Response of `POST /calls/place`: a PlacedCall row, NOT a full Execution
+ *  (no transcript/summary/latency/timings — outcome lives in the CDR/run).
+ *  Parsing it as `executionSchema` turns every placed call into a 10-field
+ *  Zod error; the dialog only needs `execution_id` to route to the call page. */
+export const placedCallSchema = z.object({
+  execution_id: z.string(),
+  agent_id: z.string(),
+  to_number: z.string(),
+  from_number: z.string().nullable().optional(),
+  status: z.string(),
+  provider: z.string().optional(),
+  variables: z.record(z.string(), z.unknown()).default({}),
+});
+export type PlacedCall = z.infer<typeof placedCallSchema>;
+
 export const batchStatsSchema = z.object({
   total: z.number(),
   queued: z.number(),

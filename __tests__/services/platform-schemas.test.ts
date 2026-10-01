@@ -14,6 +14,7 @@ import {
   organizationSchema,
   phoneNumberSchema,
   placeCallSchema,
+  placedCallSchema,
   subAccountSchema,
   talkoPartnerPreviewSchema,
   talkoPartnerViewSchema,
@@ -140,6 +141,27 @@ describe("platform-schemas", () => {
     });
     expect(withDids.dids).toHaveLength(2);
     expect(withDids.default_did).toBe("917965263087");
+  });
+
+  it("parses place-call responses as PlacedCall, not Execution", () => {
+    // Regression: POST /calls/place returns a PlacedCall row (no transcript,
+    // summary, latency or timings). Parsing it as executionSchema turned every
+    // placed call into a 10-field Zod error even though the call was placed.
+    const placed = {
+      execution_id: "exec_1",
+      agent_id: "agent-1",
+      to_number: "+919999999999",
+      from_number: null,
+      status: "queued",
+      provider: "talko",
+      variables: {},
+      id: "exec_1",
+      created_at: "2026-10-01T00:00:00+00:00",
+      updated_at: "2026-10-01T00:00:00+00:00",
+    };
+    expect(() => executionSchema.parse(placed)).toThrow();
+    const parsed = placedCallSchema.parse(placed);
+    expect(parsed.execution_id).toBe("exec_1");
   });
 
   it("tolerates partner views without timestamps (pre-field backends)", () => {
