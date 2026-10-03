@@ -10,11 +10,12 @@ import { getFieldError } from "@/components/settings/form-controls";
  * The one auth field system (login / accept-invite). Every field
  * gets: visible label, programmatic name association, aria-invalid +
  * aria-describedby error wiring, and role=alert errors. One token set —
- * white inputs, h-11 controls, ember focus.
+ * white inputs, h-11 controls with px-4 text inset (icon/action fields
+ * widen their side), ember focus.
  */
 
 export const AUTH_INPUT_CLASS =
-  "w-full h-11 bg-white border border-[#E5E7EB] rounded-2xl text-[15px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#FB6C00]/40 focus:border-[#FB6C00] transition-all shadow-sm";
+  "w-full h-11 px-4 bg-white border border-[#E5E7EB] rounded-2xl text-[15px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#FB6C00]/40 focus:border-[#FB6C00] transition-all shadow-sm";
 
 export function GoogleMark() {
   return (

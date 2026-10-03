@@ -61,6 +61,7 @@ function AcceptContent() {
             <div className="mb-5">
               <BrandLockup
                 size="md"
+                tone="light"
                 textClassName="text-lg"
                 sublabel="INVITE"
                 sublabelClassName="text-[12px] font-bold tracking-widest text-[#C2410C]"

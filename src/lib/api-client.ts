@@ -1,4 +1,5 @@
 import { env } from "./env";
+import { isPublicAuthPath, markSignedOut } from "./auth-routes";
 
 export const API_BASE_URL = env.NEXT_PUBLIC_API_BASE_URL;
 export const WS_BASE_URL = env.NEXT_PUBLIC_WS_BASE_URL;
@@ -156,11 +157,9 @@ export function agentRequestErrors(error: unknown): string[] {
 export function redirectToLoginOn401(response: Response): void {
   if (response.status === 401 && typeof window !== "undefined") {
     const path = window.location.pathname;
-    const isPublic = ["/login", "/accept-invite"].some((route) =>
-      path.startsWith(route)
-    );
-    if (!isPublic) {
-      window.location.replace(`/login?clear_session=1&next=${encodeURIComponent(path + window.location.search)}`);
+    if (!isPublicAuthPath(path)) {
+      markSignedOut(path + window.location.search);
+      window.location.replace("/login");
     }
   }
 }

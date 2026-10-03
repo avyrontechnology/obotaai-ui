@@ -1,90 +1,41 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight,
-  Cpu,
   KeyRound,
-  Lock,
   Mail,
   Radio,
-  ShieldCheck,
 } from "lucide-react";
 import { AuthFooter, AuthNavbar, SoonLink } from "@/components/auth/auth-navbar";
+import { ComplianceRow, LiveClusterCard, WaveBand } from "@/components/auth/auth-hero";
 import { AuthAlert, AuthField, AuthPasswordField, AuthSubmitButton, GoogleMark } from "@/components/auth/fields";
 import { BrandLockup } from "@/components/common/brand-lockup";
 import { loginSchema, type LoginInput } from "@/lib/schemas/auth";
 import { useLogin } from "@/services/auth";
 import { notify } from "@/lib/notify";
-import { cn } from "@/lib/utils";
+import { consumeLoginHandoff, hasSuspendedFlag } from "@/lib/auth-routes";
+import { useMounted } from "@/lib/use-mounted";
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginContent />
-    </Suspense>
-  );
+  return <LoginContent />;
 }
 
-const EQ_BARS = [0.5, 0.9, 0.65, 1, 0.45, 0.8, 0.6];
-
-function Equalizer() {
-  return (
-    <span className="flex items-end gap-[3px] h-6" aria-hidden="true">
-      {EQ_BARS.map((height, index) => (
-        <span
-          key={index}
-          className="eq-bar w-[3px] rounded-full bg-gradient-to-t from-[#E73F1E] to-[#F9B637]"
-          style={{ height: `${Math.round(height * 100)}%`, animationDelay: `${index * 0.13}s` }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function WaveBand({ id, className, opacity }: { id: string; className?: string; opacity: number }) {
-  return (
-    <div className={cn("pointer-events-none overflow-hidden", className)} aria-hidden="true">
-      <div className="wave-drift-slow flex w-[200%] h-full">
-        {[0, 1].map((copy) => (
-          <svg key={copy} viewBox="0 0 600 120" preserveAspectRatio="none" className="w-1/2 h-full shrink-0">
-            <defs>
-              <linearGradient id={`${id}-stroke`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#E73F1E" />
-                <stop offset="55%" stopColor="#FB6C00" />
-                <stop offset="100%" stopColor="#F9B637" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,60 C50,20 100,20 150,60 C200,100 250,100 300,60 C350,20 400,20 450,60 C500,100 550,100 600,60"
-              fill="none"
-              stroke={`url(#${id}-stroke)`}
-              strokeWidth="9"
-              strokeLinecap="round"
-              opacity={opacity}
-            />
-          </svg>
-        ))}
-      </div>
-    </div>
-  );
-}
+const SSO_BUTTON =
+  "w-full h-12 rounded-2xl border border-[#E5E7EB] bg-white text-[15px] font-medium text-[#1F2937] hover:bg-[#FFFBF0] hover:text-[#1F2937] transition-colors flex items-center justify-center gap-2 shadow-sm";
 
 function LoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
-  // Spec 0041 Slice B — suspended-workspace hint. A 401 is a 401: the
-  // api-client login bounce lands here with `clear_session=1`, and the
-  // shell banner signs out to `suspended=1` when logout itself 401s.
-  // Copy only — no redirect, so this can never loop.
-  const suspendedHint = searchParams.get("suspended") === "1";
-  const signedOutHint = searchParams.get("clear_session") === "1";
-  const showWorkspaceNotice = suspendedHint || signedOutHint;
+  // Spec 0041 Slice B — suspended-workspace hint, shown only when the shell
+  // banner signs out a suspended workspace (one-shot cookie, read after
+  // hydration). A plain sign-out / 401 bounce shows no notice. Copy only —
+  // no redirect, so this can never loop.
+  const mounted = useMounted();
+  const suspendedHint = mounted && hasSuspendedFlag();
   const login = useLogin();
   const [formError, setFormError] = useState<string | null>(null);
   const [showResetNote, setShowResetNote] = useState(false);
@@ -98,7 +49,7 @@ function LoginContent() {
     setFormError(null);
     try {
       await login.mutateAsync(data);
-      router.push(next);
+      router.push(consumeLoginHandoff());
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Login failed";
@@ -111,7 +62,7 @@ function LoginContent() {
     <div className="min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
       <AuthNavbar
         right={
-          <SoonLink note="The public API reference ships with the release.">
+          <SoonLink topic="api">
             <span className="inline-flex items-center h-9 px-4 rounded-xl border border-[#F3D9A8] text-[#C2410C] font-semibold text-sm bg-white/60">
               API V2.4
             </span>
@@ -141,54 +92,8 @@ function LoginContent() {
             WebRTC low-latency streaming, and fine-tuned agentic models.
           </p>
 
-          {/* Live cluster card */}
-          <div className="mt-6 max-w-xl rounded-3xl bg-white border border-[#F6E8C8] shadow-[0_24px_60px_-24px_rgba(231,63,30,0.25)] p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#E73F1E] to-[#FB6C00] text-white shrink-0 shadow-md">
-                  <Radio className="w-5 h-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold tracking-wide text-[#C2410C]">ACTIVE LIVE CLUSTER</p>
-                  <p className="font-mono text-[15px] text-[#111827] truncate">us-east-speech-edge-04</p>
-                </div>
-              </div>
-              <span className="flex items-center rounded-xl border border-[#F6E8C8] bg-[#FFFBF0] px-3 py-2 shrink-0">
-                <Equalizer />
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-[#F6E8C8]">
-              {[
-                { label: "WebRTC Latency", value: "< 114 ms", tone: "text-[#111827]" },
-                { label: "Synthesizer Accuracy", value: "99.98%", tone: "text-emerald-600" },
-                { label: "Global Voices", value: "48 Dialects", tone: "text-[#111827]" },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <p className="text-[13px] text-[#6B7280]">{stat.label}</p>
-                  <p className={cn("text-lg font-bold tracking-tight", stat.tone)}>{stat.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Compliance */}
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#6B7280]">
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#C2410C]" /> SOC2 Type II Certified
-            </span>
-            <span className="text-[#F9B637]" aria-hidden="true">
-              •
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Lock className="w-4 h-4 text-[#C2410C]" /> HIPAA Compliant
-            </span>
-            <span className="text-[#F9B637]" aria-hidden="true">
-              •
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Cpu className="w-4 h-4 text-[#C2410C]" /> Zero-Retention Option
-            </span>
-          </div>
+          <LiveClusterCard />
+          <ComplianceRow />
         </div>
 
         {/* Sign-in card */}
@@ -198,6 +103,7 @@ function LoginContent() {
             <div className="mb-5">
               <BrandLockup
                 size="md"
+                tone="light"
                 textClassName="text-lg"
                 sublabel="WORKSPACE PORTAL"
                 sublabelClassName="text-[12px] font-bold tracking-widest text-[#C2410C]"
@@ -208,15 +114,14 @@ function LoginContent() {
             <h2 className="text-[26px] font-bold tracking-tight text-[#111827]">Welcome back</h2>
             <p className="text-[14px] text-[#6B7280] mt-1 mb-5">Sign in to your OtobaAI workspace console.</p>
 
-            {showWorkspaceNotice && (
+            {suspendedHint && (
               <p
                 role="status"
                 data-testid="workspace-suspended-notice"
                 className="text-[13px] leading-relaxed text-[#92400E] rounded-2xl border border-[#F6E8C8] bg-[#FFFBF0] px-4 py-3 mb-5"
               >
-                {suspendedHint
-                  ? "This workspace is suspended — contact your owner to restore access. You can sign in again once access is restored."
-                  : "You were signed out. If signing in drops you straight back here, your workspace may be suspended — contact your owner."}
+                This workspace is suspended — contact your owner to restore access. You can sign in again once access
+                is restored.
               </p>
             )}
 
@@ -233,13 +138,16 @@ function LoginContent() {
               <AuthPasswordField name="password" label="PASSWORD" />
 
               <div className="flex items-center justify-between text-[14px]">
-                <label className="flex items-center gap-2.5 text-[#4B5563] cursor-pointer select-none">
+                <label
+                  className="flex items-center gap-2.5 text-[#4B5563] cursor-pointer select-none"
+                  title="Keeps you signed in on this device for 30 days (otherwise 7 days)."
+                >
                   <input
                     {...form.register("remember")}
                     type="checkbox"
                     className="w-[18px] h-[18px] rounded-md border-[#D1D5DB] accent-[#E73F1E] cursor-pointer"
                   />
-                  Remember for 30 days
+                  Remember me
                 </label>
                 <button
                   type="button"
@@ -271,20 +179,12 @@ function LoginContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => notify.info("Coming soon", { description: "Google sign-in is on the roadmap." })}
-                className="h-12 rounded-2xl border border-[#E5E7EB] bg-white text-[15px] font-medium text-[#1F2937] hover:bg-[#FFFBF0] transition-colors flex items-center justify-center gap-2 shadow-sm"
-              >
+              <SoonLink topic="google" className={SSO_BUTTON}>
                 <GoogleMark /> Google
-              </button>
-              <button
-                type="button"
-                onClick={() => notify.info("Coming soon", { description: "SAML/Okta SSO ships on enterprise plans." })}
-                className="h-12 rounded-2xl border border-[#E5E7EB] bg-white text-[15px] font-medium text-[#1F2937] hover:bg-[#FFFBF0] transition-colors flex items-center justify-center gap-2 shadow-sm"
-              >
+              </SoonLink>
+              <SoonLink topic="sso" className={SSO_BUTTON}>
                 <KeyRound className="w-4 h-4 text-[#C2410C]" /> SAML / Okta
-              </button>
+              </SoonLink>
             </div>
 
             <p className="mt-4 text-center text-[14px] text-[#6B7280]">

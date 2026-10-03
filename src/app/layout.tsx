@@ -21,7 +21,10 @@ export const metadata: Metadata = {
   description: "Experience the next generation of conversational AI with OtobaAI. Create, deploy, and monitor neural voice agents in real-time.",
   keywords: ["Voice AI", "LLM Agents", "Conversational AI", "OtobaAI", "Real-time Voice"],
   icons: {
-    icon: "/brand/otobaAI-Flow-—-Favicon-Round.png",
+    icon: [
+      { url: "/brand/otoba-mark.svg", type: "image/svg+xml" },
+      { url: "/brand/otobaAI-Flow-—-Favicon-Round.png", type: "image/png" },
+    ],
   },
   openGraph: {
     title: "OtobaAI | Premium Voice Agent Playground",
