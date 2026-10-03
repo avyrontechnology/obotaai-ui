@@ -12,6 +12,7 @@ import {
   Settings,
   User,
   Workflow,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
           pathname.startsWith("/workflows"),
       },
       { label: "Playground", href: "/playground", icon: MessagesSquare, match: startsWith("/playground") },
+      { label: "Tools", href: "/tools", icon: Wrench, match: startsWith("/tools") },
     ],
   },
   {

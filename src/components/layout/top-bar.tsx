@@ -21,6 +21,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   billing: "Billing",
   "api-keys": "API Keys",
   integrations: "Integrations",
+  tools: "Tools",
   graphs: "Graphs",
   workflows: "Workflows",
   settings: "Settings",

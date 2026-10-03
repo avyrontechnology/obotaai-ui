@@ -482,6 +482,126 @@ export const updateIntegrationSchema = z.object({
   enabled: z.boolean().optional(),
 });
 
+/** MCP credential shapes (backend spec 0059): all six auth types —
+ *  writes with any other type are rejected before they touch the vault. */
+export const mcpCredentialTypeSchema = z.enum(["none", "api_key", "bearer", "basic", "oauth2", "custom"]);
+
+/** Curated provider row mirror (wire_template): curated config, no secrets
+ *  by contract. Unknown keys are stripped — never read. */
+export const mcpTemplateSchema = z.object({
+  provider: z.string(),
+  credential_type: mcpCredentialTypeSchema,
+  transport: z.enum(["http", "mcp"]).default("http"),
+  tools_template: z.array(z.record(z.string(), z.unknown())).default([]),
+  oauth_config: z.record(z.string(), z.unknown()).default({}),
+  client_config: z.record(z.string(), z.unknown()).default({}),
+  /** Owning tenant ("system" for curated rows) — drives read-only badges. */
+  tenant_id: z.string().nullable().optional(),
+});
+
+/** Body mirror (TemplatePayload): tenant override keyed by provider —
+ *  exact keys, the backend forbids extras (422). */
+export const saveTemplateSchema = z
+  .object({
+    provider: z.string().min(1),
+    credential_type: mcpCredentialTypeSchema.default("api_key"),
+    transport: z.enum(["http", "mcp"]).default("http"),
+    tools_template: z.array(z.record(z.string(), z.unknown())).default([]),
+    oauth_config: z.record(z.string(), z.unknown()).default({}),
+    client_config: z.record(z.string(), z.unknown()).default({}),
+  })
+  .strict();
+
+export const mcpTemplateListSchema = z.object({ templates: z.array(mcpTemplateSchema) });
+
+/** `POST /integration-templates` 201 (flat): row + whether one existed. */
+export const saveTemplateResponseSchema = mcpTemplateSchema.extend({
+  replaced: z.boolean(),
+});
+
+/** Credential metadata projection mirror (wire_credential_meta): identifiers
+ *  + expiry only. The projection is field-explicit server-side so a future
+ *  field (notably `encrypted_data`) has no path here; zod strips any unknown
+ *  keys that do arrive — ciphertext never reaches state. */
+export const credentialMetaSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  credential_type: mcpCredentialTypeSchema,
+  key_version: z.number().int(),
+  expires_at: z.string().nullable().optional(),
+});
+
+export const credentialMetaListSchema = z.object({ credentials: z.array(credentialMetaSchema) });
+
+/** Body mirror (ConnectCredentialPayload): exact keys — the backend forbids
+ *  extras (422). `expires_at` rides as an ISO string when set. */
+export const connectCredentialSchema = z
+  .object({
+    provider: z.string().min(1),
+    credential_type: mcpCredentialTypeSchema.default("api_key"),
+    secret: z.string().min(1),
+    auth_config: z.record(z.string(), z.string()).default({}),
+    expires_at: z.string().optional(),
+  })
+  .strict();
+
+/** `POST /partner-credentials` 201 (flat): metadata + one-time plaintext +
+ *  whether a row already existed for the provider (idempotent by provider). */
+export const connectCredentialResponseSchema = credentialMetaSchema.extend({
+  secret_once: z.string(),
+  replaced: z.boolean(),
+});
+
+/** Agent link row mirror (wire_integration): config is non-secret by
+ *  contract. `status`/`negotiated_protocol_version` default for deploy skew. */
+export const partnerIntegrationSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  agent_id: z.string(),
+  config: z.record(z.string(), z.unknown()).default({}),
+  status: z.string().default("active"),
+  negotiated_protocol_version: z.string().default(""),
+});
+
+export const partnerIntegrationListSchema = z.object({ integrations: z.array(partnerIntegrationSchema) });
+
+/** Body mirror (LinkIntegrationPayload): exact keys — the backend forbids
+ *  extras (422). Linking without a live credential fails with 400. */
+export const linkIntegrationSchema = z
+  .object({
+    provider: z.string().min(1),
+    agent_id: z.string().min(1),
+    config: z.record(z.string(), z.unknown()).default({}),
+  })
+  .strict();
+
+/** Body mirror (DcrRegisterPayload): exact keys — the backend forbids extras
+ *  (422). Undiscoverable/MANUAL issuers fail with 400. */
+export const dcrRegisterSchema = z
+  .object({
+    issuer_url: z.string().min(1),
+    provider: z.string().min(1),
+  })
+  .strict();
+
+/** `POST /integration-templates/{provider}/sync-tools` 201: counts +
+ *  materialized ids + per-entry problems (identifiers only). */
+export const syncToolsResponseSchema = z.object({
+  created: z.number().int(),
+  updated: z.number().int(),
+  skipped: z.array(z.string()).default([]),
+  tool_ids: z.array(z.string()).default([]),
+  problems: z.array(z.string()).default([]),
+});
+/** `POST /integrations/dcr-register` 201 (flat): credential metadata +
+ *  issued client id/issuer + one-time client secret (`null` when the issuer
+ *  returns none — the credential row is still created). */
+export const dcrRegisterResponseSchema = credentialMetaSchema.extend({
+  client_id: z.string(),
+  issuer_url: z.string(),
+  client_secret_once: z.string().nullable().optional(),
+});
+
 export const notificationPrefsSchema = z.object({
   low_balance_enabled: z.boolean(),
   low_balance_threshold: z.number(),
@@ -585,6 +705,18 @@ export type Integration = z.infer<typeof integrationSchema>;
 export type IntegrationKind = z.infer<typeof integrationKindSchema>;
 export type CreateIntegrationInput = z.input<typeof createIntegrationSchema>;
 export type UpdateIntegrationInput = z.input<typeof updateIntegrationSchema>;
+export type McpTemplate = z.infer<typeof mcpTemplateSchema>;
+export type McpCredentialType = z.infer<typeof mcpCredentialTypeSchema>;
+export type CredentialMeta = z.infer<typeof credentialMetaSchema>;
+export type ConnectCredentialInput = z.input<typeof connectCredentialSchema>;
+export type ConnectCredentialResponse = z.infer<typeof connectCredentialResponseSchema>;
+export type PartnerIntegration = z.infer<typeof partnerIntegrationSchema>;
+export type LinkIntegrationInput = z.input<typeof linkIntegrationSchema>;
+export type SaveTemplateInput = z.input<typeof saveTemplateSchema>;
+export type SaveTemplateResponse = z.infer<typeof saveTemplateResponseSchema>;
+export type SyncToolsResponse = z.infer<typeof syncToolsResponseSchema>;
+export type DcrRegisterInput = z.input<typeof dcrRegisterSchema>;
+export type DcrRegisterResponse = z.infer<typeof dcrRegisterResponseSchema>;
 export type Organization = z.infer<typeof organizationSchema>;
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
 export type NotificationPrefs = z.infer<typeof notificationPrefsSchema>;
