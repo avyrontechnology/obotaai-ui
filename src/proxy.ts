@@ -22,7 +22,8 @@ const SESSION_COOKIE = "otoba_session";
  */
 function isSameSiteDeployment(request: NextRequest): boolean {
   const raw = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!raw) return true;
+  // Same-origin path (/api/v1 via the next.config proxy): the cookie is ours.
+  if (!raw || raw.startsWith("/")) return true;
   try {
     return new URL(raw).hostname === request.nextUrl.hostname;
   } catch {
@@ -34,6 +35,8 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (
     pathname.startsWith("/_next") ||
+    // Same-origin API proxy (next.config rewrites): auth is the engine's job.
+    pathname.startsWith("/api/") ||
     pathname.startsWith("/brand") ||
     pathname === "/favicon.ico" ||
     pathname.includes(".")

@@ -48,7 +48,7 @@ function AcceptContent() {
   };
 
   return (
-    <div className="min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
+    <div className="auth-surface min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
       <AuthNavbar />
 
       <main className="flex-1 min-h-0 w-full max-w-xl mx-auto px-6 flex flex-col items-center justify-center py-8">

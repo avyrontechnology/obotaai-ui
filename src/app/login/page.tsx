@@ -7,6 +7,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight,
+  Check,
   KeyRound,
   Mail,
   Radio,
@@ -59,7 +60,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
+    <div className="auth-surface min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
       <AuthNavbar
         right={
           <SoonLink topic="api">
@@ -142,11 +143,18 @@ function LoginContent() {
                   className="flex items-center gap-2.5 text-[#4B5563] cursor-pointer select-none"
                   title="Keeps you signed in on this device for 30 days (otherwise 7 days)."
                 >
-                  <input
-                    {...form.register("remember")}
-                    type="checkbox"
-                    className="w-[18px] h-[18px] rounded-md border-[#D1D5DB] accent-[#E73F1E] cursor-pointer"
-                  />
+                  <span className="relative inline-flex shrink-0">
+                    <input
+                      {...form.register("remember")}
+                      type="checkbox"
+                      className="peer appearance-none w-[18px] h-[18px] rounded-md border border-[#D1D5DB] bg-white shadow-sm cursor-pointer transition-colors hover:border-[#FB6C00] checked:bg-[#E73F1E] checked:border-[#E73F1E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FB6C00]/40"
+                    />
+                    <Check
+                      className="pointer-events-none absolute inset-0 m-auto w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity"
+                      strokeWidth={3.5}
+                      aria-hidden="true"
+                    />
+                  </span>
                   Remember me
                 </label>
                 <button

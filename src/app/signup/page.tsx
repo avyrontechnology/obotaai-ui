@@ -54,7 +54,7 @@ function SignupContent() {
   };
 
   return (
-    <div className="min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
+    <div className="auth-surface min-h-dvh lg:h-dvh bg-[#FFF6E8] text-[#1F2937] flex flex-col lg:overflow-hidden">
       <AuthNavbar />
       <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-6 md:px-10 grid lg:grid-cols-2 gap-8 xl:gap-12 items-center py-6 relative">
         <WaveBand id="signup-wave" className="absolute inset-x-0 top-6 h-28 opacity-40" opacity={0.35} />
