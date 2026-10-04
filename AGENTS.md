@@ -25,6 +25,7 @@ Next.js 16 (App Router) + React 19 + Tailwind v4 + TypeScript strict. Single app
 ## Config & Env
 - Path alias: `@/*` → `src/*` (`tsconfig.json` + `jest.config.ts` `moduleNameMapper`). shadcn aliases in `components.json`: `@/components`, `@/lib/utils`, `@/components/ui`, `@/lib`, `@/hooks`.
 - Tailwind v4: no `tailwind.config.*`. Uses `@tailwindcss/postcss` in `postcss.config.mjs` and `@import "tailwindcss"` in `src/app/globals.css`. Theme via `@theme`/`@theme inline` and CSS variables. `components.json` points `tailwind.css` to `src/app/globals.css`, `style:"base-nova"`, `baseColor:"neutral"`, `cssVariables:true`.
+- Same-origin API proxy (`next.config.ts`): when `NEXT_PUBLIC_API_BASE_URL` is absolute, the build rewrites `/api/v1/*` to it and inlines `NEXT_PUBLIC_API_BASE_URL="/api/v1"`, so the engine's httpOnly session cookie is first-party (Brave/Chrome drop it cross-site → login then instant logout). `src/proxy.ts` must keep bypassing `/api/`. WS stays direct (`?ticket=`). `API_PROXY=off` disables it.
 - Env: `src/lib/env.ts` Zod-validates `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_WS_BASE_URL` (defaults `http://localhost:5001` / `ws://localhost:5001`). Throws on invalid. `.env*` is gitignored; copy `.env.example`. Consume via `env` or `API_BASE_URL`/`WS_BASE_URL` from `src/lib/api-client.ts` — never hardcode URLs.
 - `next.config.ts` is empty (no custom rewrites/headers yet). `eslint.config.mjs` extends `eslint-config-next`. No `opencode.json`, no `.github/` workflows, no `.opencode/` — no CI to check.
 

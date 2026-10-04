@@ -18,9 +18,9 @@ const trimmed = (v: unknown) => (typeof v === "string" ? (v.trim() === "" ? unde
 const urlSchema = (fallback: string) =>
   z.preprocess(trimmed, isProd ? z.string().url() : z.string().url().default(fallback));
 
-// The API base may also be a same-origin path ("/api/v1") when next.config
-// proxies it to the engine (API_PROXY_TARGET): first-party cookies, and it
-// works on every host (prod, Vercel previews, localhost) without a rebuild.
+// The API base may also be a same-origin path ("/api/v1"): next.config
+// inlines that when it proxies an absolute NEXT_PUBLIC_API_BASE_URL to the
+// engine, so the session cookie stays first-party.
 const sameOriginPath = z
   .string()
   .regex(/^\/(?!\/)/, "must be an absolute URL or a same-origin path like /api/v1");
@@ -42,7 +42,7 @@ if (!parsedEnv.success) {
   console.error(
     "Invalid environment variables:",
     parsedEnv.error.flatten().fieldErrors,
-    "\nFix: set NEXT_PUBLIC_API_BASE_URL (e.g. https://<api-host>/api/v1, or /api/v1 with API_PROXY_TARGET) and NEXT_PUBLIC_WS_BASE_URL (e.g. wss://<api-host>) in your deployment environment (Vercel → Project → Settings → Environment Variables), then redeploy."
+    "\nFix: set NEXT_PUBLIC_API_BASE_URL (e.g. https://<api-host>/api/v1) and NEXT_PUBLIC_WS_BASE_URL (e.g. wss://<api-host>) in your deployment environment (Vercel → Project → Settings → Environment Variables), then redeploy."
   );
   throw new Error(
     "Invalid environment variables: NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_WS_BASE_URL must be valid URLs"
