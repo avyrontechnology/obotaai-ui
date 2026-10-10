@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import {
   AlertCircle,
   Check,
-  Copy,
   KeyRound,
   Link2,
   Loader2,
@@ -13,12 +12,10 @@ import {
   PlugZap,
   Plus,
   Trash2,
-  Wand2,
+  Webhook,
   X,
 } from "lucide-react";
 import {
-  useConnectCredential,
-  useDcrRegister,
   useDeleteTemplate,
   useIntegrationTemplates,
   useLinkIntegration,
@@ -28,11 +25,14 @@ import {
   useUnlinkIntegration,
 } from "@/services/platform/mcp";
 import type { CredentialMeta, McpTemplate, PartnerIntegration } from "@/lib/schemas/platform";
-import { Modal } from "@/components/common/modal";
+import { StatusPill } from "@/components/integrations/status-pill";
+import { ProviderIcon } from "@/components/integrations/provider-icon";
+import { McpConnectDialog } from "@/components/settings/mcp-connect-dialog";
+import { CustomApiBuilder } from "@/components/settings/custom-api-builder";
+import { McpServerBuilder } from "@/components/settings/mcp-server-builder";
 import { SearchInput } from "@/components/common/search-input";
 import { SectionHeader } from "@/components/common/section-header";
 import { SettingsStatCard, SettingsStatsGrid } from "@/components/settings/settings-stats";
-import { IntegrationBuilder } from "@/components/settings/org-integration-builder";
 import { fieldStyles } from "@/lib/field-styles";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -139,9 +139,7 @@ function TemplateCard({
     <div className="p-5 md:p-6 bg-card border border-border rounded-3xl min-w-0">
       <div className="flex items-start justify-between gap-3 mb-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <Plug className="w-4 h-4 text-ember-700 dark:text-ember-300" aria-hidden="true" />
-          </div>
+          <ProviderIcon kind="mcp" />
           <div className="min-w-0">
             <h4 className="font-medium text-foreground tracking-tight truncate" title={template.provider}>
               {template.provider}
@@ -154,18 +152,10 @@ function TemplateCard({
             </p>
           </div>
         </div>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider border shrink-0",
-            connected
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-              : "bg-muted text-muted-foreground border-border"
-          )}
+        <StatusPill
+          status={connected ? "live" : "new"}
           title={connected ? "A live credential is stored for this provider" : "No credential stored yet"}
-        >
-          {connected && <Check className="w-3 h-3" aria-hidden="true" />}
-          {connected ? "Live" : "New"}
-        </span>
+        />
       </div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3 min-w-0">
         <span
@@ -260,7 +250,7 @@ function TemplatesSection({ onConnect }: { onConnect: (provider: string) => void
   const removeTemplate = useDeleteTemplate();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builder, setBuilder] = useState<"http" | "mcp" | null>(null);
   const connectedProviders = useMemo(
     () => new Set((credentials ?? []).map((credential) => credential.provider)),
     [credentials]
@@ -268,20 +258,30 @@ function TemplatesSection({ onConnect }: { onConnect: (provider: string) => void
   return (
     <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
       <SectionHeader
-        title="MCP providers"
-        description="Curated providers. Build a custom integration or connect a credential to enable agent links."
+        title="Providers"
+        description="Curated providers plus your own. Connect a credential to enable agent links — or build a new one."
         className="mb-6"
       />
       {canManage && (
-        <button
-          onClick={() => setBuilderOpen(true)}
-          className="w-full h-11 mb-4 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
-        >
-          <Wand2 className="w-4 h-4" aria-hidden="true" />
-          New custom integration
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+          <button
+            onClick={() => setBuilder("http")}
+            className="h-11 rounded-2xl border border-dashed border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+          >
+            <Webhook className="w-4 h-4" aria-hidden="true" />
+            New custom API
+          </button>
+          <button
+            onClick={() => setBuilder("mcp")}
+            className="h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+          >
+            <PlugZap className="w-4 h-4" aria-hidden="true" />
+            New MCP server
+          </button>
+        </div>
       )}
-      {builderOpen && <IntegrationBuilder onClose={() => setBuilderOpen(false)} />}
+      {builder === "http" && <CustomApiBuilder onClose={() => setBuilder(null)} />}
+      {builder === "mcp" && <McpServerBuilder onClose={() => setBuilder(null)} />}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[0, 1, 2].map((i) => (
@@ -331,270 +331,6 @@ function TemplatesSection({ onConnect }: { onConnect: (provider: string) => void
         </div>
       )}
     </section>
-  );
-}
-
-function SecretOnceBox({
-  title,
-  secret,
-  onCopy,
-  copied,
-  onDone,
-}: {
-  title: string;
-  secret: string;
-  onCopy: () => void;
-  copied: boolean;
-  onDone: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-5 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 space-y-3 min-w-0 motion-reduce:transition-none"
-    >
-      <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300" title={title}>
-        {title}
-      </p>
-      <div className="flex gap-2 min-w-0">
-        <code
-          className="flex-1 min-w-0 truncate h-11 px-4 flex items-center bg-card border border-border rounded-2xl font-mono text-xs text-foreground"
-          title={secret}
-        >
-          {secret}
-        </code>
-        <button
-          onClick={onCopy}
-          aria-label="Copy one-time secret"
-          title="Copy one-time secret"
-          className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 motion-reduce:transition-none"
-        >
-          {copied ? <Check className="w-4 h-4" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
-        </button>
-        <button
-          onClick={onDone}
-          className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
-        >
-          Done
-        </button>
-      </div>
-      <p className="text-[11px] text-muted-foreground">Copy it now — it will never show again.</p>
-    </motion.div>
-  );
-}
-
-function ConnectDialog({ provider, onClose }: { provider: string; onClose: () => void }) {
-  const connect = useConnectCredential();
-  const dcr = useDcrRegister();
-  const [tab, setTab] = useState<"manual" | "dcr">("manual");
-  const [credentialType, setCredentialType] = useState("");
-  const [secret, setSecret] = useState("");
-  const [issuerUrl, setIssuerUrl] = useState("");
-  const [dcrProvider, setDcrProvider] = useState(provider);
-  const [secretOnce, setSecretOnce] = useState<{ provider: string; secret: string; replaced: boolean } | null>(null);
-  const [dcrOnce, setDcrOnce] = useState<{ clientId: string; issuerUrl: string; secret: string | null } | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const copyText = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  const handleManualConnect = async () => {
-    if (!secret.trim() || connect.isPending) return;
-    setError(null);
-    // Empty select means "auto" — omit so the schema default (api_key) applies.
-    const credential_type =
-      credentialType === "oauth2" || credentialType === "api_key" ? credentialType : undefined;
-    try {
-      const result = await connect.mutateAsync({ provider, credential_type, secret: secret.trim() });
-      setCopied(false);
-      // Security: the plaintext surfaces ONLY here — the dialog owns it and it
-      // dies with the dialog (Done closes, nothing is kept elsewhere).
-      setSecretOnce({ provider: result.meta.provider, secret: result.secret_once, replaced: result.replaced });
-      setSecret("");
-    } catch {
-      setError("Could not seal that secret. Is the backend running?");
-    }
-  };
-
-  const handleDcrRegister = async () => {
-    if (!issuerUrl.trim() || !dcrProvider.trim() || dcr.isPending) return;
-    setError(null);
-    try {
-      const result = await dcr.mutateAsync({ issuer_url: issuerUrl.trim(), provider: dcrProvider.trim() });
-      setCopied(false);
-      setDcrOnce({
-        clientId: result.client_id,
-        issuerUrl: result.issuer_url,
-        secret: result.client_secret_once ?? null,
-      });
-      setIssuerUrl("");
-    } catch {
-      setError("Registration failed — the issuer may be undiscoverable or manual-only.");
-    }
-  };
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      label={`Connect ${provider}`}
-      title={<h4 className="font-semibold text-foreground">Connect {provider}</h4>}
-      className="max-w-md space-y-3"
-    >
-      {secretOnce ? (
-        <SecretOnceBox
-          title={`${secretOnce.provider} connected${secretOnce.replaced ? " — existing credential replaced" : ""} — copy it now, it will never show again.`}
-          secret={secretOnce.secret}
-          onCopy={() => void copyText(secretOnce.secret)}
-          copied={copied}
-          onDone={onClose}
-        />
-      ) : dcrOnce ? (
-        <div className="space-y-3 min-w-0">
-          <p className="text-sm text-muted-foreground">
-            Registered at <span className="font-mono text-foreground">{dcrOnce.issuerUrl}</span> as{" "}
-            <span className="font-mono text-foreground">{dcrOnce.clientId}</span>.
-          </p>
-          {dcrOnce.secret ? (
-            <SecretOnceBox
-              title="Client secret issued — copy it now, it will never show again."
-              secret={dcrOnce.secret}
-              onCopy={() => void copyText(dcrOnce.secret as string)}
-              copied={copied}
-              onDone={onClose}
-            />
-          ) : (
-            <div className="p-5 rounded-3xl border border-border bg-muted/40 space-y-3 min-w-0">
-              <p className="text-sm text-muted-foreground">
-                The issuer returned no secret — the credential row was still created.
-              </p>
-              <button
-                onClick={onClose}
-                className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
-              >
-                Done
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            {(["manual", "dcr"] as const).map((option) => (
-              <button
-                key={option}
-                onClick={() => {
-                  setTab(option);
-                  setError(null);
-                }}
-                aria-pressed={tab === option}
-                className={cn(
-                  "h-10 rounded-xl border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none",
-                  tab === option
-                    ? "border-primary/40 bg-primary/10 text-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {option === "manual" ? "Manual key" : "DCR register"}
-              </button>
-            ))}
-          </div>
-
-          {tab === "manual" ? (
-            <>
-              <p className="text-xs font-mono text-muted-foreground truncate tabular-nums" title={`Provider: ${provider}`}>
-                Provider: <span className="text-foreground">{provider}</span>
-              </p>
-              <label className="flex flex-col gap-1.5 min-w-0">
-                <span className="text-xs font-medium text-foreground">Credential type</span>
-                <select
-                  value={credentialType}
-                  onChange={(event) => setCredentialType(event.target.value)}
-                  aria-label="Credential type"
-                  className={cn(fieldStyles.fieldSm, "min-w-0")}
-                >
-                  <option value="">Type: auto (api_key)</option>
-                  <option value="api_key">api_key</option>
-                  <option value="oauth2">oauth2</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1.5 min-w-0">
-                <span className="text-xs font-medium text-foreground">Secret</span>
-                <input
-                  value={secret}
-                  onChange={(event) => setSecret(event.target.value)}
-                  type="password"
-                  placeholder="Paste the provider secret"
-                  aria-label="Provider secret"
-                  autoComplete="off"
-                  className={cn(fieldStyles.fieldSm, "font-mono text-xs")}
-                />
-              </label>
-              <button
-                onClick={() => void handleManualConnect()}
-                disabled={!secret.trim() || connect.isPending}
-                className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
-              >
-                {connect.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-                Seal credential
-              </button>
-              <p className="text-[11px] text-muted-foreground">
-                The secret is vault-sealed and shown once — list views only ever carry metadata.
-              </p>
-            </>
-          ) : (
-            <>
-              <label className="flex flex-col gap-1.5 min-w-0">
-                <span className="text-xs font-medium text-foreground">Issuer URL</span>
-                <input
-                  value={issuerUrl}
-                  onChange={(event) => setIssuerUrl(event.target.value)}
-                  placeholder="https://issuer.example.com"
-                  aria-label="Issuer URL"
-                  autoComplete="off"
-                  className={cn(fieldStyles.fieldSm, "font-mono text-xs")}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5 min-w-0">
-                <span className="text-xs font-medium text-foreground">Provider</span>
-                <input
-                  value={dcrProvider}
-                  onChange={(event) => setDcrProvider(event.target.value)}
-                  placeholder="github"
-                  aria-label="DCR provider name"
-                  autoComplete="off"
-                  className={cn(fieldStyles.fieldSm, "font-mono text-xs")}
-                />
-              </label>
-              <button
-                onClick={() => void handleDcrRegister()}
-                disabled={!issuerUrl.trim() || !dcrProvider.trim() || dcr.isPending}
-                className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
-              >
-                {dcr.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-                Register client
-              </button>
-              <p className="text-[11px] text-muted-foreground">
-                Registers an OAuth client at the issuer and seals the issued secret — shown once.
-              </p>
-            </>
-          )}
-
-          {error && (
-            <p role="alert" className="flex items-center gap-2 text-xs text-destructive">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> {error}
-            </p>
-          )}
-        </>
-      )}
-    </Modal>
   );
 }
 
@@ -943,12 +679,12 @@ function LinksSection() {
   );
 }
 
-export function OrgMcp() {
+export function OrgMcp({ showStats = true }: { showStats?: boolean } = {}) {
   const [connectProvider, setConnectProvider] = useState<string | null>(null);
 
   return (
     <div className="space-y-6 min-w-0">
-      <McpStats />
+      {showStats && <McpStats />}
 
       <TemplatesSection onConnect={setConnectProvider} />
 
@@ -956,7 +692,7 @@ export function OrgMcp() {
 
       <LinksSection />
 
-      {connectProvider && <ConnectDialog provider={connectProvider} onClose={() => setConnectProvider(null)} />}
+      {connectProvider && <McpConnectDialog provider={connectProvider} onClose={() => setConnectProvider(null)} />}
 
       <p
         className="text-xs font-mono text-muted-foreground tabular-nums truncate"

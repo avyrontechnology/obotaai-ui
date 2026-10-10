@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import {
+  authorizeUrlResponseSchema,
+  authorizeUrlSchema,
   connectCredentialResponseSchema,
   connectCredentialSchema,
   credentialMetaListSchema,
@@ -16,6 +18,8 @@ import {
   syncToolsResponseSchema,
   type ConnectCredentialInput,
   type CredentialMeta,
+  type AuthorizeUrlInput,
+  type AuthorizeUrlResponse,
   type DcrRegisterInput,
   type DcrRegisterResponse,
   type LinkIntegrationInput,
@@ -83,6 +87,12 @@ export interface ConnectedCredential {
 export function useConnectCredential() {
   const queryClient = useQueryClient();
   return useMutation({
+    // gcTime 0: the resolved value carries `secret_once` in plaintext. The
+    // default 5-minute gc would keep it parked in the mutation cache after the
+    // dialog unmounts, where React Query Devtools (and anything else holding a
+    // cache reference) can still read it. Drop it as soon as the consumer is
+    // done — the dialog copies it once, then it is never needed again.
+    gcTime: 0,
     mutationFn: async (input: ConnectCredentialInput): Promise<ConnectedCredential> => {
       const raw = await apiClient<unknown>("/partner-credentials", {
         method: "POST",
@@ -194,6 +204,9 @@ export function useSyncTools() {
 export function useDcrRegister() {
   const queryClient = useQueryClient();
   return useMutation({
+    // gcTime 0 for the same reason as useConnectCredential: the response
+    // carries `client_secret_once`, a one-time plaintext the issuer issued.
+    gcTime: 0,
     mutationFn: async (input: DcrRegisterInput) => {
       const raw = await apiClient<unknown>("/integrations/dcr-register", {
         method: "POST",
@@ -202,5 +215,20 @@ export function useDcrRegister() {
       return dcrRegisterResponseSchema.parse(raw) as DcrRegisterResponse;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: mcpKeys.all }),
+  });
+}
+
+/** Mint a provider login URL (backend spec 0061): the browser popup goes
+ *  there, the provider redirects to the backend callback, and the sealed
+ *  credential lands without the secret ever touching this client. */
+export function useAuthorizeUrl() {
+  return useMutation({
+    mutationFn: async (input: AuthorizeUrlInput): Promise<AuthorizeUrlResponse> => {
+      const raw = await apiClient<unknown>("/oauth/authorize-url", {
+        method: "POST",
+        body: JSON.stringify(authorizeUrlSchema.parse(input)),
+      });
+      return authorizeUrlResponseSchema.parse(raw);
+    },
   });
 }

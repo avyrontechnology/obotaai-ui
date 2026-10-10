@@ -20,110 +20,26 @@ import {
   useUpdateIntegration,
 } from "@/services/platform/integrations";
 import type { Integration, IntegrationKind } from "@/lib/schemas/platform";
+import {
+  ADD_GROUPS,
+  KIND_FIELDS,
+  KINDS,
+  TELEPHONY_KINDS,
+  type FieldDef,
+} from "@/lib/integrations/catalog";
+import { StatusPill } from "@/components/integrations/status-pill";
+import { ProviderIcon } from "@/components/integrations/provider-icon";
+import { minRoleFor, useCan } from "@/lib/rbac";
+
+/** Re-exported for existing importers (Numbers ProviderSetup). New code should import from @/lib/integrations/catalog. */
+export { ADD_GROUPS, KIND_FIELDS, KINDS, TELEPHONY_KINDS };
+export type { FieldDef };
 import { Modal } from "@/components/common/modal";
 import { Toggle } from "@/components/common/toggle";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/common/section-header";
 import { SettingsStatCard, SettingsStatsGrid } from "@/components/settings/settings-stats";
-
-interface FieldDef {
-  key: string;
-  label: string;
-  secret?: boolean;
-  multiline?: boolean;
-  placeholder?: string;
-}
-
-export const KIND_FIELDS: Record<IntegrationKind, { label: string; fields: FieldDef[] }> = {
-  twilio: {
-    label: "Twilio",
-    fields: [
-      { key: "account_sid", label: "Account SID", placeholder: "AC…" },
-      { key: "auth_token", label: "Auth Token", secret: true },
-      { key: "phone_number", label: "Phone Number", placeholder: "+1…" },
-    ],
-  },
-  plivo: {
-    label: "Plivo",
-    fields: [
-      { key: "auth_id", label: "Auth ID" },
-      { key: "auth_token", label: "Auth Token", secret: true },
-    ],
-  },
-  exotel: {
-    label: "Exotel",
-    fields: [
-      { key: "sid", label: "SID" },
-      { key: "api_key", label: "API Key", secret: true },
-      { key: "api_token", label: "API Token", secret: true },
-    ],
-  },
-  vobiz: {
-    label: "Vobiz",
-    fields: [{ key: "api_key", label: "API Key", secret: true }],
-  },
-  talko: {
-    label: "Talko (Tata Tele trunk)",
-    fields: [
-      { key: "trunk_url", label: "Trunk URL", placeholder: "http://talko-app:8004" },
-      { key: "caller_did", label: "Default caller DID", placeholder: "9179…" },
-      { key: "api_key", label: "Talko API Key (default)", secret: true, placeholder: "tkp_live_…" },
-    ],
-  },
-  calcom: {
-    label: "Cal.com",
-    fields: [
-      { key: "api_key", label: "API Key", secret: true },
-      { key: "event_type_id", label: "Event Type ID" },
-    ],
-  },
-  n8n: {
-    label: "n8n",
-    fields: [
-      { key: "base_url", label: "Base URL", placeholder: "https://…" },
-      { key: "api_key", label: "API Key", secret: true },
-    ],
-  },
-  zapier: {
-    label: "Zapier",
-    fields: [{ key: "webhook_url", label: "Webhook URL", placeholder: "https://hooks.zapier.com/…" }],
-  },
-  sheets: {
-    label: "Google Sheets",
-    fields: [
-      { key: "sheet_url", label: "Sheet URL" },
-      { key: "service_account_json", label: "Service Account JSON", secret: true, multiline: true },
-    ],
-  },
-  sip: {
-    label: "SIP Trunk",
-    fields: [
-      { key: "host", label: "Host" },
-      { key: "username", label: "Username" },
-      { key: "password", label: "Password", secret: true },
-    ],
-  },
-  truecaller: {
-    label: "Truecaller",
-    fields: [
-      { key: "api_key", label: "API Key", secret: true },
-      { key: "business_name", label: "Business Name" },
-    ],
-  },
-};
-
-const KINDS = Object.keys(KIND_FIELDS) as IntegrationKind[];
-
-/** Telephony providers that can carry numbers. Reused by the Numbers section. */
-export const TELEPHONY_KINDS: IntegrationKind[] = ["twilio", "plivo", "exotel", "vobiz", "talko", "sip"];
-
-/** Add-integration groupings for the picker. Counts stay honest via useIntegrations(). */
-const ADD_GROUPS: { label: string; kinds: IntegrationKind[] }[] = [
-  { label: "Telephony", kinds: ["twilio", "plivo", "exotel", "vobiz", "talko", "sip"] },
-  { label: "Productivity", kinds: ["calcom", "sheets", "n8n", "zapier"] },
-  { label: "Other", kinds: ["truecaller"] },
-];
 
 function IntegrationsStats() {
   const { data: integrations, isLoading } = useIntegrations();
@@ -265,7 +181,7 @@ export function ConfigModal({
   );
 }
 
-function IntegrationCard({ integration }: { integration: Integration }) {
+function IntegrationCard({ integration, canManage = true }: { integration: Integration; canManage?: boolean }) {
   const updateIntegration = useUpdateIntegration();
   const deleteIntegration = useDeleteIntegration();
   const [editing, setEditing] = useState(false);
@@ -286,9 +202,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
     <div className="p-5 md:p-6 bg-card border border-border rounded-3xl min-w-0">
       <div className="flex items-start justify-between gap-3 mb-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <Plug className="w-4 h-4 text-ember-700 dark:text-ember-300" aria-hidden="true" />
-          </div>
+          <ProviderIcon kind={integration.kind} />
           <div className="min-w-0">
             <h4 className="font-medium text-foreground tracking-tight truncate" title={integration.name}>{integration.name}</h4>
             <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground truncate" title={KIND_FIELDS[integration.kind].label}>
@@ -297,20 +211,13 @@ function IntegrationCard({ integration }: { integration: Integration }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider border",
-              integration.enabled
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                : "bg-muted text-muted-foreground border-border"
-            )}
+          <StatusPill
+            status={integration.enabled ? "on" : "off"}
             title={integration.enabled ? "Connected and enabled — used in calls + flows" : "Connected but off — skipped at runtime"}
-          >
-            {integration.enabled && <Check className="w-3 h-3" aria-hidden="true" />}
-            {integration.enabled ? "On" : "Off"}
-          </span>
+          />
           <Toggle
             checked={integration.enabled}
+            disabled={!canManage}
             onChange={(value) =>
               void updateIntegration.mutateAsync({ id: integration.integration_id, enabled: value })
             }
@@ -392,7 +299,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
               <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
-        ) : (
+        ) : canManage ? (
           <>
             <button
               onClick={() => setEditing(true)}
@@ -418,6 +325,10 @@ function IntegrationCard({ integration }: { integration: Integration }) {
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
           </>
+        ) : (
+          <p className="text-[11px] text-muted-foreground">
+            Read-only — requires {minRoleFor("keys.manage")} role.
+          </p>
         )}
       </div>
 
@@ -439,26 +350,50 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   );
 }
 
-export function OrgIntegrations() {
+export function OrgIntegrations({
+  kinds = KINDS,
+  showStats = true,
+  initialAddingKind = null,
+}: {
+  kinds?: readonly IntegrationKind[];
+  showStats?: boolean;
+  initialAddingKind?: IntegrationKind | null;
+} = {}) {
   const { data: integrations, isLoading } = useIntegrations();
   const createIntegration = useCreateIntegration();
-  const [addingKind, setAddingKind] = useState<IntegrationKind | null>(null);
+  const canManage = useCan("keys.manage");
+  // Gated, not just seeded: `initialAddingKind` arrives from the URL
+  // (`?connect=twilio`), so a viewer landing on it would otherwise get a fully
+  // editable modal with a Save button that 403s.
+  const [addingKind, setAddingKind] = useState<IntegrationKind | null>(
+    canManage ? initialAddingKind : null
+  );
   const [error, setError] = useState<string | null>(null);
 
   const configuredKinds = useMemo(
     () => new Set((integrations ?? []).map((item) => item.kind)),
     [integrations]
   );
-  const missing = KINDS.filter((kind) => !configuredKinds.has(kind));
+  const visibleKinds = useMemo(() => kinds.filter((k) => KINDS.includes(k)), [kinds]);
+  const missing = visibleKinds.filter((kind) => !configuredKinds.has(kind));
+  const visibleIntegrations = useMemo(
+    () => (integrations ?? []).filter((item) => visibleKinds.includes(item.kind)),
+    [integrations, visibleKinds]
+  );
+  const showTalkoNote = visibleKinds.includes("talko");
 
   return (
     <div className="space-y-6 min-w-0">
-      <IntegrationsStats />
+      {showStats && <IntegrationsStats />}
 
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <SectionHeader
           title="Connected"
-          description="Configured integrations. Toggles control runtime use."
+          description={
+            canManage
+              ? "Configured integrations. Toggles control runtime use."
+              : `Configured integrations. Read-only — requires ${minRoleFor("keys.manage")} role.`
+          }
           className="mb-6"
         />
 
@@ -468,33 +403,47 @@ export function OrgIntegrations() {
               <div key={i} className="h-44 rounded-3xl bg-muted/50 border border-border animate-pulse motion-reduce:animate-none" />
             ))}
           </div>
-        ) : (integrations ?? []).length === 0 ? (
+        ) : visibleIntegrations.length === 0 ? (
           <p className="text-sm text-muted-foreground rounded-3xl border border-dashed border-border p-10 text-center">
             No integrations connected yet. Pick a provider below to get started.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
-            {(integrations ?? []).map((integration) => (
-              <IntegrationCard key={integration.integration_id} integration={integration} />
+            {visibleIntegrations.map((integration) => (
+              <IntegrationCard key={integration.integration_id} integration={integration} canManage={canManage} />
             ))}
           </div>
         )}
       </section>
 
+      {showTalkoNote && (
+        <p className="text-[11px] text-muted-foreground rounded-2xl border border-border bg-muted/40 px-4 py-3">
+          Talko note: the generic Talko trunk form below is legacy. For real dialing with auto-fetched
+          DIDs, use the <span className="font-medium text-foreground">Talko partners</span> section
+          (Telephony tab). New setups should prefer partners.
+        </p>
+      )}
+
       <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
         <SectionHeader
           title="Add integration"
           description={
-            isLoading
-              ? "Loading provider status."
-              : missing.length === 0
-                ? "Every supported provider is connected."
-                : `${missing.length} of ${KINDS.length} providers still available.`
+            !canManage
+              ? `Read-only — requires ${minRoleFor("keys.manage")} role.`
+              : isLoading
+                ? "Loading provider status."
+                : missing.length === 0
+                  ? "Every supported provider is connected."
+                  : `${missing.length} of ${visibleKinds.length} providers still available.`
           }
           className="mb-6"
         />
 
-        {isLoading ? (
+        {!canManage ? (
+          <p className="text-sm text-muted-foreground rounded-3xl border border-dashed border-border p-10 text-center">
+            You can view integrations but not connect new ones.
+          </p>
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[0, 1].map((i) => (
               <div key={i} className="h-28 rounded-3xl bg-muted/50 border border-border animate-pulse motion-reduce:animate-none" />
@@ -507,16 +456,17 @@ export function OrgIntegrations() {
         ) : (
           <div className="space-y-6 min-w-0">
             {ADD_GROUPS.map((group) => {
-              const available = group.kinds.filter((kind) => !configuredKinds.has(kind));
-              const connected = group.kinds.length - available.length;
-              if (available.length === 0) return null;
+              const inScope = group.kinds.filter((kind) => visibleKinds.includes(kind));
+              const available = inScope.filter((kind) => !configuredKinds.has(kind));
+              const connected = inScope.length - available.length;
+              if (inScope.length === 0 || available.length === 0) return null;
               return (
                 <div key={group.label} className="space-y-3 min-w-0">
                   <p
                     className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground truncate tabular-nums"
-                    title={`${group.label} · ${connected} of ${group.kinds.length} connected`}
+                    title={`${group.label} · ${connected} of ${inScope.length} connected`}
                   >
-                    {group.label} · {connected} of {group.kinds.length} connected
+                    {group.label} · {connected} of {inScope.length} connected
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
                     {available.map((kind) => (

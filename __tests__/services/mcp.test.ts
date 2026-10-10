@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import {
   mcpKeys,
+  useAuthorizeUrl,
   useConnectCredential,
   useDcrRegister,
   useDeleteTemplate,
@@ -228,7 +229,8 @@ describe("mcp provider hooks (backend spec 0058)", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: mcpKeys.all });
   });
 
-  it("deletes a template override by provider and invalidates", async () => {    const { wrapper, invalidateSpy } = setup();
+  it("deletes a template override by provider and invalidates", async () => {
+    const { wrapper, invalidateSpy } = setup();
     mockedApiClient.mockResolvedValue({ state: "deleted" });
     const { result } = renderHook(() => useDeleteTemplate(), { wrapper });
     let deleted: unknown;
@@ -266,5 +268,32 @@ describe("mcp provider hooks (backend spec 0058)", () => {
     );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: mcpKeys.all });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["tools"] });
+  });
+
+  it("mints an authorize URL with the exact login body", async () => {
+    const { wrapper } = setup();
+    mockedApiClient.mockResolvedValue({ authorization_url: "https://issuer.test/auth?x=1", expires_in: 600 });
+    const { result } = renderHook(() => useAuthorizeUrl(), { wrapper });
+    let minted: unknown;
+    await React.act(async () => {
+      minted = await result.current.mutateAsync({
+        provider: "github",
+        authorization_endpoint: "https://issuer.test/auth",
+        token_endpoint: "https://issuer.test/token",
+        client_id: "cid-1",
+      });
+    });
+    expect(mockedApiClient.mock.calls[0][0]).toBe("/oauth/authorize-url");
+    const body = JSON.parse((mockedApiClient.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({
+      provider: "github",
+      authorization_endpoint: "https://issuer.test/auth",
+      token_endpoint: "https://issuer.test/token",
+      client_id: "cid-1",
+      scope: "",
+    });
+    expect(minted).toEqual(
+      expect.objectContaining({ authorization_url: "https://issuer.test/auth?x=1", expires_in: 600 })
+    );
   });
 });

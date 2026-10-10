@@ -593,6 +593,24 @@ export const syncToolsResponseSchema = z.object({
   tool_ids: z.array(z.string()).default([]),
   problems: z.array(z.string()).default([]),
 });
+/** Body mirror (AuthorizeUrlPayload): exact keys — the backend forbids
+ *  extras (422). Endpoints are SSRF-checked server-side. */
+export const authorizeUrlSchema = z
+  .object({
+    provider: z.string().min(1),
+    authorization_endpoint: z.string().min(1),
+    token_endpoint: z.string().min(1),
+    client_id: z.string().min(1),
+    client_secret: z.string().optional(),
+    scope: z.string().default(""),
+  })
+  .strict();
+
+/** `POST /oauth/authorize-url` 200: the login URL + handshake lifetime. */
+export const authorizeUrlResponseSchema = z.object({
+  authorization_url: z.string(),
+  expires_in: z.number().int(),
+});
 /** `POST /integrations/dcr-register` 201 (flat): credential metadata +
  *  issued client id/issuer + one-time client secret (`null` when the issuer
  *  returns none — the credential row is still created). */
@@ -717,6 +735,8 @@ export type SaveTemplateResponse = z.infer<typeof saveTemplateResponseSchema>;
 export type SyncToolsResponse = z.infer<typeof syncToolsResponseSchema>;
 export type DcrRegisterInput = z.input<typeof dcrRegisterSchema>;
 export type DcrRegisterResponse = z.infer<typeof dcrRegisterResponseSchema>;
+export type AuthorizeUrlInput = z.input<typeof authorizeUrlSchema>;
+export type AuthorizeUrlResponse = z.infer<typeof authorizeUrlResponseSchema>;
 export type Organization = z.infer<typeof organizationSchema>;
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
 export type NotificationPrefs = z.infer<typeof notificationPrefsSchema>;

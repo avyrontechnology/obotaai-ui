@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, KeyRound, Loader2, Phone, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { AlertCircle, Check, Loader2, Phone, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import {
   useConnectTalkoPartner,
   useDeleteTalkoPartner,
@@ -12,6 +12,8 @@ import {
 } from "@/services/platform/talko-partners";
 import type { TalkoPartner, TalkoPartnerPreview } from "@/lib/schemas/platform";
 import { Modal } from "@/components/common/modal";
+import { StatusPill } from "@/components/integrations/status-pill";
+import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { fieldStyles } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
@@ -235,9 +237,7 @@ function PartnerCard({ partner }: { partner: TalkoPartner }) {
     <div className="p-5 md:p-6 bg-card border border-border rounded-3xl min-w-0">
       <div className="flex items-start justify-between gap-3 mb-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <KeyRound className="w-4 h-4 text-ember-700 dark:text-ember-300" aria-hidden="true" />
-          </div>
+          <ProviderIcon kind="talko-partner" />
           <div className="min-w-0">
             <h4 className="font-medium text-foreground tracking-tight truncate" title={partner.display_name || partner.partner_id}>
               {partner.display_name || `Partner ${partner.partner_id}`}
@@ -247,18 +247,10 @@ function PartnerCard({ partner }: { partner: TalkoPartner }) {
             </p>
           </div>
         </div>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider border shrink-0",
-            partner.key_configured
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-              : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20"
-          )}
+        <StatusPill
+          status={partner.key_configured ? "live" : "attention"}
           title={partner.key_configured ? "API key stored" : "No API key — dials with this partner fail"}
-        >
-          {partner.key_configured && <Check className="w-3 h-3" aria-hidden="true" />}
-          {partner.key_configured ? "Key set" : "No key"}
-        </span>
+        />
       </div>
 
       <div className="mb-3 space-y-2 min-w-0">

@@ -25,6 +25,10 @@ export function useApiKeys() {
 export function useCreateApiKey() {
   const queryClient = useQueryClient();
   return useMutation({
+    // gcTime 0: the response carries the plaintext `key`, shown once at
+    // creation and never refetchable. Without this it would sit in the
+    // mutation cache for the default 5 minutes after the form unmounts.
+    gcTime: 0,
     mutationFn: async (input: CreateApiKeyInput) => {
       const raw = await apiClient<unknown>("/api-keys", {
         method: "POST",

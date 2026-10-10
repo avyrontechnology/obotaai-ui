@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, PlugZap, Plus } from "lucide-react";
+import Link from "next/link";
 import {
   useCreateIntegration,
   useIntegrations,
@@ -10,9 +11,8 @@ import {
 import { usePhoneNumbers } from "@/services/platform/phone-numbers";
 import {
   ConfigModal,
-  KIND_FIELDS,
-  TELEPHONY_KINDS,
 } from "@/components/settings/org-integrations";
+import { KIND_FIELDS, TELEPHONY_KINDS } from "@/lib/integrations/catalog";
 import { Toggle } from "@/components/common/toggle";
 import { SectionHeader } from "@/components/common/section-header";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,15 @@ export function ProviderSetup() {
     <section className="rounded-3xl border border-border bg-card p-5 md:p-6 min-w-0">
       <SectionHeader
         title="Providers"
-        description="Connect a telephony provider before adding its numbers. Secrets stay masked."
+        description={
+          <>
+            Quick-connect telephony here. Full credential management lives in{" "}
+            <Link href="/integrations?tab=telephony" className="underline underline-offset-2 hover:text-foreground">
+              Integrations → Telephony
+            </Link>
+            . Secrets stay masked.
+          </>
+        }
         className="mb-6"
       />
 

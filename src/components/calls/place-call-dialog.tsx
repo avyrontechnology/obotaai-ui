@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertCircle, Loader2, PhoneCall, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Modal } from "@/components/common/modal";
 import { fieldStyles } from "@/lib/field-styles";
 import { useAgents } from "@/services/api";
@@ -44,7 +45,7 @@ function parseVariablesJson(raw: string): { ok: true; value: Record<string, unkn
 export function PlaceCallDialog({ open, onClose, initialAgentId = "" }: PlaceCallDialogProps) {
   const router = useRouter();
   const { data: agents } = useAgents();
-  const { data: partners } = useTalkoPartners();
+  const { data: partners, isPending: partnersPending, isError: partnersFailed } = useTalkoPartners();
   const placeCall = usePlaceCall();
 
   const [agentOverride, setAgentOverride] = useState<string | null>(null);
@@ -219,7 +220,32 @@ export function PlaceCallDialog({ open, onClose, initialAgentId = "" }: PlaceCal
           </label>
         </div>
 
-        {provider === "talko" && !partnerId && (
+        {provider === "talko" && partnersPending && (
+          <p className="text-xs text-muted-foreground rounded-2xl border border-dashed border-border p-3">
+            Checking for connected Talko partners…
+          </p>
+        )}
+
+        {provider === "talko" && partnersFailed && (
+          <p className="text-xs text-destructive rounded-2xl border border-dashed border-border p-3">
+            Could not load Talko partners — the backend may be unreachable. Retry before placing the
+            call, or place it with the simulated provider.
+          </p>
+        )}
+
+        {/* Only claim "none connected" once the list has actually loaded and
+            succeeded — otherwise this flashes on every dialog open. */}
+        {provider === "talko" && !partnersPending && !partnersFailed && (partners ?? []).length === 0 && (
+          <p className="text-xs text-muted-foreground rounded-2xl border border-dashed border-border p-3">
+            No Talko partners connected yet. Connect one in{" "}
+            <Link href="/integrations?tab=telephony" className="underline underline-offset-2 hover:text-foreground">
+              Integrations → Telephony
+            </Link>{" "}
+            to avoid pasting keys per call.
+          </p>
+        )}
+
+        {provider === "talko" && !partnerId && !partnersPending && !partnersFailed && (partners ?? []).length > 0 && (
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               Talko API key (optional)
