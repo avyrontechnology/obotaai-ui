@@ -133,6 +133,56 @@ describe("apiClient errors", () => {
   });
 });
 
+describe("apiClient envelope tolerance", () => {
+  // Module routes (numbers 0074, kbs 0075, webhooks 0076, integrations 0077,
+  // graphs 0078, plus tools/voices/auth/catalog/chat/health/privacy/voice) answer
+  // enveloped; the frozen platform families still answer flat. Both are mounted on
+  // the same app, so apiClient has to serve both without a call-site unwrap.
+  it("unwraps `data` from a module route's success envelope", async () => {
+    mockFetch(200, {
+      ok: true,
+      data: { numbers: [{ number_id: "n1" }] },
+      message: null,
+      meta: { request_id: "req_1", pagination: null },
+    });
+    await expect(apiClient("/phone-numbers")).resolves.toEqual({
+      numbers: [{ number_id: "n1" }],
+    });
+  });
+
+  it("unwraps a bare-list envelope from a paginated module route", async () => {
+    mockFetch(200, {
+      ok: true,
+      data: [{ graph_id: "g1" }],
+      message: null,
+      meta: { request_id: "req_2", pagination: { page: 1, total: 1 } },
+    });
+    await expect(apiClient("/graphs")).resolves.toEqual([{ graph_id: "g1" }]);
+  });
+
+  it("preserves a null payload from a module route", async () => {
+    mockFetch(200, { ok: true, data: null, message: "ok", meta: { request_id: "req_3" } });
+    await expect(apiClient("/graphs/g1/deploy")).resolves.toBeNull();
+  });
+
+  it("passes a frozen platform route's flat body through untouched", async () => {
+    mockFetch(200, { executions: [{ execution_id: "e1" }] });
+    await expect(apiClient("/executions")).resolves.toEqual({
+      executions: [{ execution_id: "e1" }],
+    });
+  });
+
+  it("does not unwrap a flat body that merely has an `ok` key", async () => {
+    mockFetch(200, { ok: true });
+    await expect(apiClient("/auth/me")).resolves.toEqual({ ok: true });
+  });
+
+  it("does not unwrap a flat body whose `ok` is not the boolean true", async () => {
+    mockFetch(200, { ok: "pending", data: { step: 2 } });
+    await expect(apiClient("/x")).resolves.toEqual({ ok: "pending", data: { step: 2 } });
+  });
+});
+
 describe("buildTalkSocketUrl", () => {
   it("targets the single-app socket with a ticket-only credential (specs 0021/0048/0054)", () => {
     // Single app: WS /api/v1/chat/v1/{agent_id} + ?ticket=. Bare /chat/v1 and

@@ -206,6 +206,26 @@ export async function throwApiError(response: Response): Promise<never> {
   );
 }
 
+/** The backend success envelope produced by `voiceai/common/responses.py`. */
+interface SuccessEnvelope {
+  ok: true;
+  data: unknown;
+}
+
+/** Narrow a decoded body to the success envelope.
+ *
+ *  The `ok === true` check is deliberately stricter than key presence: a flat
+ *  payload is only misread as an envelope if it also carries a literal boolean
+ *  `ok: true`, which no current route does. */
+function isSuccessEnvelope(json: unknown): json is SuccessEnvelope {
+  return (
+    json !== null &&
+    typeof json === "object" &&
+    (json as Record<string, unknown>).ok === true &&
+    "data" in json
+  );
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -231,11 +251,17 @@ export async function apiClient<T>(
 
   const json = await response.json();
 
-  // Unwrap the new standard backend envelope ({ ok, data, message, meta }) if present
-  if (json && typeof json === "object" && "ok" in json && "data" in json) {
-    return json.data;
+  // Module routes answer with the standard envelope `common/responses.py` builds —
+  // `{ok: true, data, message, meta}` — while the frozen `platform/router.py`
+  // families (simulate/executions/batches/inbound/agents/sub-accounts/workflows/
+  // runs/campaigns/org/api-keys) still answer flat. Both are mounted on the same
+  // app, so unwrap here rather than at ~140 call sites.
+  //
+  // `ok === true` (not mere key presence) keeps a flat payload whose own fields
+  // happen to be named `ok`/`data` out of the unwrap branch.
+  if (isSuccessEnvelope(json)) {
+    return json.data as T;
   }
 
-  // Fallback for legacy endpoints returning flat structures
   return json;
 }
