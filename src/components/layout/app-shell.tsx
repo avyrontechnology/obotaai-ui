@@ -9,13 +9,12 @@ import { TopBar } from "./top-bar";
 import { CommandDock } from "./command-dock";
 import { useSuspendedWorkspace } from "@/lib/rbac";
 import { useLogout } from "@/services/auth";
-
-const PUBLIC_PREFIXES = ["/login", "/accept-invite"];
+import { isPublicAuthPath, markSuspended } from "@/lib/auth-routes";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // Auth pages render chromeless (no sidebar/topbar/command palette).
-  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+  if (isPublicAuthPath(pathname)) {
     return <div className="min-h-screen bg-background text-foreground">{children}</div>;
   }
   return <AuthedShell>{children}</AuthedShell>;
@@ -51,7 +50,8 @@ export function SuspendedWorkspaceBanner() {
                 // A suspended backend may 401 the logout call itself; still
                 // sign out client-side with a single replace (never a loop).
                 queryClient.clear();
-                router.replace("/login?suspended=1");
+                markSuspended();
+                router.replace("/login");
               },
             })
           }

@@ -40,6 +40,7 @@ jest.mock("@/services/platform/identity", () => ({
 
 jest.mock("@/services/api", () => ({ useAgents: () => ({ data: [] }) }));
 jest.mock("@/services/platform/wallet", () => ({ useWallet: () => ({ data: undefined }) }));
+jest.mock("@/services/health", () => ({ useEngineHealth: () => ({ isPending: true }) }));
 
 let mockSearchParams = "";
 const mockPush = jest.fn();
@@ -104,6 +105,10 @@ function wrapper({ children }: { children: React.ReactNode }) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSearchParams = "";
+  // Auth hand-off cookies (suspended / return-to) must not leak between tests.
+  ["otoba_suspended", "otoba_signed_out", "otoba_return_to"].forEach((name) => {
+    document.cookie = `${name}=; Path=/; Max-Age=0`;
+  });
   mockQueryStates(sessionState(undefined), { data: undefined, error: null });
   mockUseLogout.mockReturnValue({ mutate: jest.fn(), isPending: false });
   mockUseLogin.mockReturnValue({ mutateAsync: jest.fn(), isPending: false });
@@ -330,7 +335,9 @@ describe("SuspendedWorkspaceBanner", () => {
     expect(clear).toHaveBeenCalledTimes(1);
     // Single replace to login — never a redirect loop.
     expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith("/login?suspended=1");
+    // Clean URL — the suspended notice rides in a one-shot cookie.
+    expect(mockReplace).toHaveBeenCalledWith("/login");
+    expect(document.cookie).toContain("otoba_suspended=1");
   });
 });
 
@@ -343,8 +350,8 @@ describe("login suspended copy", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("explains suspension when signed out to ?suspended=1", async () => {
-    mockSearchParams = "suspended=1";
+  it("explains suspension when the suspended banner signed the user out", async () => {
+    document.cookie = "otoba_suspended=1; Path=/";
     render(<LoginPage />);
     await act(async () => {});
     const notice = screen.getByTestId("workspace-suspended-notice");
@@ -354,13 +361,27 @@ describe("login suspended copy", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("hints at suspension on the api-client bounce (?clear_session=1)", async () => {
-    mockSearchParams = "clear_session=1&next=%2Fagents";
+  it("shows no notice on a plain sign-out / api-client 401 bounce", async () => {
+    document.cookie = "otoba_signed_out=1; Path=/";
+    document.cookie = "otoba_return_to=%2Fagents; Path=/";
     render(<LoginPage />);
     await act(async () => {});
-    const notice = screen.getByTestId("workspace-suspended-notice");
-    expect(notice).toHaveTextContent(/signed out/i);
-    expect(notice).toHaveTextContent(/may be suspended/i);
+    expect(screen.queryByTestId("workspace-suspended-notice")).not.toBeInTheDocument();
+    expect(screen.queryByText(/you were signed out/i)).not.toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("returns to the remembered page after login, with a clean URL", async () => {
+    document.cookie = "otoba_return_to=%2Fagents; Path=/";
+    const mutateAsync = jest.fn().mockResolvedValue({});
+    mockUseLogin.mockReturnValue({ mutateAsync, isPending: false });
+    render(<LoginPage />);
+    fireEvent.change(screen.getByPlaceholderText("you@company.com"), { target: { value: "a@b.co" } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "longenough1" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    });
+    expect(mockPush).toHaveBeenCalledWith("/agents");
+    expect(document.cookie).not.toContain("otoba_return_to=");
   });
 });

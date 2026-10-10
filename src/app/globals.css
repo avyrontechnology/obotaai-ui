@@ -337,4 +337,22 @@
   .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(255, 221, 156, 0.18);
   }
+
+  /* Auth pages are always light: pin native widgets (checkbox, autofill,
+     scrollbars) to the light scheme so a dark OS theme can't repaint them. */
+  .auth-surface {
+    color-scheme: light;
+  }
+  /* Browser-saved credentials: replace Chrome's grey/blue autofill fill with
+     the brand cream and keep ink-coloured text. The long transition stops
+     Chrome flashing its own colour back in. */
+  .auth-surface input:-webkit-autofill,
+  .auth-surface input:-webkit-autofill:hover,
+  .auth-surface input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #FFFBF0 inset, 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    -webkit-text-fill-color: #111827;
+    caret-color: #111827;
+    border-color: #F3D9A8;
+    transition: background-color 9999s ease-out 0s;
+  }
 }

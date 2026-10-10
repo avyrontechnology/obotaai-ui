@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <style>
+    .tile { fill: #FFFBF0; stroke: #F3E3C3; }
+    @media (prefers-color-scheme: dark) { .tile { fill: #24180F; stroke: #3A2A1E; } }
+  </style>
+  <defs>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF5F5F"/>
+      <stop offset="55%" stop-color="#FF8A45"/>
+      <stop offset="100%" stop-color="#FFAE35"/>
+    </linearGradient>
+  </defs>
+  <rect class="tile" x="2" y="2" width="96" height="96" rx="24" stroke-width="2"/>
+  <path d="M10 50 C17 43 24 57 31 56 C38 55 39 38 44.5 38.5 C50 39 52 61 57.5 61 C63 61 65 36 71 36 C77 36 80 51 90 50"
+        fill="none" stroke="url(#wave)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

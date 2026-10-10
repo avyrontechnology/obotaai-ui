@@ -13,14 +13,23 @@ const FALLBACKS = {
 // (no NEXT_PUBLIC_ prefix) and never ship to the browser.
 const isProd = process.env.NODE_ENV === "production";
 
+const trimmed = (v: unknown) => (typeof v === "string" ? (v.trim() === "" ? undefined : v.trim()) : v);
+
 const urlSchema = (fallback: string) =>
-  z.preprocess(
-    (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : v.trim()) : v),
-    isProd ? z.string().url() : z.string().url().default(fallback)
-  );
+  z.preprocess(trimmed, isProd ? z.string().url() : z.string().url().default(fallback));
+
+// The API base may also be a same-origin path ("/api/v1"): next.config
+// inlines that when it proxies an absolute NEXT_PUBLIC_API_BASE_URL to the
+// engine, so the session cookie stays first-party.
+const sameOriginPath = z
+  .string()
+  .regex(/^\/(?!\/)/, "must be an absolute URL or a same-origin path like /api/v1");
+const apiBase = z.union([z.string().url(), sameOriginPath]);
+const apiBaseSchema = (fallback: string) =>
+  z.preprocess(trimmed, isProd ? apiBase : apiBase.default(fallback));
 
 const envSchema = z.object({
-  NEXT_PUBLIC_API_BASE_URL: urlSchema(FALLBACKS.NEXT_PUBLIC_API_BASE_URL),
+  NEXT_PUBLIC_API_BASE_URL: apiBaseSchema(FALLBACKS.NEXT_PUBLIC_API_BASE_URL),
   NEXT_PUBLIC_WS_BASE_URL: urlSchema(FALLBACKS.NEXT_PUBLIC_WS_BASE_URL),
 });
 

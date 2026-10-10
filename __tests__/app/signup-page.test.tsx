@@ -26,7 +26,7 @@ function renderPage() {
 
 async function fillValid() {
   await act(async () => {
-    fireEvent.change(screen.getByLabelText("EMAIL"), { target: { value: "owner@company.com" } });
+    fireEvent.change(screen.getByLabelText("WORK EMAIL"), { target: { value: "owner@company.com" } });
     fireEvent.change(screen.getByLabelText("PASSWORD"), { target: { value: "s3cure-pass" } });
     fireEvent.change(screen.getByLabelText("CONFIRM PASSWORD"), { target: { value: "s3cure-pass" } });
   });

@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  RETURN_TO_COOKIE,
+  SIGNED_OUT_COOKIE,
+  isPublicAuthPath,
+  sanitizeReturnTo,
+} from "@/lib/auth-routes";
 
-const PUBLIC_PATHS = ["/login", "/accept-invite"];
 const SESSION_COOKIE = "otoba_session";
 
 /**
@@ -17,7 +22,8 @@ const SESSION_COOKIE = "otoba_session";
  */
 function isSameSiteDeployment(request: NextRequest): boolean {
   const raw = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!raw) return true;
+  // Same-origin path (/api/v1 via the next.config proxy): the cookie is ours.
+  if (!raw || raw.startsWith("/")) return true;
   try {
     return new URL(raw).hostname === request.nextUrl.hostname;
   } catch {
@@ -29,6 +35,8 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (
     pathname.startsWith("/_next") ||
+    // Same-origin API proxy (next.config rewrites): auth is the engine's job.
+    pathname.startsWith("/api/") ||
     pathname.startsWith("/brand") ||
     pathname === "/favicon.ico" ||
     pathname.includes(".")
@@ -36,7 +44,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isPublic = PUBLIC_PATHS.some((route) => pathname.startsWith(route));
+  const isPublic = isPublicAuthPath(pathname);
   const hasSession = Boolean(request.cookies.get(SESSION_COOKIE)?.value);
 
   if (!isPublic && !hasSession && !isSameSiteDeployment(request)) {
@@ -46,14 +54,21 @@ export function proxy(request: NextRequest) {
   }
 
   if (!isPublic && !hasSession) {
-    const login = new URL("/login", request.url);
-    login.searchParams.set("next", pathname + request.nextUrl.search);
-    return NextResponse.redirect(login);
+    // Clean URL: the return path rides in a short-lived cookie, not `?next=`.
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    const returnTo = sanitizeReturnTo(pathname + request.nextUrl.search);
+    if (returnTo) {
+      response.cookies.set(RETURN_TO_COOKIE, returnTo, { path: "/", maxAge: 600, sameSite: "lax" });
+    }
+    return response;
   }
   if (isPublic && hasSession && pathname !== "/accept-invite") {
-    if (request.nextUrl.searchParams.get("clear_session")) {
+    // A 401 bounce flags the session as stale: drop it and show the page
+    // instead of redirecting back into the app (which would loop).
+    if (request.cookies.get(SIGNED_OUT_COOKIE)?.value) {
       const response = NextResponse.next();
       response.cookies.delete(SESSION_COOKIE);
+      response.cookies.delete(SIGNED_OUT_COOKIE);
       return response;
     }
     return NextResponse.redirect(new URL("/", request.url));
