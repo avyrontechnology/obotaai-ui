@@ -598,9 +598,9 @@ export const syncToolsResponseSchema = z.object({
 export const authorizeUrlSchema = z
   .object({
     provider: z.string().min(1),
-    authorization_endpoint: z.string().min(1),
-    token_endpoint: z.string().min(1),
-    client_id: z.string().min(1),
+    authorization_endpoint: z.string().optional(),
+    token_endpoint: z.string().optional(),
+    client_id: z.string().optional(),
     client_secret: z.string().optional(),
     scope: z.string().default(""),
   })
@@ -617,7 +617,6 @@ export const authorizeUrlResponseSchema = z.object({
 export const dcrRegisterResponseSchema = credentialMetaSchema.extend({
   client_id: z.string(),
   issuer_url: z.string(),
-  client_secret_once: z.string().nullable().optional(),
 });
 
 export const notificationPrefsSchema = z.object({

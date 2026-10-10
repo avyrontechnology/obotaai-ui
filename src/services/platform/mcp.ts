@@ -204,8 +204,9 @@ export function useSyncTools() {
 export function useDcrRegister() {
   const queryClient = useQueryClient();
   return useMutation({
-    // gcTime 0 for the same reason as useConnectCredential: the response
-    // carries `client_secret_once`, a one-time plaintext the issuer issued.
+    // No secret ever reaches the client here: the issued secret seals
+    // server-side at registration and the response carries identifiers
+    // only (client_id, issuer_url). gcTime 0 stays as belt-and-braces.
     gcTime: 0,
     mutationFn: async (input: DcrRegisterInput) => {
       const raw = await apiClient<unknown>("/integrations/dcr-register", {

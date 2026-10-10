@@ -38,12 +38,9 @@ export function McpConnectDialog({ provider, onClose }: { provider: string; onCl
   const [username, setUsername] = useState("");
   const [secret, setSecret] = useState("");
   const [issuerUrl, setIssuerUrl] = useState("");
-  const [authEndpoint, setAuthEndpoint] = useState("");
-  const [tokenEndpoint, setTokenEndpoint] = useState("");
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
+  const [loginScope, setLoginScope] = useState("");
   const [secretOnce, setSecretOnce] = useState<{ provider: string; secret: string; replaced: boolean } | null>(null);
-  const [dcrOnce, setDcrOnce] = useState<{ clientId: string; issuerUrl: string; secret: string | null } | null>(null);
+  const [dcrOnce, setDcrOnce] = useState<{ clientId: string; issuerUrl: string } | null>(null);
   const [oauthDone, setOauthDone] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +128,9 @@ export function McpConnectDialog({ provider, onClose }: { provider: string; onCl
     try {
       const result = await dcr.mutateAsync({ issuer_url: issuerUrl.trim(), provider });
       setCopied(false);
-      setDcrOnce({ clientId: result.client_id, issuerUrl: result.issuer_url, secret: result.client_secret_once ?? null });
+      // The issued secret seals server-side and never surfaces — the next
+      // step is the provider login, which resolves it from the vault.
+      setDcrOnce({ clientId: result.client_id, issuerUrl: result.issuer_url });
       setIssuerUrl("");
     } catch {
       setError("Registration failed — the issuer may be undiscoverable or manual-only.");
@@ -139,7 +138,9 @@ export function McpConnectDialog({ provider, onClose }: { provider: string; onCl
   };
 
   const handleLogin = async () => {
-    if (!authEndpoint.trim() || !tokenEndpoint.trim() || !clientId.trim() || authorize.isPending) return;
+    // One-click login: endpoints + client credentials resolve server-side
+    // from the vault DCR record. The caller only picks scopes.
+    if (authorize.isPending) return;
     setError(null);
     // Opened inside the click handler so the browser still treats it as
     // user-activated; navigated once the authorize URL is minted.
@@ -149,18 +150,11 @@ export function McpConnectDialog({ provider, onClose }: { provider: string; onCl
       return;
     }
     try {
-      const result = await authorize.mutateAsync({
-        provider,
-        authorization_endpoint: authEndpoint.trim(),
-        token_endpoint: tokenEndpoint.trim(),
-        client_id: clientId.trim(),
-        ...(clientSecret ? { client_secret: clientSecret } : {}),
-        scope: "",
-      });
+      const result = await authorize.mutateAsync({ provider, scope: loginScope.trim() });
       popupRef.navigate(result.authorization_url);
     } catch {
       popupRef.close();
-      setError("Could not start the provider login — check the endpoints.");
+      setError("Could not start the provider login — register with DCR first, then retry.");
     }
   };
 
@@ -186,29 +180,20 @@ export function McpConnectDialog({ provider, onClose }: { provider: string; onCl
         <div className="space-y-3 min-w-0">
           <p className="text-sm text-muted-foreground">
             Registered at <span className="font-mono text-foreground">{dcrOnce.issuerUrl}</span> as{" "}
-            <span className="font-mono text-foreground">{dcrOnce.clientId}</span>.
+            <span className="font-mono text-foreground">{dcrOnce.clientId}</span>. The secret sealed
+            server-side — nothing to copy.
           </p>
-          {dcrOnce.secret ? (
-            <SecretOnceBox
-              title="Client secret issued — copy it now, it will never show again."
-              secret={dcrOnce.secret}
-              onCopy={() => void copyText(dcrOnce.secret as string)}
-              copied={copied}
-              onDone={onClose}
-            />
-          ) : (
-            <div className="p-5 rounded-3xl border border-border bg-muted/40 space-y-3 min-w-0">
-              <p className="text-sm text-muted-foreground">
-                The issuer returned no secret — the credential row was still created.
-              </p>
-              <button
-                onClick={onClose}
-                className="h-11 px-4 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
-              >
-                Done
-              </button>
-            </div>
-          )}
+          <div className="p-5 rounded-3xl border border-border bg-muted/40 space-y-3 min-w-0">
+            <p className="text-sm text-muted-foreground">
+              Next: complete the provider login to seal an access token.
+            </p>
+            <button
+              onClick={() => { setDcrOnce(null); setMethod("login"); }}
+              className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+            >
+              Continue to provider login
+            </button>
+          </div>
         </div>
       ) : oauthDone ? (
         <div className="p-5 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 space-y-3 min-w-0">
@@ -387,63 +372,26 @@ export function McpConnectDialog({ provider, onClose }: { provider: string; onCl
 
           {method === "login" && (
             <div className="space-y-3 min-w-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                <Field label="Authorization endpoint">
-                  <input
-                    value={authEndpoint}
-                    onChange={(event) => setAuthEndpoint(event.target.value)}
-                    placeholder="https://provider.example.com/auth"
-                    aria-label="OAuth authorization endpoint"
-                    autoComplete="off"
-                    inputMode="url"
-                    className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                  />
-                </Field>
-                <Field label="Token endpoint">
-                  <input
-                    value={tokenEndpoint}
-                    onChange={(event) => setTokenEndpoint(event.target.value)}
-                    placeholder="https://provider.example.com/token"
-                    aria-label="OAuth token endpoint"
-                    autoComplete="off"
-                    inputMode="url"
-                    className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                <Field label="Client ID">
-                  <input
-                    value={clientId}
-                    onChange={(event) => setClientId(event.target.value)}
-                    placeholder="oauth-client-id"
-                    aria-label="OAuth login client ID"
-                    autoComplete="off"
-                    className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                  />
-                </Field>
-                <Field label="Client secret" hint="Confidential clients only.">
-                  <input
-                    value={clientSecret}
-                    onChange={(event) => setClientSecret(event.target.value)}
-                    type="password"
-                    placeholder="Optional"
-                    aria-label="OAuth login client secret"
-                    autoComplete="off"
-                    className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                  />
-                </Field>
-              </div>
+              <Field label="Scopes" hint="Space-separated. The provider consent page shows the final list.">
+                <input
+                  value={loginScope}
+                  onChange={(event) => setLoginScope(event.target.value)}
+                  placeholder="read:jira-work write:jira-work"
+                  aria-label="OAuth scopes"
+                  autoComplete="off"
+                  className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
+                />
+              </Field>
               <button
                 onClick={() => void handleLogin()}
-                disabled={!authEndpoint.trim() || !tokenEndpoint.trim() || !clientId.trim() || authorize.isPending}
+                disabled={authorize.isPending}
                 className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
               >
                 {authorize.isPending && <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-                Open provider login
+                Connect with {provider}
               </button>
               <p className="text-[11px] text-muted-foreground">
-                A popup opens the provider login — approving seals the tokens, nothing to paste.
+                A popup opens the provider login — approving seals the tokens and discovers tools, nothing to paste.
               </p>
             </div>
           )}

@@ -182,13 +182,12 @@ describe("mcp provider hooks (backend spec 0058)", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: mcpKeys.all });
   });
 
-  it("registers via DCR with the exact body and returns the one-time client secret", async () => {
+  it("registers via DCR with identifiers only — no secret ever reaches the client", async () => {
     const { wrapper, invalidateSpy } = setup();
     mockedApiClient.mockResolvedValue({
       ...CREDENTIAL_ROW,
       client_id: "cid-1",
       issuer_url: "https://issuer.test",
-      client_secret_once: "once-secret",
     });
     const { result } = renderHook(() => useDcrRegister(), { wrapper });
     let registered: unknown;
@@ -201,9 +200,8 @@ describe("mcp provider hooks (backend spec 0058)", () => {
     expect(mockedApiClient.mock.calls[0][0]).toBe("/integrations/dcr-register");
     const body = JSON.parse((mockedApiClient.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toEqual({ issuer_url: "https://issuer.test", provider: "github" });
-    expect(registered).toEqual(
-      expect.objectContaining({ client_id: "cid-1", client_secret_once: "once-secret" })
-    );
+    expect(registered).toEqual(expect.objectContaining({ client_id: "cid-1" }));
+    expect(registered).not.toEqual(expect.objectContaining({ client_secret_once: expect.anything() }));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: mcpKeys.all });
   });
 
@@ -270,28 +268,17 @@ describe("mcp provider hooks (backend spec 0058)", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["tools"] });
   });
 
-  it("mints an authorize URL with the exact login body", async () => {
+  it("mints an authorize URL with provider + scope only — credentials resolve server-side", async () => {
     const { wrapper } = setup();
     mockedApiClient.mockResolvedValue({ authorization_url: "https://issuer.test/auth?x=1", expires_in: 600 });
     const { result } = renderHook(() => useAuthorizeUrl(), { wrapper });
     let minted: unknown;
     await React.act(async () => {
-      minted = await result.current.mutateAsync({
-        provider: "github",
-        authorization_endpoint: "https://issuer.test/auth",
-        token_endpoint: "https://issuer.test/token",
-        client_id: "cid-1",
-      });
+      minted = await result.current.mutateAsync({ provider: "github", scope: "repo" });
     });
     expect(mockedApiClient.mock.calls[0][0]).toBe("/oauth/authorize-url");
     const body = JSON.parse((mockedApiClient.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toEqual({
-      provider: "github",
-      authorization_endpoint: "https://issuer.test/auth",
-      token_endpoint: "https://issuer.test/token",
-      client_id: "cid-1",
-      scope: "",
-    });
+    expect(body).toEqual({ provider: "github", scope: "repo" });
     expect(minted).toEqual(
       expect.objectContaining({ authorization_url: "https://issuer.test/auth?x=1", expires_in: 600 })
     );

@@ -1,12 +1,14 @@
 import {
   addMemberSchema,
   apiKeySchema,
+  authorizeUrlSchema,
   batchSchema,
   connectTalkoPartnerSchema,
   createApiKeyResponseSchema,
   createBatchSchema,
   createTalkoPartnerSchema,
   createToolSchema,
+  dcrRegisterResponseSchema,
   executionSchema,
   inboundConfigSchema,
   integrationSchema,
@@ -440,5 +442,27 @@ describe("platform-schemas", () => {
     expect(created.key.startsWith("sk_live_")).toBe(true);
     const listed = apiKeySchema.parse({ ...created, last_used_at: null });
     expect("key" in listed).toBe(false);
+  });
+
+  it("accepts a provider-only authorize URL and a secret-free DCR response", () => {
+    // One-click connector: endpoints + client credentials resolve
+    // server-side, so the authorize body is provider + scope only.
+    const login = authorizeUrlSchema.parse({ provider: "github", scope: "repo" });
+    expect(login.scope).toBe("repo");
+    expect(login.client_id).toBeUndefined();
+    // The DCR response carries identifiers only — a backend that
+    // re-adds client_secret_once must not smuggle it through.
+    const registered = dcrRegisterResponseSchema.parse({
+      id: "cred-1",
+      provider: "github",
+      credential_type: "oauth2",
+      key_version: 1,
+      expires_at: null,
+      client_id: "cid-1",
+      issuer_url: "https://issuer.test",
+      client_secret_once: "must-not-surface",
+    });
+    expect("client_secret_once" in registered).toBe(false);
+    expect(registered.client_id).toBe("cid-1");
   });
 });

@@ -54,13 +54,8 @@ export function McpServerBuilder({ onClose }: { onClose: () => void }) {
   const [credentialType, setCredentialType] = useState<AuthChoice>("bearer");
   const [auth, setAuth] = useState<BuilderAuthState>(initialBuilderAuth);
   const [oauthMode, setOauthMode] = useState<OauthMode>("token");
-  const [oauthLogin, setOauthLogin] = useState({
-    authEndpoint: "",
-    tokenEndpoint: "",
-    loginClientId: "",
-    loginClientSecret: "",
-    loginScope: "",
-  });
+  const [loginScope, setLoginScope] = useState("");
+  const [dcrDone, setDcrDone] = useState<string | null>(null);
   const [oauthConnected, setOauthConnected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [secretOnce, setSecretOnce] = useState<string | null>(null);
@@ -100,14 +95,9 @@ export function McpServerBuilder({ onClose }: { onClose: () => void }) {
     if (credentialType === "bearer" || credentialType === "custom")
       return auth.secret.trim().length > 0;
     if (oauthMode === "dcr") return auth.issuerUrl.trim().length > 0;
-    if (oauthMode === "login")
-      return (
-        oauthLogin.authEndpoint.trim().length > 0 &&
-        oauthLogin.tokenEndpoint.trim().length > 0 &&
-        oauthLogin.loginClientId.trim().length > 0
-      );
+    if (oauthMode === "login") return true;
     return auth.secret.trim().length > 0;
-  }, [credentialType, auth, oauthMode, oauthLogin]);
+  }, [credentialType, auth, oauthMode]);
 
   const canNext = step === 0 ? serverValid : step === 1 ? authValid : true;
 
@@ -132,25 +122,34 @@ export function McpServerBuilder({ onClose }: { onClose: () => void }) {
     if (busy || authorize.isPending) return;
     setError(null);
     // The popup opens inside the click handler, before the await, so it is
-    // still user-activated and the browser does not block it.
+    // still user-activated and the browser does not block it. Endpoints +
+    // client credentials resolve server-side from the vault DCR record —
+    // the caller only picks scopes.
     const popup = popupRef.start();
     if (!popup) {
       setError("Popup blocked — allow popups and retry.");
       return;
     }
     try {
-      const result = await authorize.mutateAsync({
-        provider: slug,
-        authorization_endpoint: oauthLogin.authEndpoint.trim(),
-        token_endpoint: oauthLogin.tokenEndpoint.trim(),
-        client_id: oauthLogin.loginClientId.trim(),
-        ...(oauthLogin.loginClientSecret ? { client_secret: oauthLogin.loginClientSecret } : {}),
-        scope: oauthLogin.loginScope.trim(),
-      });
+      const result = await authorize.mutateAsync({ provider: slug, scope: loginScope.trim() });
       popupRef.navigate(result.authorization_url);
     } catch {
       popupRef.close();
-      setError("Could not start the provider login — check the endpoints.");
+      setError("Could not start the provider login — register with DCR first, then retry.");
+    }
+  };
+
+  const registerDcr = async () => {
+    if (busy || dcr.isPending || !auth.issuerUrl.trim()) return;
+    setError(null);
+    try {
+      const record = await dcr.mutateAsync({ issuer_url: auth.issuerUrl.trim(), provider: slug });
+      // The secret seals server-side — nothing to copy. Move to the login
+      // step: only a completed login seals the access token sync needs.
+      setDcrDone(record.client_id);
+      setOauthMode("login");
+    } catch {
+      setError("Registration failed — the issuer may be undiscoverable or manual-only.");
     }
   };
 
@@ -169,14 +168,23 @@ export function McpServerBuilder({ onClose }: { onClose: () => void }) {
         client_config: { base_url: serverUrl.trim() },
       });
       if (credentialType === "oauth2" && oauthMode === "dcr") {
-        const record = await dcr.mutateAsync({ issuer_url: auth.issuerUrl.trim(), provider: slug });
-        if (record.client_secret_once) setSecretOnce(record.client_secret_once);
-      } else if (credentialType === "oauth2" && oauthMode === "login") {
+        // DCR normally runs inline from the Auth step (registerDcr moves to
+        // login on success). Publishing straight from here registers now —
+        // but sync still needs the login afterwards.
+        if (!dcrDone) {
+          const record = await dcr.mutateAsync({ issuer_url: auth.issuerUrl.trim(), provider: slug });
+          setDcrDone(record.client_id);
+        }
+        setOauthMode("login");
+        setError("Registered — complete the provider login, then publish again to discover tools.");
+        return;
+      } else if (credentialType === "oauth2") {
         if (oauthConnected !== slug) {
           setError("Complete the provider login first — open it from step 2.");
           return;
         }
-        // Credential already sealed by the callback — nothing to connect.
+        // Credential already sealed by the callback (auto-sync ran there too,
+        // so the publish sync below is usually a cheap no-op refresh).
       } else if (credentialType !== "none") {
         const result = await connect.mutateAsync({
           provider: slug,
@@ -324,82 +332,54 @@ export function McpServerBuilder({ onClose }: { onClose: () => void }) {
                   />
                 </Field>
               ) : oauthMode === "dcr" ? (
-                <Field label="Issuer URL" hint="Registers an OAuth client at the issuer and seals the issued secret.">
-                  <input
-                    value={auth.issuerUrl}
-                    onChange={(event) => setAuthField("issuerUrl", event.target.value)}
-                    placeholder="https://issuer.example.com"
-                    aria-label="OAuth issuer URL"
-                    autoComplete="off"
-                    inputMode="url"
-                    className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                  />
-                </Field>
+                <div className="space-y-3 min-w-0">
+                  <Field
+                    label="Issuer URL"
+                    hint="Bare issuer host, no /mcp or /api path — e.g. https://mcp.apollo.io. Registers an OAuth client; the secret seals server-side."
+                  >
+                    <input
+                      value={auth.issuerUrl}
+                      onChange={(event) => setAuthField("issuerUrl", event.target.value)}
+                      placeholder="https://issuer.example.com"
+                      aria-label="OAuth issuer URL"
+                      autoComplete="off"
+                      inputMode="url"
+                      className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
+                    />
+                  </Field>
+                  <button
+                    onClick={() => void registerDcr()}
+                    disabled={!auth.issuerUrl.trim() || dcr.isPending || busy}
+                    className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
+                  >
+                    {dcr.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                    ) : (
+                      <Check className="w-4 h-4" aria-hidden="true" />
+                    )}
+                    {dcrDone ? `Registered as ${dcrDone} — continue to login` : "Register client"}
+                  </button>
+                  {dcrDone && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Registered — the secret sealed server-side, nothing to copy. Next: log in below.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-3 min-w-0">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                    <Field label="Authorization endpoint">
-                      <input
-                        value={oauthLogin.authEndpoint}
-                        onChange={(event) =>
-                          setOauthLogin((current) => ({ ...current, authEndpoint: event.target.value }))
-                        }
-                        placeholder="https://provider.example.com/auth"
-                        aria-label="OAuth authorization endpoint"
-                        autoComplete="off"
-                        inputMode="url"
-                        className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                      />
-                    </Field>
-                    <Field label="Token endpoint">
-                      <input
-                        value={oauthLogin.tokenEndpoint}
-                        onChange={(event) =>
-                          setOauthLogin((current) => ({ ...current, tokenEndpoint: event.target.value }))
-                        }
-                        placeholder="https://provider.example.com/token"
-                        aria-label="OAuth token endpoint"
-                        autoComplete="off"
-                        inputMode="url"
-                        className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                      />
-                    </Field>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                    <Field label="Client ID">
-                      <input
-                        value={oauthLogin.loginClientId}
-                        onChange={(event) =>
-                          setOauthLogin((current) => ({ ...current, loginClientId: event.target.value }))
-                        }
-                        placeholder="oauth-client-id"
-                        aria-label="OAuth login client ID"
-                        autoComplete="off"
-                        className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                      />
-                    </Field>
-                    <Field label="Client secret" hint="Confidential clients only.">
-                      <input
-                        value={oauthLogin.loginClientSecret}
-                        onChange={(event) =>
-                          setOauthLogin((current) => ({ ...current, loginClientSecret: event.target.value }))
-                        }
-                        type="password"
-                        placeholder="Optional"
-                        aria-label="OAuth login client secret"
-                        autoComplete="off"
-                        className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
-                      />
-                    </Field>
-                  </div>
+                  <Field label="Scopes" hint="Space-separated. The provider consent page shows the final list.">
+                    <input
+                      value={loginScope}
+                      onChange={(event) => setLoginScope(event.target.value)}
+                      placeholder="read:jira-work write:jira-work"
+                      aria-label="OAuth scopes"
+                      autoComplete="off"
+                      className={cn(fieldStyles.fieldSm, "font-mono text-xs min-w-0")}
+                    />
+                  </Field>
                   <button
                     onClick={() => void openLogin()}
-                    disabled={
-                      !oauthLogin.authEndpoint.trim() ||
-                      !oauthLogin.tokenEndpoint.trim() ||
-                      !oauthLogin.loginClientId.trim() ||
-                      authorize.isPending
-                    }
+                    disabled={authorize.isPending || busy}
                     className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/50 motion-reduce:transition-none"
                   >
                     {authorize.isPending ? (
@@ -409,10 +389,10 @@ export function McpServerBuilder({ onClose }: { onClose: () => void }) {
                     )}
                     {oauthConnected === slug && slug
                       ? `Logged in as ${slug} — reconnect to rotate`
-                      : "Open provider login"}
+                      : `Connect with ${slug || "provider"}`}
                   </button>
                   <p className="text-[11px] text-muted-foreground">
-                    A popup opens the provider login — approving seals the tokens, nothing to paste.
+                    A popup opens the provider login — approving seals the tokens and discovers tools, nothing to paste.
                   </p>
                 </div>
               )}
