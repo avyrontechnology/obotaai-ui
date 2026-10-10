@@ -164,4 +164,17 @@ describe("useOAuthPopup", () => {
     postMessage(CONNECTED, CALLBACK_ORIGIN, null);
     expect(onConnected).not.toHaveBeenCalled();
   });
+
+  it("resolves the callback origin lazily, not at module load", () => {
+    // Regression: the origin was resolved at module scope, where an empty
+    // API_BASE_URL made `new URL("")` throw and took the /integrations static
+    // export down with it. `npm run build` is the real guard — it is what
+    // catches this, since jest always has a public env set. Here we only pin
+    // that start() still arms and opens with a real origin configured.
+    const { result } = setup();
+    act(() => {
+      expect(result.current.start()).not.toBeNull();
+    });
+    expect(popup).toBeDefined();
+  });
 });

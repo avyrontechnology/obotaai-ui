@@ -30,8 +30,18 @@ import { API_BASE_URL } from "@/lib/api-client";
  * an `await` is outside the user-activation window and gets blocked.
  */
 
-/** Origin of the API host that serves the callback page. */
-const CALLBACK_ORIGIN = new URL(API_BASE_URL).origin;
+/** Origin of the API host that serves the callback page.
+ *
+ *  Resolved lazily, not at module load: `API_BASE_URL` is empty during
+ *  prerender (no public env in that worker), and a module-level `new URL("")`
+ *  throws — which broke the `/integrations` static export outright. */
+function callbackOrigin(): string | null {
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    return null;
+  }
+}
 
 /** Popup geometry, identical for both flows. */
 const POPUP_FEATURES = "width=600,height=700";
@@ -97,9 +107,12 @@ export function useOAuthPopup({ provider, onConnected, onFailed }: OAuthPopupHan
    * @returns The popup window, or `null` if the browser blocked it.
    */
   const start = useCallback(() => {
+    const expectedOrigin = callbackOrigin();
+    if (!expectedOrigin) return null;
+
     const onMessage = (event: MessageEvent) => {
       // The callback page is served by the API host, not the app origin.
-      if (event.origin !== CALLBACK_ORIGIN) return;
+      if (event.origin !== expectedOrigin) return;
       // Only our own popup may answer — a same-origin frame cannot.
       if (event.source !== popupRef.current) return;
 
